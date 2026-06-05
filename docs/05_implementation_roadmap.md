@@ -88,17 +88,21 @@ Purpose: test source discovery on a small but representative set.
 
 Recommended pilot:
 
-- 20 public institutions;
-- include clean cases, messy cases, missing URLs, multiple policy changes, and ambiguous thresholds;
+- begin with a strict 5-institution public pilot to validate evidence rules before expanding;
+- expand toward 20 public institutions after the strict protocol is stable;
+- include clean cases, messy cases, missing URLs, duplicate/conflicting legacy evidence, multiple policy changes, and ambiguous thresholds;
 - cover all years 2000-2020.
 
 Tasks:
 
 - use legacy URLs first;
+- use public workbook legacy rows for the public pilot; ignore private workbook example/training rows;
 - search institution archive pages;
 - query Internet Archive where needed;
 - use AI-assisted discovery for hard cases;
-- verify all candidate sources by code.
+- verify all candidate sources by code;
+- record academic years by start year. For example, a `2013-2014` catalog is AY 2013, and a `2004-2006` catalog covers AY 2004 and AY 2005;
+- require explicit catalog-year evidence from source title/heading, source metadata, or extracted text. URL or filename year patterns are review leads, not accepted coverage by themselves.
 
 Deliverables:
 
@@ -107,6 +111,11 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_retrieval_attempts_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_retrieval_coverage_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_year_coverage_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_pilot_institutions_strict.csv`;
+- `data_policy_pipeline/interim/catalog_inventory_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_retrieval_attempts_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_retrieval_coverage_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
 
@@ -114,6 +123,7 @@ Initial implementation note:
 
 - pilot selection and inventory scaffolding should be deterministic;
 - optional API smoke testing may be run to confirm OpenAI access, but the smoke test should not create catalog evidence;
+- PDF catalog years must be confirmed from extracted PDF text or metadata when possible. If extraction is unavailable or inconclusive, filename-only evidence is retained for review but not counted as strict coverage;
 - AI-assisted discovery remains a later, explicitly logged candidate-generation step after deterministic discovery has been attempted.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
