@@ -22,6 +22,16 @@ Current handling: Phase 3 now separates source-root planning, first-pass stop ru
 
 Follow-up: Before expanding the pilot, use `docs/08_phase3_discovery_protocol.md`, `catalog_source_root_plan_strict_pilot.csv`, and `catalog_first_pass_escalation_queue_strict_pilot.csv` to decide which buckets should be handled next.
 
+## Reverse-Engineering Current Results
+
+Issue: The current strict-pilot data files were produced through iterative troubleshooting, not a fully pre-specified protocol.
+
+Why it matters: We should not discard useful results, but we also should not hide how they were produced.
+
+Current handling: The current process is now traced explicitly in `catalog_current_process_source_trace_strict_pilot.csv` and `catalog_current_process_year_trace_strict_pilot.csv`. These files label the actual process roles, such as `legacy_prior_confirmed`, `preferred_root_archive_fill`, `fallback_official_gap_fill`, `ocr_or_visual_review`, and `archive_bound_stop`.
+
+Follow-up: Use the trace outputs to decide which ad hoc steps should become standard procedure and which should remain fallback or review-only behavior.
+
 ## UNC Charlotte Source Hierarchy
 
 Issue: UNC Charlotte was initially handled with a mix of legacy PDF links and Provost archive pages. This created confusing archive-bound labels because AY 2001-2002 came from legacy evidence, while AY 2003-2011 came from Provost nodes.

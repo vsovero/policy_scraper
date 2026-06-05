@@ -25,6 +25,8 @@ PANEL_RETRIEVAL_COVERAGE_INPUT = INTERIM_DIR / "catalog_panel_retrieval_coverage
 PANEL_RETRIEVED_YEAR_COVERAGE_INPUT = INTERIM_DIR / "catalog_panel_year_coverage_retrieved_strict_pilot.csv"
 SOURCE_ROOT_PLAN_INPUT = INTERIM_DIR / "catalog_source_root_plan_strict_pilot.csv"
 ESCALATION_QUEUE_INPUT = INTERIM_DIR / "catalog_first_pass_escalation_queue_strict_pilot.csv"
+CURRENT_SOURCE_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_source_trace_strict_pilot.csv"
+CURRENT_YEAR_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_year_trace_strict_pilot.csv"
 
 STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
 
@@ -220,6 +222,44 @@ ESCALATION_QUEUE_COLUMNS = [
     "created_at",
 ]
 
+CURRENT_SOURCE_TRACE_COLUMNS = [
+    "source_id",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "candidate_url",
+    "source_retrieved",
+    "strict_covers_target_year",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_type",
+    "best_attempt_method",
+    "source_status",
+    "actual_process_role",
+    "source_trace_origin",
+    "review_reason",
+    "local_source_path",
+    "created_at",
+]
+
+CURRENT_YEAR_TRACE_COLUMNS = [
+    "strict_pilot_rank",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "has_strict_catalog_source",
+    "source_id",
+    "candidate_status",
+    "candidate_source_id",
+    "candidate_title",
+    "candidate_url",
+    "actual_process_role",
+    "reverse_engineered_step",
+    "review_reason",
+    "candidate_review_reason",
+    "created_at",
+]
+
 
 def read_optional_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -230,6 +270,8 @@ def read_optional_csv(path: Path) -> pd.DataFrame:
 def read_strict_outputs(
     repo_root: Path,
 ) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
@@ -250,6 +292,8 @@ def read_strict_outputs(
         read_optional_csv(repo_root / PANEL_RETRIEVED_YEAR_COVERAGE_INPUT),
         read_optional_csv(repo_root / SOURCE_ROOT_PLAN_INPUT),
         read_optional_csv(repo_root / ESCALATION_QUEUE_INPUT),
+        read_optional_csv(repo_root / CURRENT_SOURCE_TRACE_INPUT),
+        read_optional_csv(repo_root / CURRENT_YEAR_TRACE_INPUT),
     )
 
 
@@ -321,6 +365,8 @@ def write_review_workbook(
     panel_retrieved_year_coverage: pd.DataFrame,
     source_root_plan: pd.DataFrame,
     escalation_queue: pd.DataFrame,
+    current_source_trace: pd.DataFrame,
+    current_year_trace: pd.DataFrame,
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -358,6 +404,14 @@ def write_review_workbook(
             select_columns(escalation_queue, ESCALATION_QUEUE_COLUMNS).to_excel(
                 writer, sheet_name="escalation_queue", index=False
             )
+        if not current_source_trace.empty:
+            select_columns(current_source_trace, CURRENT_SOURCE_TRACE_COLUMNS).to_excel(
+                writer, sheet_name="current_source_trace", index=False
+            )
+        if not current_year_trace.empty:
+            select_columns(current_year_trace, CURRENT_YEAR_TRACE_COLUMNS).to_excel(
+                writer, sheet_name="current_year_trace", index=False
+            )
         inventory.to_excel(writer, sheet_name="inventory_provenance", index=False)
         format_workbook(writer.book)
 
@@ -390,6 +444,8 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         panel_retrieved_year_coverage,
         source_root_plan,
         escalation_queue,
+        current_source_trace,
+        current_year_trace,
     ) = read_strict_outputs(repo_root)
     output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
     write_review_workbook(
@@ -402,6 +458,8 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         panel_retrieved_year_coverage,
         source_root_plan,
         escalation_queue,
+        current_source_trace,
+        current_year_trace,
         output_path,
     )
     return output_path

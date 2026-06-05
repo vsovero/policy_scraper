@@ -52,6 +52,34 @@ Use this checklist for each institution in the next pilot batch.
 
    The first pass is complete when every institution-year is either strict-covered or assigned a defensible status. Do not chase every gap before moving to the next institution.
 
+## Reverse-Engineered Current Process
+
+The current strict-pilot outputs were created while the protocol was still being developed. They should be understood as a reverse-engineered workflow rather than a clean single-root first pass.
+
+The current process is:
+
+1. Start with legacy links as prior evidence.
+2. Retrieve and count legacy links only when strict catalog-year evidence is confirmed.
+3. Identify archive or repository roots to fill uncovered years.
+4. Retrieve easy archive/repository candidates.
+5. Preserve mixed-root roles rather than hiding them:
+   - `legacy_prior_confirmed`;
+   - `preferred_root_archive_fill`;
+   - `preferred_root_repository_fill`;
+   - `fallback_official_gap_fill`;
+   - `ocr_or_visual_review`;
+   - `wrong_scope_or_fresh_discovery`;
+   - `archive_bound_stop`.
+6. Route unresolved cases by escalation bucket.
+
+This reverse-engineered process is recorded in:
+
+- `data_policy_pipeline/interim/catalog_current_process_source_trace_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_current_process_year_trace_strict_pilot.csv`;
+- `data_policy_pipeline/logs/phase3_current_process_trace_summary.md`.
+
+These outputs explain how the current strict-pilot files were produced. They should be used to audit the current results and to decide which parts of the workflow should be generalized for the next pilot batch.
+
 ## Source-Root Strategy
 
 For each institution, first identify one preferred source root whenever possible. A source root is the collection or archive from which catalog candidates are discovered, such as:
