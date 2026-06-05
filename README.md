@@ -21,6 +21,7 @@ Existing raw workbooks and Stata/R analysis files should remain untouched unless
 - [Data Schema](docs/03_data_schema.md): planned tables and fields.
 - [AI Workflow](docs/04_ai_workflow.md): where AI calls enter the workflow and how they should be logged.
 - [Implementation Roadmap](docs/05_implementation_roadmap.md): staged build plan from audit to full-scale run.
+- [API Setup](docs/06_api_setup.md): local API configuration, dry-run/live modes, and secret handling.
 
 ## Current Status
 

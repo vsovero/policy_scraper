@@ -1,0 +1,24 @@
+# Copy to config/openai.local.toml before enabling live API calls.
+# config/openai.local.toml is intentionally ignored by git.
+
+[openai]
+api_key_env = "OPENAI_API_KEY"
+model = "SET_MODEL_IN_LOCAL_CONFIG"
+timeout_seconds = 60
+max_retries = 2
+
+[workflow]
+# off: do not prepare AI calls
+# dry_run: build prompts/log payloads but do not call the API
+# live: call the API only after config validation passes
+mode = "dry_run"
+max_requests_per_run = 0
+monthly_budget_usd = 0.0
+log_dir = "../data_policy_pipeline/logs/ai"
+raw_response_dir = "../data_policy_pipeline/logs/ai/raw_responses"
+parsed_response_dir = "../data_policy_pipeline/logs/ai/parsed_responses"
+
+[prompts]
+discovery_prompt_version = "catalog_discovery_v0"
+classification_prompt_version = "policy_classification_v0"
+schema_version = "course_policy_ai_v0"
