@@ -101,6 +101,7 @@ Tasks:
 - query Internet Archive where needed;
 - use AI-assisted discovery for hard cases;
 - verify all candidate sources by code;
+- reject or route school-specific handbook leads to review unless a documented exception says the institution-wide undergraduate catalog is unavailable;
 - record academic years by start year. For example, a `2013-2014` catalog is AY 2013, and a `2004-2006` catalog covers AY 2004 and AY 2005;
 - require explicit catalog-year evidence from source title/heading, source metadata, or extracted text. URL or filename year patterns are review leads, not accepted coverage by themselves.
 

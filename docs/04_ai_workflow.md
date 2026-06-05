@@ -29,6 +29,8 @@ The discovery prompt should include:
 - snippets from search results or archive pages;
 - prior successful URL patterns for that institution, if any.
 
+The prompt should explicitly define the required source scope: prioritize institution-wide undergraduate catalogs or bulletins. School-, college-, department-, program-, graduate/professional-school, or handbook-specific pages should be marked as wrong-scope review leads unless the prompt gives a documented exception.
+
 ### Output
 
 The AI response should be structured JSON:
@@ -57,6 +59,7 @@ AI-discovered sources must be verified by code:
 
 - URL can be fetched or archived version exists;
 - source appears institution-official;
+- source is institution-wide undergraduate catalog/bulletin scope, or is explicitly flagged as a reviewed exception;
 - source year coverage is plausible;
 - text can be extracted or source can be routed to review.
 
@@ -188,4 +191,3 @@ Each prompt should have:
 - notes on known failure modes.
 
 Do not silently change prompts during a full-scale run. If a prompt changes, rerun affected records or record the prompt version difference.
-

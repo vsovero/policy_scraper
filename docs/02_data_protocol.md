@@ -27,6 +27,14 @@ Preferred source order:
 
 Do not use unaffiliated summaries as final evidence unless no official source exists and the case is explicitly flagged for review.
 
+The target source scope is the institution-wide undergraduate catalog/bulletin. School-, college-, department-, program-, or handbook-specific pages are not acceptable catalog leads by default, even if they are institution-hosted. They may be retained only as rejected or review-only leads when:
+
+- the institution-wide undergraduate catalog cannot be found;
+- the institution appears to publish undergraduate policies only through school-level catalogs;
+- or a human reviewer explicitly approves a documented exception.
+
+Examples of wrong-scope leads include nursing school handbooks, medical school handbooks, graduate school catalogs, program handbooks, departmental policy pages, and professional-school catalogs when the target is an institution-wide undergraduate repetition policy.
+
 ## Legacy Workbook Evidence
 
 Legacy public and private workbook rows are historical evidence and discovery aids, not final source-backed classifications by themselves.
