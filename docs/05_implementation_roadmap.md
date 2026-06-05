@@ -150,7 +150,7 @@ Current strict-pilot panel expansion note:
 - `docs/08_phase3_discovery_protocol.md` defines the general source-root strategy, stop rules, escalation buckets, and scale-up gate;
 - the replication checklist in `docs/08_phase3_discovery_protocol.md` is the operating procedure for the next pilot batch;
 - `catalog_source_root_plan_strict_pilot.csv` records preferred/fallback/rejected source roots for the strict pilot;
-- `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and wrong-scope/fresh discovery;
+- `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and catalog dead ends;
 - `catalog_current_process_source_trace_strict_pilot.csv` and `catalog_current_process_year_trace_strict_pilot.csv` reverse engineer the actual mixed-root process that produced the current strict-pilot results;
 - `catalog_ocr_visual_confirmation_strict_pilot.csv` records rendered-page/API visual OCR attempts for scanned PDF candidates, currently tested on ABAC;
 - `catalog_fresh_discovery_ohsu_strict_pilot.csv` records the controlled OHSU fresh-discovery pass, including an OHSU-wide University Grading policy lead with repeated/remediated course language that is deferred while Phase 3 stays catalog-first;
@@ -158,7 +158,7 @@ Current strict-pilot panel expansion note:
 - `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
 - `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;
 - `catalog_panel_year_coverage_retrieved_strict_pilot.csv` records the combined strict year coverage after adding ready-candidate retrieval results to the original strict pilot evidence;
-- Oregon Health & Science University remains a catalog fresh-discovery case: the legacy School of Nursing lead is wrong-scope by default, and the OHSU-wide University Grading policy is preserved only as a deferred extraction lead.
+- Oregon Health & Science University is marked as a catalog dead end for this pilot: the catalog leads found are school-specific rather than university-wide, and the OHSU-wide University Grading policy is preserved only as a deferred extraction lead.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 

@@ -81,15 +81,15 @@ Issue: Some leads point to school-specific or program-specific pages rather than
 
 Why it matters: These sources can be wrong-scope for institutional policy coding. OHSU's School of Nursing lead is the current example.
 
-Current handling: Wrong-scope school-specific leads are routed to fresh discovery unless a documented exception says no institution-wide undergraduate source is available.
+Current handling: Wrong-scope school-specific leads are routed to fresh discovery. If fresh discovery still finds only school-specific catalog leads and no usable university-wide catalog root, the institution is marked as a catalog dead end for the pilot.
 
-Follow-up: Create a clear exception protocol for institutions with unusual structures, especially health science institutions.
+Follow-up: Preserve any non-catalog policy leads separately, but do not keep spending Phase 3 catalog-discovery effort on dead-end cases.
 
 ## Catalog Sources Versus Academic Policy Sources
 
 Issue: Course repetition policy is sometimes published in official institution-wide academic policy pages or policy manuals rather than in catalogs.
 
-Why it matters: If the policy rule is available directly from an official institution-wide policy source, requiring a catalog can waste effort and may push the workflow toward weaker school-specific sources. OHSU is the current example: the School of Nursing catalog is wrong-scope by default, but the OHSU-wide University Grading policy contains repeated/remediated course language.
+Why it matters: If the policy rule is available directly from an official institution-wide policy source, it may help later extraction, but using a current policy page for AY 2000-2020 would require historical dating work. OHSU is the current example: the catalog path dead-ended in school-specific sources, while the OHSU-wide University Grading policy contains repeated/remediated course language that is not dated for the full panel.
 
 Current handling: Phase 3 now records `deferred_policy_lead` separately from catalog roots. A current policy root can be useful later, but it is not used for Phase 3 catalog coverage.
 

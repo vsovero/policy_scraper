@@ -205,12 +205,12 @@ def build_source_root_plan(institutions: pd.DataFrame) -> pd.DataFrame:
             "",
             "school_specific_lead",
             "school_specific_or_program_specific",
-            "wrong_scope_exception_review",
+            "catalog_dead_end_wrong_scope",
             "",
             "",
             "scope_review",
             2,
-            "School-specific catalog/handbook lead remains wrong-scope by default, but may become exception evidence if OHSU does not publish institution-wide catalogs.",
+            "Dead end for Phase 3 catalog-first discovery: available catalog leads are school-specific rather than university-wide.",
         ),
     ]
     return pd.DataFrame(rows, columns=SOURCE_ROOT_COLUMNS).sort_values(
@@ -222,7 +222,7 @@ def build_escalation_queue(source_root_plan: pd.DataFrame) -> pd.DataFrame:
     escalation_map = {
         "route_to_ocr_or_visual_review": "ocr_or_visual_review",
         "review_as_preferred_root_before_next_retrieval": "source_root_review",
-        "wrong_scope_exception_review": "wrong_scope_exception_review",
+        "catalog_dead_end_wrong_scope": "catalog_dead_end",
     }
     rows = []
     for _, row in source_root_plan.iterrows():
@@ -249,7 +249,7 @@ def recommended_next_step(bucket: str) -> str:
     steps = {
         "ocr_or_visual_review": "Test OCR or rendered-page catalog-year confirmation before counting strict coverage.",
         "source_root_review": "Decide whether this root replaces mixed legacy/official roots for first-pass discovery.",
-        "wrong_scope_exception_review": "Decide whether school-specific catalog/handbook sources are acceptable fallback evidence.",
+        "catalog_dead_end": "Stop catalog-first discovery for this institution in the pilot and preserve deferred non-catalog leads separately.",
     }
     return steps[bucket]
 

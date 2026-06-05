@@ -10,13 +10,14 @@ def test_overall_status_defers_policy_lead_for_catalog_first_phase():
                 "acceptable_first_pass_catalog_root": False,
                 "acceptable_policy_evidence_root": False,
                 "deferred_policy_lead": True,
-                "needs_exception_review": True,
+                "catalog_dead_end": True,
+                "needs_exception_review": False,
                 "first_pass_decision": "defer_policy_lead_catalog_first",
             }
         ]
     )
 
-    assert overall_fresh_discovery_status(discovery) == "catalog_root_not_found_policy_lead_deferred"
+    assert overall_fresh_discovery_status(discovery) == "catalog_dead_end_policy_lead_deferred"
 
 
 def test_repeated_course_excerpt_extracts_near_repeat_terms():

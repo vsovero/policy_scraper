@@ -121,6 +121,7 @@ Stop first-pass discovery for an institution-year when one of these statuses app
 - `official_archive_lower_bound_reached`: preferred source root starts after the target year.
 - `official_archive_upper_bound_reached`: preferred source root ends before the target year.
 - `wrong_scope_lead_rejected`: available lead is school-, program-, or handbook-specific and no exception has been approved.
+- `catalog_dead_end_wrong_scope`: fresh discovery found only wrong-scope catalog leads, so catalog-first discovery stops for the institution in this pilot.
 - `policy_lead_deferred`: current official policy source found, but deferred because using it for AY 2000-2020 would require revision-history or Wayback work outside the catalog-first pass.
 - `fresh_discovery_needed`: no acceptable catalog root has been found in the easy first pass.
 - `fallback_deferred`: a deeper fallback is plausible but intentionally deferred.
@@ -135,6 +136,7 @@ After first pass, unresolved institution-years should be routed by bucket:
 - `source_root_review`: multiple plausible roots exist and a coherent hierarchy must be chosen.
 - `archive_bound_revisit`: source root has a lower or upper bound; deeper search may be revisited later.
 - `wrong_scope_exception_review`: institution structure may require a documented exception to institution-wide source rules.
+- `catalog_dead_end`: catalog-first discovery found no usable university-wide catalog root; preserve provenance and move on in the pilot.
 - `api_assisted_discovery`: deterministic source-root discovery failed and AI/search assistance is warranted.
 - `manual_review`: source or policy evidence is too ambiguous for automated handling.
 
@@ -194,7 +196,7 @@ Rule: Choose a preferred first-pass root before expanding further. DigitalNC app
 
 Reusable lesson: School-specific catalog leads can look plausible but be wrong-scope, while official policy pages can create an immediate historical-dating detour.
 
-Rule: Reject school-specific sources by default unless an exception is documented. Preserve institution-wide policy pages as deferred extraction leads, but keep Phase 3 focused on catalog roots.
+Rule: If fresh discovery finds only school-specific catalogs and no usable university-wide catalog root, mark the institution as a catalog dead end for this pilot. Preserve institution-wide policy pages as deferred extraction leads, but do not keep spending Phase 3 effort on the institution.
 
 ## Required First-Pass Outputs
 

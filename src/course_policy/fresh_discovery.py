@@ -67,8 +67,8 @@ OHSU_SEED_ROOTS = [
         "fresh_discovery_method": "official_site_search",
         "root_scope": "school_specific_undergraduate_catalog",
         "source_root_type": "school_catalog_pdf",
-        "first_pass_decision": "wrong_scope_exception_review",
-        "recommended_next_step": "Review whether school-specific undergraduate catalogs are acceptable for OHSU because the university appears to organize student handbooks by school/program.",
+        "first_pass_decision": "catalog_dead_end_wrong_scope",
+        "recommended_next_step": "Stop Phase 3 catalog-first discovery for OHSU. The catalog leads found are school-specific, not university-wide.",
     },
     {
         "source_root_name": "OHSU Undergraduate Transfer Procedure",
@@ -192,7 +192,8 @@ def build_fresh_discovery_table(
                 "local_policy_pdf_path": local_policy_pdf_path,
                 "policy_evidence_excerpt": policy_evidence_excerpt,
                 "acceptable_first_pass_catalog_root": seed["first_pass_decision"] == "use_for_first_pass",
-                "needs_exception_review": seed["first_pass_decision"] == "wrong_scope_exception_review",
+                "catalog_dead_end": seed["first_pass_decision"] == "catalog_dead_end_wrong_scope",
+                "needs_exception_review": False,
                 "created_at": utc_now(),
             }
         )
@@ -203,7 +204,11 @@ def overall_fresh_discovery_status(discovery: pd.DataFrame) -> str:
     if discovery["acceptable_first_pass_catalog_root"].any():
         return "acceptable_catalog_root_found"
     if "deferred_policy_lead" in discovery and discovery["deferred_policy_lead"].any():
+        if "catalog_dead_end" in discovery and discovery["catalog_dead_end"].any():
+            return "catalog_dead_end_policy_lead_deferred"
         return "catalog_root_not_found_policy_lead_deferred"
+    if "catalog_dead_end" in discovery and discovery["catalog_dead_end"].any():
+        return "catalog_dead_end"
     if discovery["needs_exception_review"].any():
         return "exception_review_needed"
     if discovery["first_pass_decision"].str.contains("policy", case=False, na=False).any():
@@ -223,6 +228,7 @@ def write_summary(path: Path, discovery: pd.DataFrame) -> None:
         f"- Overall status: {status}",
         f"- Candidate roots reviewed: {len(discovery)}",
         f"- Acceptable first-pass catalog roots: {int(discovery['acceptable_first_pass_catalog_root'].sum())}",
+        f"- Catalog dead-end leads: {int(discovery.get('catalog_dead_end', pd.Series(dtype=bool)).sum())}",
         f"- Deferred policy leads: {int(discovery.get('deferred_policy_lead', pd.Series(dtype=bool)).sum())}",
         f"- Roots needing exception review: {int(discovery['needs_exception_review'].sum())}",
         "",
