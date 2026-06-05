@@ -27,6 +27,7 @@ SOURCE_ROOT_PLAN_INPUT = INTERIM_DIR / "catalog_source_root_plan_strict_pilot.cs
 ESCALATION_QUEUE_INPUT = INTERIM_DIR / "catalog_first_pass_escalation_queue_strict_pilot.csv"
 CURRENT_SOURCE_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_source_trace_strict_pilot.csv"
 CURRENT_YEAR_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_year_trace_strict_pilot.csv"
+OCR_VISUAL_CONFIRMATION_INPUT = INTERIM_DIR / "catalog_ocr_visual_confirmation_strict_pilot.csv"
 
 STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
 
@@ -260,6 +261,30 @@ CURRENT_YEAR_TRACE_COLUMNS = [
     "created_at",
 ]
 
+OCR_VISUAL_COLUMNS = [
+    "source_id",
+    "unitid",
+    "institution_name",
+    "source_title",
+    "catalog_year_start",
+    "catalog_year_end",
+    "candidate_url",
+    "retrieval_status",
+    "pdf_recovery_method",
+    "pdf_attempt_url",
+    "render_status",
+    "confirmation_status",
+    "confirmed_catalog_year",
+    "visual_evidence_text",
+    "visual_confidence",
+    "visual_notes",
+    "local_pdf_path",
+    "page_image_path",
+    "api_call_id",
+    "parsed_response_path",
+    "created_at",
+]
+
 
 def read_optional_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -270,6 +295,7 @@ def read_optional_csv(path: Path) -> pd.DataFrame:
 def read_strict_outputs(
     repo_root: Path,
 ) -> tuple[
+    pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
@@ -294,6 +320,7 @@ def read_strict_outputs(
         read_optional_csv(repo_root / ESCALATION_QUEUE_INPUT),
         read_optional_csv(repo_root / CURRENT_SOURCE_TRACE_INPUT),
         read_optional_csv(repo_root / CURRENT_YEAR_TRACE_INPUT),
+        read_optional_csv(repo_root / OCR_VISUAL_CONFIRMATION_INPUT),
     )
 
 
@@ -367,6 +394,7 @@ def write_review_workbook(
     escalation_queue: pd.DataFrame,
     current_source_trace: pd.DataFrame,
     current_year_trace: pd.DataFrame,
+    ocr_visual_confirmation: pd.DataFrame,
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -412,6 +440,10 @@ def write_review_workbook(
             select_columns(current_year_trace, CURRENT_YEAR_TRACE_COLUMNS).to_excel(
                 writer, sheet_name="current_year_trace", index=False
             )
+        if not ocr_visual_confirmation.empty:
+            select_columns(ocr_visual_confirmation, OCR_VISUAL_COLUMNS).to_excel(
+                writer, sheet_name="ocr_visual_abac", index=False
+            )
         inventory.to_excel(writer, sheet_name="inventory_provenance", index=False)
         format_workbook(writer.book)
 
@@ -446,6 +478,7 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         escalation_queue,
         current_source_trace,
         current_year_trace,
+        ocr_visual_confirmation,
     ) = read_strict_outputs(repo_root)
     output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
     write_review_workbook(
@@ -460,6 +493,7 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         escalation_queue,
         current_source_trace,
         current_year_trace,
+        ocr_visual_confirmation,
         output_path,
     )
     return output_path

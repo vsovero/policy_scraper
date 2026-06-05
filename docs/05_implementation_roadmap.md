@@ -126,6 +126,7 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_first_pass_escalation_queue_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_current_process_source_trace_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_current_process_year_trace_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_ocr_visual_confirmation_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_ready_inventory_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
@@ -149,6 +150,7 @@ Current strict-pilot panel expansion note:
 - `catalog_source_root_plan_strict_pilot.csv` records preferred/fallback/rejected source roots for the strict pilot;
 - `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and wrong-scope/fresh discovery;
 - `catalog_current_process_source_trace_strict_pilot.csv` and `catalog_current_process_year_trace_strict_pilot.csv` reverse engineer the actual mixed-root process that produced the current strict-pilot results;
+- `catalog_ocr_visual_confirmation_strict_pilot.csv` records rendered-page/API visual OCR attempts for scanned PDF candidates, currently tested on ABAC;
 - `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;
 - `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
 - `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;

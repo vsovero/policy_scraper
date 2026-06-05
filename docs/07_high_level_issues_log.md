@@ -93,7 +93,9 @@ Why it matters: Without text extraction, catalog-year and policy-excerpt verific
 
 Current handling: ABAC candidates are marked `scanned_pdf_needs_ocr_or_visual_review` and are not counted as strict coverage yet.
 
-Follow-up: Build an OCR or rendered-page visual review workflow for scanned PDFs, preserving the confirmation method in provenance.
+Current OCR pilot finding: The ABAC OCR/visual workflow can retrieve newer Wayback snapshots and render first-page images for some PDFs. The 2000-2002 catalog was strictly confirmed from visible first-page text. The 2002-2004 catalog rendered but did not show the full visible year range on page 1, so it remains unconfirmed. The 2004-2006 candidate hit a malformed snapshot/render failure.
+
+Follow-up: Expand the OCR workflow cautiously by trying additional pages and additional Wayback snapshots before counting scanned PDFs as strict coverage. Preserve the confirmation method in provenance.
 
 ## Legacy Evidence As Prior Evidence
 
