@@ -116,6 +116,7 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_retrieval_attempts_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_retrieval_coverage_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
+- `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
 

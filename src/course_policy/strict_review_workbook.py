@@ -1,0 +1,237 @@
+"""Create a focused review workbook for the strict Phase 3 catalog pilot."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+import pandas as pd
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+from .ai_config import repo_root_from_cwd
+
+
+DATA_DIR = Path("../data_policy_pipeline")
+INTERIM_DIR = DATA_DIR / "interim"
+REVIEW_DIR = DATA_DIR / "review"
+
+STRICT_YEAR_COVERAGE_INPUT = INTERIM_DIR / "catalog_year_coverage_strict_pilot.csv"
+STRICT_RETRIEVAL_COVERAGE_INPUT = INTERIM_DIR / "catalog_retrieval_coverage_strict_pilot.csv"
+STRICT_INVENTORY_INPUT = INTERIM_DIR / "catalog_inventory_strict_pilot.csv"
+
+STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
+
+SUMMARY_COLUMNS = [
+    "strict_pilot_rank",
+    "unitid",
+    "institution_name",
+    "state",
+    "strict_pilot_reason",
+    "institution_years",
+    "covered_years",
+    "missing_years",
+    "coverage_rate",
+    "legacy_evidence_years",
+    "source_rows",
+    "strict_source_rows",
+    "review_source_rows",
+]
+
+YEAR_COVERAGE_COLUMNS = [
+    "strict_pilot_rank",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "has_strict_catalog_source",
+    "source_status",
+    "source_id",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_type",
+    "catalog_year_evidence_text",
+    "candidate_url",
+    "retrieval_method",
+    "local_source_path",
+    "prior_evidence_status",
+    "legacy_evidence_row_count",
+    "legacy_needs_review",
+    "needs_human_review",
+    "review_reason",
+]
+
+SOURCE_EVIDENCE_COLUMNS = [
+    "source_id",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "source_retrieved",
+    "strict_covers_target_year",
+    "catalog_year_evidence_type",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_text",
+    "candidate_url",
+    "best_final_url",
+    "best_attempt_method",
+    "best_content_type",
+    "best_page_title",
+    "best_year_hints",
+    "local_source_path",
+    "sha256",
+    "legacy_workbook",
+    "legacy_sheet_name",
+    "legacy_excel_row",
+    "legacy_selected_as_prior_evidence",
+    "legacy_needs_review",
+    "legacy_review_reasons",
+    "strict_coverage_reason",
+]
+
+NEEDS_REVIEW_COLUMNS = [
+    "review_type",
+    "strict_pilot_rank",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "source_id",
+    "review_reason",
+    "candidate_url",
+    "best_final_url",
+    "catalog_year_evidence_type",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_text",
+    "local_source_path",
+    "legacy_excel_row",
+    "legacy_review_reasons",
+]
+
+
+def read_strict_outputs(repo_root: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    return (
+        pd.read_csv(repo_root / STRICT_YEAR_COVERAGE_INPUT, low_memory=False),
+        pd.read_csv(repo_root / STRICT_RETRIEVAL_COVERAGE_INPUT, low_memory=False),
+        pd.read_csv(repo_root / STRICT_INVENTORY_INPUT, low_memory=False),
+    )
+
+
+def build_summary(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataFrame) -> pd.DataFrame:
+    grouped = (
+        year_coverage.groupby(
+            ["strict_pilot_rank", "unitid", "institution_name", "state", "strict_pilot_reason"],
+            dropna=False,
+        )
+        .agg(
+            institution_years=("target_year", "count"),
+            covered_years=("has_strict_catalog_source", "sum"),
+            legacy_evidence_years=("legacy_evidence_row_count", lambda values: int((values.fillna(0) > 0).sum())),
+        )
+        .reset_index()
+    )
+    grouped["covered_years"] = grouped["covered_years"].astype(int)
+    grouped["missing_years"] = grouped["institution_years"] - grouped["covered_years"]
+    grouped["coverage_rate"] = (grouped["covered_years"] / grouped["institution_years"]).round(3)
+
+    source_counts = (
+        retrieval_coverage.groupby(["unitid"], dropna=False)
+        .agg(
+            source_rows=("source_id", "count"),
+            strict_source_rows=("strict_covers_target_year", "sum"),
+            review_source_rows=("strict_covers_target_year", lambda values: int((~values.fillna(False)).sum())),
+        )
+        .reset_index()
+    )
+    out = grouped.merge(source_counts, on="unitid", how="left")
+    for col in ["source_rows", "strict_source_rows", "review_source_rows"]:
+        out[col] = out[col].fillna(0).astype(int)
+    return out[SUMMARY_COLUMNS].sort_values(["strict_pilot_rank", "unitid"])
+
+
+def build_needs_review(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataFrame) -> pd.DataFrame:
+    missing_years = year_coverage.loc[~year_coverage["has_strict_catalog_source"].fillna(False)].copy()
+    missing_years["review_type"] = "missing_institution_year"
+    missing_years["best_final_url"] = ""
+    missing_years["legacy_review_reasons"] = ""
+
+    source_review = retrieval_coverage.loc[~retrieval_coverage["strict_covers_target_year"].fillna(False)].copy()
+    source_review["review_type"] = "source_not_strict_coverage"
+    source_review["strict_pilot_rank"] = source_review["pilot_rank"]
+    source_review["review_reason"] = source_review["strict_coverage_reason"].fillna(source_review["review_reason"])
+
+    combined = pd.concat(
+        [missing_years.reindex(columns=NEEDS_REVIEW_COLUMNS), source_review.reindex(columns=NEEDS_REVIEW_COLUMNS)],
+        ignore_index=True,
+    )
+    return combined.sort_values(["strict_pilot_rank", "unitid", "target_year", "review_type", "source_id"])
+
+
+def select_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    out = df.copy()
+    for col in columns:
+        if col not in out.columns:
+            out[col] = ""
+    return out[columns]
+
+
+def write_review_workbook(
+    year_coverage: pd.DataFrame,
+    retrieval_coverage: pd.DataFrame,
+    inventory: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    summary = build_summary(year_coverage, retrieval_coverage)
+    needs_review = build_needs_review(year_coverage, retrieval_coverage)
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        summary.to_excel(writer, sheet_name="summary", index=False)
+        select_columns(year_coverage, YEAR_COVERAGE_COLUMNS).to_excel(writer, sheet_name="year_coverage", index=False)
+        select_columns(retrieval_coverage, SOURCE_EVIDENCE_COLUMNS).to_excel(
+            writer, sheet_name="source_evidence", index=False
+        )
+        needs_review.to_excel(writer, sheet_name="needs_review", index=False)
+        inventory.to_excel(writer, sheet_name="inventory_provenance", index=False)
+        format_workbook(writer.book)
+
+
+def format_workbook(workbook) -> None:
+    header_fill = PatternFill("solid", fgColor="D9EAF7")
+    for worksheet in workbook.worksheets:
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+        for cell in worksheet[1]:
+            cell.font = Font(bold=True)
+            cell.fill = header_fill
+        for column_cells in worksheet.columns:
+            header = str(column_cells[0].value or "")
+            values = [str(cell.value) for cell in column_cells[:250] if cell.value is not None]
+            width = max([len(header), *(len(value) for value in values)] or [len(header)])
+            column_letter = get_column_letter(column_cells[0].column)
+            worksheet.column_dimensions[column_letter].width = min(max(width + 2, 10), 70)
+
+
+def run_strict_review_workbook(repo_root: Path) -> Path:
+    repo_root = repo_root.resolve()
+    year_coverage, retrieval_coverage, inventory = read_strict_outputs(repo_root)
+    output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
+    write_review_workbook(year_coverage, retrieval_coverage, inventory, output_path)
+    return output_path
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Build strict Phase 3 catalog pilot review workbook.")
+    parser.add_argument("--root", type=Path, default=None)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    root = args.root.resolve() if args.root else repo_root_from_cwd()
+    output_path = run_strict_review_workbook(root)
+    print(f"review_workbook: {output_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
