@@ -1,6 +1,10 @@
 import pandas as pd
 
-from course_policy.strict_panel_retrieval import build_ready_inventory, combine_strict_retrieval
+from course_policy.strict_panel_retrieval import (
+    build_ready_inventory,
+    combine_strict_retrieval,
+    enrich_missing_year_reasons,
+)
 
 
 def test_build_ready_inventory_uses_only_ready_candidates():
@@ -37,6 +41,41 @@ def test_combine_strict_retrieval_preserves_existing_and_panel_rows():
     combined = combine_strict_retrieval(existing, panel)
 
     assert combined["source_id"].tolist() == ["strict-1", "panel-1"]
+
+
+def test_enrich_missing_year_reasons_uses_panel_status():
+    year_coverage = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "target_year": 2017,
+                "has_strict_catalog_source": False,
+                "review_reason": "generic",
+            },
+            {
+                "unitid": 1,
+                "target_year": 2018,
+                "has_strict_catalog_source": True,
+                "review_reason": "",
+            },
+        ]
+    )
+    panel_status = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "target_year": 2017,
+                "candidate_status": "official_archive_limit_reached",
+                "candidate_title": "",
+                "candidate_review_reason": "Archive only yielded AY 2000-2016 candidates.",
+            }
+        ]
+    )
+
+    enriched = enrich_missing_year_reasons(year_coverage, panel_status)
+
+    assert "official_archive_limit_reached" in enriched.loc[0, "review_reason"]
+    assert enriched.loc[1, "review_reason"] == ""
 
 
 def candidate_row(source_id, status):

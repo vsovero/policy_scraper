@@ -23,6 +23,7 @@ STRICT_INSTITUTIONS_INPUT = INTERIM_DIR / "catalog_pilot_institutions_strict.csv
 INSTITUTION_YEAR_TARGETS_INPUT = INTERIM_DIR / "institution_year_targets.csv"
 STRICT_RETRIEVAL_COVERAGE_INPUT = INTERIM_DIR / "catalog_retrieval_coverage_strict_pilot.csv"
 PANEL_CANDIDATES_INPUT = INTERIM_DIR / "catalog_panel_candidates_strict_pilot.csv"
+PANEL_YEAR_STATUS_INPUT = INTERIM_DIR / "catalog_panel_year_status_strict_pilot.csv"
 
 PANEL_READY_INVENTORY_OUTPUT = INTERIM_DIR / "catalog_panel_ready_inventory_strict_pilot.csv"
 PANEL_RETRIEVAL_ATTEMPTS_OUTPUT = INTERIM_DIR / "catalog_panel_retrieval_attempts_strict_pilot.csv"
@@ -44,12 +45,13 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def read_inputs(repo_root: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def read_inputs(repo_root: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return (
         pd.read_csv(repo_root / STRICT_INSTITUTIONS_INPUT, low_memory=False),
         pd.read_csv(repo_root / INSTITUTION_YEAR_TARGETS_INPUT, low_memory=False),
         pd.read_csv(repo_root / STRICT_RETRIEVAL_COVERAGE_INPUT, low_memory=False),
         pd.read_csv(repo_root / PANEL_CANDIDATES_INPUT, low_memory=False),
+        pd.read_csv(repo_root / PANEL_YEAR_STATUS_INPUT, low_memory=False),
     )
 
 
@@ -99,6 +101,28 @@ def combine_strict_retrieval(existing_strict: pd.DataFrame, panel_retrieval: pd.
     if combined.empty:
         return combined
     return combined.sort_values(["unitid", "target_year", "source_id"]).reset_index(drop=True)
+
+
+def enrich_missing_year_reasons(year_coverage: pd.DataFrame, panel_year_status: pd.DataFrame) -> pd.DataFrame:
+    status_cols = [
+        "unitid",
+        "target_year",
+        "candidate_status",
+        "candidate_title",
+        "candidate_review_reason",
+    ]
+    status = panel_year_status.reindex(columns=status_cols).copy()
+    merged = year_coverage.merge(status, on=["unitid", "target_year"], how="left")
+    missing = ~merged["has_strict_catalog_source"].fillna(False)
+    status_text = merged["candidate_status"].fillna("")
+    reason_text = merged["candidate_review_reason"].fillna("")
+    title_text = merged["candidate_title"].fillna("")
+    enriched_reason = "Panel expansion status: " + status_text
+    cleaned_reason = reason_text.str.rstrip(".")
+    enriched_reason = enriched_reason.where(cleaned_reason.eq(""), enriched_reason + ". " + cleaned_reason)
+    enriched_reason = enriched_reason.where(title_text.eq(""), enriched_reason + ". Candidate/title: " + title_text)
+    merged.loc[missing & status_text.ne(""), "review_reason"] = enriched_reason[missing & status_text.ne("")]
+    return merged.drop(columns=["candidate_status", "candidate_title", "candidate_review_reason"])
 
 
 def write_summary(
@@ -166,7 +190,7 @@ def run_strict_panel_retrieval(
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> StrictPanelRetrievalOutputs:
     repo_root = repo_root.resolve()
-    institutions, targets, existing_strict, candidates = read_inputs(repo_root)
+    institutions, targets, existing_strict, candidates, panel_year_status = read_inputs(repo_root)
     ready_inventory = build_ready_inventory(institutions, candidates)
     attempts = build_retrieval_attempts(repo_root, ready_inventory, timeout_seconds=timeout_seconds)
     panel_retrieval = extract_strict_year_evidence(build_coverage(ready_inventory, attempts))
@@ -175,6 +199,7 @@ def run_strict_panel_retrieval(
     year_coverage = year_coverage[
         year_coverage["target_year"].between(TARGET_START_YEAR, TARGET_END_YEAR)
     ].sort_values(["strict_pilot_rank", "unitid", "target_year"])
+    year_coverage = enrich_missing_year_reasons(year_coverage, panel_year_status)
 
     outputs = StrictPanelRetrievalOutputs(
         ready_inventory=(repo_root / PANEL_READY_INVENTORY_OUTPUT).resolve(),

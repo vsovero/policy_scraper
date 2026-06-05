@@ -1,6 +1,11 @@
 import pandas as pd
 
-from course_policy.strict_panel_expansion import build_year_status, normalize_wayback_url, parse_catalog_year_range
+from course_policy.strict_panel_expansion import (
+    apply_first_pass_archive_guardrails,
+    build_year_status,
+    normalize_wayback_url,
+    parse_catalog_year_range,
+)
 
 
 def test_parse_catalog_year_range_handles_multi_year_and_typo():
@@ -56,3 +61,24 @@ def test_build_year_status_marks_strict_covered_and_candidate_years():
         "ready_for_retrieval",
         "ready_for_retrieval",
     ]
+
+
+def test_archive_guardrails_mark_out_of_range_gaps_as_hard_stop():
+    panel = pd.DataFrame(
+        [
+            {"unitid": 149222, "target_year": 2016, "candidate_status": "no_candidate_found"},
+            {"unitid": 149222, "target_year": 2017, "candidate_status": "no_candidate_found"},
+            {"unitid": 199139, "target_year": 2000, "candidate_status": "no_candidate_found"},
+            {"unitid": 199139, "target_year": 2012, "candidate_status": "no_candidate_found"},
+        ]
+    )
+
+    guarded = apply_first_pass_archive_guardrails(panel)
+
+    assert guarded["candidate_status"].tolist() == [
+        "no_candidate_found",
+        "official_archive_limit_reached",
+        "official_archive_limit_reached",
+        "official_archive_limit_reached",
+    ]
+    assert guarded.loc[1, "candidate_review_reason"].startswith("First-pass hard stop:")
