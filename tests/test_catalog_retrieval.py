@@ -12,6 +12,7 @@ from course_policy.catalog_retrieval import (
     result_has_target_year,
     infer_catalog_coverage_years,
     source_extension,
+    visible_page_text,
     wayback_available_latest_url,
 )
 
@@ -50,6 +51,19 @@ def test_infer_catalog_coverage_years_uses_academic_year_start():
     assert infer_catalog_coverage_years("2004-06 Undergraduate Catalog") == (2004, 2006)
     assert infer_catalog_coverage_years("Mason 2000 01.pdf") == (2000, 2001)
     assert infer_catalog_coverage_years("Fall 2020 catalog") == (2020, 2021)
+
+
+def test_visible_page_text_removes_href_url_years():
+    html = """
+    <html><body>
+      <a href="https://example.edu/catalog-2000-2001.pdf">Current Catalog</a>
+      <h1>Academic Bulletin 2026-2027</h1>
+    </body></html>
+    """
+    text = visible_page_text(html, "text/html")
+
+    assert "catalog-2000-2001.pdf" not in text
+    assert infer_catalog_coverage_years(text) == (2026, 2027)
 
 
 def test_parse_cdx_snapshots_orders_by_target_year_distance():
@@ -99,6 +113,25 @@ def test_candidate_links_from_parent_scores_visible_anchor_text_years():
     }
 
     assert candidate_links_from_parent(parent_result, "https://bulletin.sfsu.edu/missing/", 2000)[0].endswith(
+        "0001/bull-tc.htm"
+    )
+
+
+def test_candidate_links_from_parent_prefers_anchor_text_year_over_url_year():
+    parent_result = {
+        "link_records": [
+            {
+                "url": "https://example.edu/archive/catalog-2000-2001.pdf",
+                "text": "Unrelated form",
+            },
+            {
+                "url": "https://example.edu/archive/0001/bull-tc.htm",
+                "text": "Example University 2000 - 2001 Bulletin",
+            },
+        ]
+    }
+
+    assert candidate_links_from_parent(parent_result, "https://example.edu/missing/", 2000)[0].endswith(
         "0001/bull-tc.htm"
     )
 

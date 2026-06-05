@@ -95,14 +95,17 @@ def retrieve_url(
             final_url = response.geturl()
             content_type = response.headers.get("content-type", "")
             text = decode_body(body, content_type)
+            page_title = extract_title(text, final_url, content_type)
+            visible_text = visible_page_text(text, content_type)
+            page_context = f"{page_title} {visible_text[:8000]}"
             result.update(
                 {
                     "http_status": getattr(response, "status", ""),
                     "final_url": final_url,
                     "content_type": content_type,
                     "content_length_bytes": len(body),
-                    "page_title": extract_title(text, final_url, content_type),
-                    "year_hints": "; ".join(str(year) for year in infer_years(f"{url} {final_url} {text[:8000]}")),
+                    "page_title": page_title,
+                    "year_hints": "; ".join(str(year) for year in infer_years(page_context)),
                     "catalog_year_start": "",
                     "catalog_year_end": "",
                     "sha256": sha256_bytes(body),
@@ -111,7 +114,7 @@ def retrieve_url(
                     "link_records": extract_link_records(text, final_url, content_type),
                 }
             )
-            coverage = infer_catalog_coverage_years(f"{url} {final_url} {result['page_title']} {text[:8000]}")
+            coverage = infer_catalog_coverage_years(page_context)
             if coverage:
                 result["catalog_year_start"], result["catalog_year_end"] = coverage
     except HTTPError as exc:
@@ -173,6 +176,15 @@ def extract_title(text: str, url: str, content_type: str) -> str:
     if match:
         return re.sub(r"\s+", " ", html.unescape(match.group(1))).strip()[:300]
     return title_from_url(url)
+
+
+def visible_page_text(text: str, content_type: str) -> str:
+    if "html" not in content_type.lower():
+        return text
+    cleaned = re.sub(r"<script\b[^>]*>.*?</script>", " ", text, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<style\b[^>]*>.*?</style>", " ", cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+    return re.sub(r"\s+", " ", html.unescape(cleaned)).strip()
 
 
 def extract_links(text: str, base_url: str, content_type: str) -> list[str]:
@@ -364,12 +376,15 @@ def candidate_links_from_parent(parent_result: dict[str, Any], original_url: str
         link = record["url"] if isinstance(record, dict) else str(record)
         link_text = record.get("text", "") if isinstance(record, dict) else ""
         link_lower = link.lower()
+        link_text_lower = link_text.lower()
         combined_lower = f"{link} {link_text}".lower()
         score = 0
         if original_name and Path(urlparse(link).path).name.lower() == original_name:
             score += 50
-        if str(target_year) in combined_lower or str(target_year + 1) in combined_lower or str(target_year - 1) in combined_lower:
-            score += 20
+        if str(target_year) in link_text_lower or str(target_year + 1) in link_text_lower or str(target_year - 1) in link_text_lower:
+            score += 25
+        elif str(target_year) in link_lower or str(target_year + 1) in link_lower or str(target_year - 1) in link_lower:
+            score += 5
         if any(keyword in combined_lower for keyword in ["catalog", "bulletin", "undergrad", "policy", "archive"]):
             score += 10
         if any(keyword in combined_lower for keyword in ["previous bulletin", "past bulletin", "archive"]):
