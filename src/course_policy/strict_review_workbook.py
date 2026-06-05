@@ -10,6 +10,7 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .ai_config import repo_root_from_cwd
+from .pilot_status_summary import SUMMARY_COLUMNS as PILOT_STATUS_SUMMARY_COLUMNS
 
 
 DATA_DIR = Path("../data_policy_pipeline")
@@ -29,6 +30,7 @@ CURRENT_SOURCE_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_source_trace
 CURRENT_YEAR_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_year_trace_strict_pilot.csv"
 OCR_VISUAL_CONFIRMATION_INPUT = INTERIM_DIR / "catalog_ocr_visual_confirmation_strict_pilot.csv"
 FRESH_DISCOVERY_OHSU_INPUT = INTERIM_DIR / "catalog_fresh_discovery_ohsu_strict_pilot.csv"
+PILOT_STATUS_SUMMARY_INPUT = INTERIM_DIR / "catalog_pilot_status_summary_strict_pilot.csv"
 
 STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
 
@@ -338,8 +340,10 @@ def read_strict_outputs(
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
+    pd.DataFrame,
 ]:
     return (
+        read_optional_csv(repo_root / PILOT_STATUS_SUMMARY_INPUT),
         pd.read_csv(repo_root / STRICT_YEAR_COVERAGE_INPUT, low_memory=False),
         pd.read_csv(repo_root / STRICT_RETRIEVAL_COVERAGE_INPUT, low_memory=False),
         pd.read_csv(repo_root / STRICT_INVENTORY_INPUT, low_memory=False),
@@ -415,6 +419,7 @@ def select_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
 
 
 def write_review_workbook(
+    pilot_status_summary: pd.DataFrame,
     year_coverage: pd.DataFrame,
     retrieval_coverage: pd.DataFrame,
     inventory: pd.DataFrame,
@@ -435,6 +440,10 @@ def write_review_workbook(
     needs_review = build_needs_review(year_coverage, retrieval_coverage)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        if not pilot_status_summary.empty:
+            select_columns(pilot_status_summary, PILOT_STATUS_SUMMARY_COLUMNS).to_excel(
+                writer, sheet_name="pilot_status", index=False
+            )
         summary.to_excel(writer, sheet_name="summary", index=False)
         select_columns(year_coverage, YEAR_COVERAGE_COLUMNS).to_excel(writer, sheet_name="year_coverage", index=False)
         select_columns(retrieval_coverage, SOURCE_EVIDENCE_COLUMNS).to_excel(
@@ -504,6 +513,7 @@ def format_workbook(workbook) -> None:
 def run_strict_review_workbook(repo_root: Path) -> Path:
     repo_root = repo_root.resolve()
     (
+        pilot_status_summary,
         year_coverage,
         retrieval_coverage,
         inventory,
@@ -520,6 +530,7 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
     ) = read_strict_outputs(repo_root)
     output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
     write_review_workbook(
+        pilot_status_summary,
         year_coverage,
         retrieval_coverage,
         inventory,
