@@ -51,6 +51,18 @@ Live mode validation fails unless all of these are true:
 
 `live` is reserved for explicit runs after deterministic discovery/extraction steps have been attempted and the run budget is set.
 
+## API Smoke Test
+
+The Phase 3 pilot can run an API smoke-test workflow:
+
+```bash
+PYTHONPATH=src python -m course_policy.catalog_pilot --api-smoke --config config/openai.local.toml
+```
+
+In `dry_run` mode, this writes API metadata only and does not call OpenAI.
+
+In `live` mode, it makes one tiny Responses API request and validates that the model returns `API_OK`. This confirms connectivity without creating source evidence or policy classifications.
+
 ## Audit Expectations
 
 Every future live API call should write metadata under `../data_policy_pipeline/logs/ai`, including:

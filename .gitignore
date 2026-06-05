@@ -12,6 +12,7 @@ htmlcov/
 venv/
 env/
 *.egg-info/
+src/*.egg-info/
 dist/
 build/
 

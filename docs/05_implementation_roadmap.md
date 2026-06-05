@@ -103,8 +103,15 @@ Tasks:
 Deliverables:
 
 - `data_policy_pipeline/interim/catalog_inventory_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_pilot_institutions.csv`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
+
+Initial implementation note:
+
+- pilot selection and inventory scaffolding should be deterministic;
+- optional API smoke testing may be run to confirm OpenAI access, but the smoke test should not create catalog evidence;
+- AI-assisted discovery remains a later, explicitly logged candidate-generation step after deterministic discovery has been attempted.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 
