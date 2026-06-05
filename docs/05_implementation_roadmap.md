@@ -62,7 +62,7 @@ Implementation implications:
 
 ## Phase 2: Institution-Year Universe
 
-Status: next.
+Status: completed.
 
 Purpose: define exactly which institutions and years need policy records.
 
@@ -83,6 +83,8 @@ Deliverables:
 - optional `data_policy_pipeline/interim/legacy_evidence_links.csv` if legacy rows are kept in a separate bridge table.
 
 ## Phase 3: Catalog Discovery Pilot
+
+Status: in progress.
 
 Purpose: test source discovery on a small but representative set.
 
@@ -117,6 +119,8 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_retrieval_attempts_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_retrieval_coverage_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_candidates_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_year_status_strict_pilot.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
@@ -127,6 +131,13 @@ Initial implementation note:
 - optional API smoke testing may be run to confirm OpenAI access, but the smoke test should not create catalog evidence;
 - PDF catalog years must be confirmed from extracted PDF text or metadata when possible. If extraction is unavailable or inconclusive, filename-only evidence is retained for review but not counted as strict coverage;
 - AI-assisted discovery remains a later, explicitly logged candidate-generation step after deterministic discovery has been attempted.
+
+Current strict-pilot panel expansion note:
+
+- the 5-institution strict pilot is being expanded across AY 2000-2020 before adding more institutions;
+- `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;
+- `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
+- Oregon Health & Science University is treated as fresh discovery because the legacy School of Nursing lead is wrong-scope for an institution-wide undergraduate catalog source.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 
