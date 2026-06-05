@@ -1,6 +1,12 @@
 import pandas as pd
 
-from course_policy.ocr_visual_review import original_url_from_wayback, read_candidates, status_from_ai
+from course_policy.ocr_visual_review import (
+    exclude_existing_candidates,
+    merge_confirmation_tables,
+    original_url_from_wayback,
+    read_candidates,
+    status_from_ai,
+)
 
 
 def test_status_from_ai_confirms_only_matching_visible_years():
@@ -66,6 +72,32 @@ def test_read_candidates_filters_scanned_pdf_status(tmp_path):
     candidates = read_candidates(root)
 
     assert candidates["source_id"].tolist() == ["a"]
+
+
+def test_exclude_existing_candidates_skips_completed_source_ids():
+    candidates = pd.DataFrame([{"source_id": "a"}, {"source_id": "b"}])
+    existing = pd.DataFrame([{"source_id": "a"}])
+
+    remaining = exclude_existing_candidates(candidates, existing)
+
+    assert remaining["source_id"].tolist() == ["b"]
+
+
+def test_merge_confirmation_tables_prefers_new_rows():
+    existing = pd.DataFrame(
+        [{"source_id": "a", "unitid": 1, "catalog_year_start": 2000, "confirmation_status": "old"}]
+    )
+    new = pd.DataFrame(
+        [
+            {"source_id": "a", "unitid": 1, "catalog_year_start": 2000, "confirmation_status": "new"},
+            {"source_id": "b", "unitid": 1, "catalog_year_start": 2001, "confirmation_status": "new"},
+        ]
+    )
+
+    merged = merge_confirmation_tables(existing, new)
+
+    assert merged["source_id"].tolist() == ["a", "b"]
+    assert merged.loc[merged["source_id"].eq("a"), "confirmation_status"].iloc[0] == "new"
 
 
 def test_original_url_from_wayback_extracts_replay_target():

@@ -66,6 +66,31 @@ def read_candidates(repo_root: Path) -> pd.DataFrame:
     return candidates[candidates["source_status"].eq("scanned_pdf_needs_ocr_or_visual_review")].copy()
 
 
+def read_existing_confirmation(repo_root: Path) -> pd.DataFrame:
+    path = repo_root / OCR_OUTPUT
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path, low_memory=False)
+
+
+def exclude_existing_candidates(candidates: pd.DataFrame, existing: pd.DataFrame) -> pd.DataFrame:
+    if existing.empty or "source_id" not in existing.columns:
+        return candidates
+    completed_ids = set(existing["source_id"].dropna().astype(str))
+    return candidates.loc[~candidates["source_id"].astype(str).isin(completed_ids)].copy()
+
+
+def merge_confirmation_tables(existing: pd.DataFrame, new: pd.DataFrame) -> pd.DataFrame:
+    if existing.empty:
+        return new
+    if new.empty:
+        return existing
+    merged = pd.concat([existing, new], ignore_index=True, sort=False)
+    merged["_row_order"] = range(len(merged))
+    merged = merged.sort_values(["source_id", "_row_order"]).drop_duplicates("source_id", keep="last")
+    return merged.drop(columns=["_row_order"]).sort_values(["unitid", "catalog_year_start", "source_id"])
+
+
 def original_url_from_wayback(url: str) -> str:
     parsed = urlparse(url)
     if parsed.netloc.lower() != "web.archive.org":
@@ -451,12 +476,14 @@ def run_ocr_visual_review(
 ) -> OCRVisualOutputs:
     repo_root = repo_root.resolve()
     candidates = read_candidates(repo_root)
+    existing = read_existing_confirmation(repo_root)
+    candidates = exclude_existing_candidates(candidates, existing)
     config = load_ai_config(config_path, root=repo_root) if use_api else None
     api_limit = 0
     if use_api and config:
         api_limit = config.workflow.max_requests_per_run if max_api_requests is None else max_api_requests
         api_limit = min(api_limit, config.workflow.max_requests_per_run)
-    table = build_confirmation_table(
+    new_table = build_confirmation_table(
         repo_root,
         candidates,
         config=config,
@@ -465,6 +492,7 @@ def run_ocr_visual_review(
         timeout_seconds=timeout_seconds,
         max_sources=max_sources,
     )
+    table = merge_confirmation_tables(existing, new_table)
 
     outputs = OCRVisualOutputs(
         confirmation_table=(repo_root / OCR_OUTPUT).resolve(),
