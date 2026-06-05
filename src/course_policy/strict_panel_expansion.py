@@ -329,6 +329,7 @@ def build_year_status(
     panel["candidate_status"] = panel["candidate_status"].fillna("no_candidate_found")
     panel = apply_first_pass_archive_guardrails(panel)
     panel.loc[panel["has_strict_catalog_source"], "candidate_status"] = "already_strict_covered"
+    panel.loc[panel["has_strict_catalog_source"], "candidate_review_reason"] = ""
     return panel.sort_values(["strict_pilot_rank", "unitid", "target_year"])
 
 
@@ -338,22 +339,32 @@ def apply_first_pass_archive_guardrails(panel: pd.DataFrame) -> pd.DataFrame:
         out["candidate_review_reason"] = ""
     out["candidate_review_reason"] = out["candidate_review_reason"].fillna("")
     for unitid, bounds in FIRST_PASS_ARCHIVE_BOUNDS.items():
-        outside_bounds = (
+        before_archive = (
             out["unitid"].eq(unitid)
             & out["candidate_status"].eq("no_candidate_found")
-            & (
-                out["target_year"].lt(int(bounds["first_ay"]))
-                | out["target_year"].gt(int(bounds["last_ay"]))
-            )
+            & out["target_year"].lt(int(bounds["first_ay"]))
         )
-        reason = (
-            f"First-pass hard stop: {bounds['label']} only yielded AY "
-            f"{bounds['first_ay']}-{bounds['last_ay']} candidates. "
-            f"Do not spend deeper-search resources on this gap until the archive-limit queue is revisited. "
+        after_archive = (
+            out["unitid"].eq(unitid)
+            & out["candidate_status"].eq("no_candidate_found")
+            & out["target_year"].gt(int(bounds["last_ay"]))
+        )
+        before_reason = (
+            f"First-pass hard stop: {bounds['label']} starts at AY {bounds['first_ay']}; "
+            f"target year is earlier than the first catalog candidate found from this source. "
+            f"Do not spend deeper-search resources on this earlier-year gap until the archive-limit queue is revisited. "
             f"Archive/source checked: {bounds['archive_url']}"
         )
-        out.loc[outside_bounds, "candidate_status"] = "official_archive_limit_reached"
-        out.loc[outside_bounds, "candidate_review_reason"] = reason
+        after_reason = (
+            f"First-pass hard stop: {bounds['label']} ends at AY {bounds['last_ay']}; "
+            f"target year is later than the last catalog candidate found from this source. "
+            f"Do not spend deeper-search resources on this later-year gap until the archive-limit queue is revisited. "
+            f"Archive/source checked: {bounds['archive_url']}"
+        )
+        out.loc[before_archive, "candidate_status"] = "official_archive_lower_bound_reached"
+        out.loc[before_archive, "candidate_review_reason"] = before_reason
+        out.loc[after_archive, "candidate_status"] = "official_archive_upper_bound_reached"
+        out.loc[after_archive, "candidate_review_reason"] = after_reason
     return out
 
 
@@ -372,7 +383,8 @@ def write_summary(path: Path, candidates: pd.DataFrame, year_status: pd.DataFram
         "- scanned_pdf_needs_ocr_or_visual_review: candidate appears to cover the year, but text extraction is not sufficient for strict automated confirmation.",
         "- review_before_retrieval: candidate has a known ambiguity, such as a catalog-year typo, that should be checked before use.",
         "- fresh_discovery_needed: existing leads are missing or wrong-scope, so discovery should restart from an institution-wide undergraduate source.",
-        "- official_archive_limit_reached: first-pass official archive/index source was exhausted; stop deeper search for now and revisit later only if needed.",
+        "- official_archive_lower_bound_reached: first-pass official archive/index source starts after the target year; stop earlier-year search for now and revisit later only if needed.",
+        "- official_archive_upper_bound_reached: first-pass official archive/index source ends before the target year; stop later-year search for now and revisit later only if needed.",
         "- no_candidate_found: deterministic archive expansion did not identify a candidate for that year.",
         "",
         "## Candidate Sources",
@@ -389,7 +401,7 @@ def write_summary(path: Path, candidates: pd.DataFrame, year_status: pd.DataFram
         covered = int(group["has_strict_catalog_source"].sum())
         ready = int(group["candidate_status"].eq("ready_for_retrieval").sum())
         review = int(group["candidate_status"].str.contains("review|ocr|fresh", case=False, na=False).sum())
-        archive_limited = int(group["candidate_status"].eq("official_archive_limit_reached").sum())
+        archive_limited = int(group["candidate_status"].str.contains("archive_.*_bound", regex=True, na=False).sum())
         lines.append(
             f"- {name} ({unitid}): strict covered {covered}/21; ready candidates {ready}; "
             f"review/fresh discovery {review}; archive-limit hard stops {archive_limited}"

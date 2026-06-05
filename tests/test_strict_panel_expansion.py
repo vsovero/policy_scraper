@@ -77,8 +77,10 @@ def test_archive_guardrails_mark_out_of_range_gaps_as_hard_stop():
 
     assert guarded["candidate_status"].tolist() == [
         "no_candidate_found",
-        "official_archive_limit_reached",
-        "official_archive_limit_reached",
-        "official_archive_limit_reached",
+        "official_archive_upper_bound_reached",
+        "official_archive_lower_bound_reached",
+        "official_archive_upper_bound_reached",
     ]
     assert guarded.loc[1, "candidate_review_reason"].startswith("First-pass hard stop:")
+    assert "ends at AY 2016" in guarded.loc[1, "candidate_review_reason"]
+    assert "starts at AY 2003" in guarded.loc[2, "candidate_review_reason"]

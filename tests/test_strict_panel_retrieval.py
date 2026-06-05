@@ -65,7 +65,7 @@ def test_enrich_missing_year_reasons_uses_panel_status():
             {
                 "unitid": 1,
                 "target_year": 2017,
-                "candidate_status": "official_archive_limit_reached",
+                "candidate_status": "official_archive_upper_bound_reached",
                 "candidate_title": "",
                 "candidate_review_reason": "Archive only yielded AY 2000-2016 candidates.",
             }
@@ -74,7 +74,7 @@ def test_enrich_missing_year_reasons_uses_panel_status():
 
     enriched = enrich_missing_year_reasons(year_coverage, panel_status)
 
-    assert "official_archive_limit_reached" in enriched.loc[0, "review_reason"]
+    assert "official_archive_upper_bound_reached" in enriched.loc[0, "review_reason"]
     assert enriched.loc[1, "review_reason"] == ""
 
 
