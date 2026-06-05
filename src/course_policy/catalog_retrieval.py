@@ -81,6 +81,7 @@ def retrieve_url(
         "error_message": "",
         "body": b"",
         "links": [],
+        "link_records": [],
     }
     try:
         request = Request(url, headers=browser_headers())
@@ -107,6 +108,7 @@ def retrieve_url(
                     "sha256": sha256_bytes(body),
                     "body": body,
                     "links": extract_links(text, final_url, content_type),
+                    "link_records": extract_link_records(text, final_url, content_type),
                 }
             )
             coverage = infer_catalog_coverage_years(f"{url} {final_url} {result['page_title']} {text[:8000]}")
@@ -174,14 +176,25 @@ def extract_title(text: str, url: str, content_type: str) -> str:
 
 
 def extract_links(text: str, base_url: str, content_type: str) -> list[str]:
+    return [record["url"] for record in extract_link_records(text, base_url, content_type)]
+
+
+def extract_link_records(text: str, base_url: str, content_type: str) -> list[dict[str, str]]:
     if "html" not in content_type.lower() and "<a" not in text.lower():
         return []
-    links: list[str] = []
-    for match in re.finditer(r"""href=["']([^"']+)["']""", text, flags=re.IGNORECASE):
+    records: list[dict[str, str]] = []
+    seen = set()
+    for match in re.finditer(r"""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", text, flags=re.IGNORECASE | re.DOTALL):
         href = html.unescape(match.group(1)).strip()
         if href and not href.startswith(("#", "mailto:", "tel:", "javascript:")):
-            links.append(urljoin(base_url, href))
-    return sorted(set(links))
+            url = urljoin(base_url, href)
+            if url in seen:
+                continue
+            seen.add(url)
+            link_text = re.sub(r"<[^>]+>", " ", match.group(2))
+            link_text = re.sub(r"\s+", " ", html.unescape(link_text)).strip()
+            records.append({"url": url, "text": link_text})
+    return records
 
 
 def title_from_url(url: str) -> str:
@@ -244,7 +257,8 @@ def save_source_body(
     source_dir = (root / CATALOG_SOURCE_DIR / source_id).resolve()
     source_dir.mkdir(parents=True, exist_ok=True)
     ext = source_extension(url, content_type)
-    path = source_dir / f"{attempt_method}{ext}"
+    url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
+    path = source_dir / f"{attempt_method}-{url_hash}{ext}"
     path.write_bytes(body)
     return path
 
@@ -343,20 +357,35 @@ def dedupe_urls(urls: list[str]) -> list[str]:
 def candidate_links_from_parent(parent_result: dict[str, Any], original_url: str, target_year: int) -> list[str]:
     original_name = Path(urlparse(original_url).path).name.lower()
     candidates: list[tuple[int, str]] = []
-    for link in parent_result.get("links", []):
+    records = parent_result.get("link_records") or [
+        {"url": link, "text": ""} for link in parent_result.get("links", [])
+    ]
+    for record in records:
+        link = record["url"] if isinstance(record, dict) else str(record)
+        link_text = record.get("text", "") if isinstance(record, dict) else ""
         link_lower = link.lower()
+        combined_lower = f"{link} {link_text}".lower()
         score = 0
         if original_name and Path(urlparse(link).path).name.lower() == original_name:
             score += 50
-        if str(target_year) in link_lower or str(target_year + 1) in link_lower or str(target_year - 1) in link_lower:
+        if str(target_year) in combined_lower or str(target_year + 1) in combined_lower or str(target_year - 1) in combined_lower:
             score += 20
-        if any(keyword in link_lower for keyword in ["catalog", "bulletin", "undergrad", "policy", "archive"]):
+        if any(keyword in combined_lower for keyword in ["catalog", "bulletin", "undergrad", "policy", "archive"]):
+            score += 10
+        if any(keyword in combined_lower for keyword in ["previous bulletin", "past bulletin", "archive"]):
             score += 10
         if link_lower.endswith((".pdf", ".html", ".htm")):
             score += 5
         if score > 0:
             candidates.append((score, link))
     return [url for _, url in sorted(candidates, key=lambda item: item[0], reverse=True)[:5]]
+
+
+def looks_like_catalog_index(result: dict[str, Any], url: str) -> bool:
+    title_and_url = f"{result.get('page_title', '')} {url}".lower()
+    if not any(keyword in title_and_url for keyword in ["archive", "previous bulletin", "past bulletin", "catalog"]):
+        return False
+    return len(result.get("links", [])) > 0
 
 
 def should_try_recovery(result: dict[str, Any]) -> bool:
@@ -375,8 +404,11 @@ def result_has_target_year(result: dict[str, Any], target_year: int) -> bool:
 def covers_target_year(row: pd.Series) -> bool:
     try:
         return int(row["best_catalog_year_start"]) <= int(row["target_year"]) < int(row["best_catalog_year_end"])
-    except (TypeError, ValueError):
-        return False
+    except (KeyError, TypeError, ValueError):
+        try:
+            return int(row["catalog_year_start"]) <= int(row["target_year"]) < int(row["catalog_year_end"])
+        except (KeyError, TypeError, ValueError):
+            return False
 
 
 METADATA_ATTEMPT_METHODS = {"wayback_available", "wayback_available_latest", "wayback_cdx_lookup", "parent_page"}
@@ -482,6 +514,41 @@ def build_retrieval_attempts(
                         )
                     )
                     sequence += 1.0
+                    if source_retrieved or not looks_like_catalog_index(link_result, link_url):
+                        continue
+                    for child_url in candidate_links_from_parent(link_result, original_url, target_year):
+                        if child_url == link_url:
+                            continue
+                        if source_retrieved:
+                            break
+                        child_result = retrieve_url(child_url, timeout_seconds=timeout_seconds)
+                        child_path = ""
+                        if child_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                            child_path = str(
+                                save_source_body(
+                                    repo_root,
+                                    str(source["source_id"]),
+                                    "parent_archive_link",
+                                    child_url,
+                                    str(child_result["content_type"]),
+                                    child_result["body"],
+                                )
+                            )
+                            source_retrieved = result_has_target_year(child_result, target_year)
+                        rows.append(
+                            attempt_row(
+                                source,
+                                len(rows) + 1,
+                                sequence,
+                                "parent_archive_link",
+                                child_url,
+                                child_result,
+                                child_path,
+                                created_at,
+                                recovered_from=link_url,
+                            )
+                        )
+                        sequence += 1.0
 
         if not source_retrieved:
             wayback_lookup_url = wayback_available_url(original_url, target_year)
@@ -671,10 +738,19 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
         leads["sha256"] = ""
     else:
         success["method_rank"] = success["attempt_method"].map(
-            {"direct": 1, "https_variant": 2, "http_variant": 3, "wayback_snapshot": 4, "wayback_available": 9}
+            {
+                "direct": 1,
+                "https_variant": 2,
+                "http_variant": 3,
+                "parent_link": 4,
+                "parent_archive_link": 5,
+                "wayback_snapshot": 6,
+                "wayback_available": 9,
+            }
         ).fillna(8)
+        success["coverage_rank"] = success.apply(lambda row: 0 if covers_target_year(row) else 1, axis=1)
         best = (
-            success.sort_values(["source_id", "method_rank", "attempt_sequence"])
+            success.sort_values(["source_id", "coverage_rank", "method_rank", "attempt_sequence"])
             .groupby("source_id", as_index=False)
             .first()
         )

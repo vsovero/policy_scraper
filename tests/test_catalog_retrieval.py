@@ -84,6 +84,25 @@ def test_candidate_links_from_parent_scores_catalog_year_links():
     )
 
 
+def test_candidate_links_from_parent_scores_visible_anchor_text_years():
+    parent_result = {
+        "link_records": [
+            {
+                "url": "http://www.sfsu.edu/~bulletin/previous_bulletins/0001/bull-tc.htm",
+                "text": "SF State 2000 - 2001 Bulletin",
+            },
+            {
+                "url": "https://bulletin.sfsu.edu/past-bulletin-archive/",
+                "text": "Previous Bulletins",
+            },
+        ]
+    }
+
+    assert candidate_links_from_parent(parent_result, "https://bulletin.sfsu.edu/missing/", 2000)[0].endswith(
+        "0001/bull-tc.htm"
+    )
+
+
 def test_source_extension_uses_content_type_when_url_has_no_suffix():
     assert source_extension("https://example.edu/catalog", "application/pdf") == ".pdf"
     assert source_extension("https://example.edu/catalog", "text/html; charset=utf-8") == ".html"
@@ -208,6 +227,60 @@ def test_build_coverage_uses_half_open_academic_year_ranges():
     coverage = build_coverage(inventory, attempts).sort_values("target_year")
 
     assert coverage["covers_target_year"].tolist() == [True, False]
+
+
+def test_build_coverage_prefers_retrieved_source_covering_target_year():
+    inventory = pd.DataFrame(
+        [
+            {
+                **inventory_row("pilot-1", "public"),
+                "target_year": 2000,
+                "candidate_url": "https://example.edu/archive/",
+            }
+        ]
+    )
+    attempts = pd.DataFrame(
+        [
+            {
+                "source_id": "pilot-1",
+                "target_year": 2000,
+                "original_candidate_url": "https://example.edu/archive/",
+                "retrieval_status": "retrieved",
+                "attempt_method": "parent_link",
+                "attempt_sequence": 1,
+                "final_url": "https://example.edu/archive/",
+                "content_type": "text/html",
+                "page_title": "Previous Bulletins",
+                "year_hints": "2026",
+                "catalog_year_start": 2026,
+                "catalog_year_end": 2027,
+                "local_source_path": "/tmp/archive.html",
+                "sha256": "archive",
+            },
+            {
+                "source_id": "pilot-1",
+                "target_year": 2000,
+                "original_candidate_url": "https://example.edu/archive/",
+                "retrieval_status": "retrieved",
+                "attempt_method": "parent_archive_link",
+                "attempt_sequence": 2,
+                "final_url": "https://example.edu/0001/bull-tc.htm",
+                "content_type": "text/html",
+                "page_title": "SFSU Bulletin 00/01 - Table of Contents",
+                "year_hints": "2000; 2001",
+                "catalog_year_start": 2000,
+                "catalog_year_end": 2001,
+                "local_source_path": "/tmp/0001.html",
+                "sha256": "target",
+            },
+        ]
+    )
+
+    coverage = build_coverage(inventory, attempts)
+
+    assert coverage.loc[0, "source_retrieved"]
+    assert coverage.loc[0, "covers_target_year"]
+    assert coverage.loc[0, "best_attempt_method"] == "parent_archive_link"
 
 
 def inventory_row(source_id, workbook):
