@@ -2,13 +2,16 @@ import pandas as pd
 
 from course_policy.catalog_retrieval import (
     build_coverage,
+    build_deduped_coverage,
     candidate_links_from_parent,
     candidate_attempt_urls,
     infer_years,
     parent_urls,
     parse_cdx_snapshots,
     parse_wayback_snapshot,
+    result_has_target_year,
     source_extension,
+    wayback_available_latest_url,
 )
 
 
@@ -25,6 +28,18 @@ def test_parse_wayback_snapshot_returns_closest_available_url():
     body = b'{"archived_snapshots":{"closest":{"available":true,"url":"https://web.archive.org/x"}}}'
 
     assert parse_wayback_snapshot(body) == "https://web.archive.org/x"
+
+
+def test_wayback_available_latest_url_omits_timestamp():
+    url = wayback_available_latest_url("https://example.edu/catalog.pdf")
+
+    assert "timestamp=" not in url
+    assert "archive.org/wayback/available" in url
+
+
+def test_result_has_target_year_checks_url_title_and_hints():
+    assert result_has_target_year({"final_url": "", "page_title": "Catalog 2004-2006", "year_hints": ""}, 2004)
+    assert not result_has_target_year({"final_url": "", "page_title": "Archive page", "year_hints": "2026"}, 2004)
 
 
 def test_parse_cdx_snapshots_orders_by_target_year_distance():
@@ -111,3 +126,58 @@ def test_build_coverage_does_not_count_wayback_availability_as_source_retrieved(
 
     assert not coverage.loc[0, "source_retrieved"]
     assert coverage.loc[0, "best_retrieval_status"] == "not_retrieved"
+
+
+def test_build_coverage_maps_one_retrieval_result_to_duplicate_provenance_rows():
+    inventory = pd.DataFrame(
+        [
+            inventory_row("pilot-1", "public"),
+            inventory_row("pilot-2", "private"),
+        ]
+    )
+    attempts = pd.DataFrame(
+        [
+            {
+                "source_id": "pilot-1",
+                "original_candidate_url": "https://example.edu/catalog.pdf",
+                "retrieval_status": "retrieved",
+                "attempt_method": "direct",
+                "attempt_sequence": 1,
+                "final_url": "https://example.edu/catalog.pdf",
+                "content_type": "application/pdf",
+                "page_title": "Catalog 2004",
+                "year_hints": "2004",
+                "local_source_path": "/tmp/catalog.pdf",
+                "sha256": "hash",
+            }
+        ]
+    )
+
+    coverage = build_coverage(inventory, attempts)
+    deduped = build_deduped_coverage(coverage)
+
+    assert len(coverage) == 2
+    assert coverage["source_retrieved"].tolist() == [True, True]
+    assert len(deduped) == 1
+    assert deduped.loc[0, "source_id_count"] == 2
+    assert deduped.loc[0, "legacy_workbooks"] == "private; public"
+
+
+def inventory_row(source_id, workbook):
+    return {
+        "source_id": source_id,
+        "pilot_rank": 1,
+        "unitid": 1,
+        "institution_name": "Example U",
+        "target_year": 2004,
+        "candidate_url": "https://example.edu/catalog.pdf",
+        "needs_human_review": False,
+        "review_reason": "",
+        "legacy_workbook": workbook,
+        "legacy_sheet_name": "Sheet1",
+        "legacy_excel_row": 2,
+        "legacy_link_id": 1,
+        "legacy_selected_as_prior_evidence": workbook == "public",
+        "legacy_needs_review": False,
+        "legacy_review_reasons": "",
+    }

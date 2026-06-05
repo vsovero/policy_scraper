@@ -29,6 +29,7 @@ CATALOG_SOURCE_DIR = DATA_DIR / "catalog_sources" / "pilot"
 CATALOG_INVENTORY_INPUT = INTERIM_DIR / "catalog_inventory_pilot.csv"
 RETRIEVAL_ATTEMPTS_OUTPUT = INTERIM_DIR / "catalog_retrieval_attempts_pilot.csv"
 RETRIEVAL_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_retrieval_coverage_pilot.csv"
+RETRIEVAL_DEDUPED_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_retrieval_coverage_pilot_deduped.csv"
 SUMMARY_OUTPUT = LOG_DIR / "phase3_catalog_retrieval_pilot_summary.md"
 
 MAX_SOURCE_BYTES = 25 * 1024 * 1024
@@ -44,6 +45,7 @@ WAYBACK_CDX_URL = (
 class RetrievalOutputs:
     retrieval_attempts: Path
     retrieval_coverage: Path
+    retrieval_coverage_deduped: Path
     summary_report: Path
 
 
@@ -250,6 +252,10 @@ def wayback_available_url(url: str, target_year: int) -> str:
     return WAYBACK_AVAILABLE_URL.format(url=quote(url, safe=""), timestamp=timestamp)
 
 
+def wayback_available_latest_url(url: str) -> str:
+    return "https://archive.org/wayback/available?url=" + quote(url, safe="")
+
+
 def wayback_cdx_url(url: str) -> str:
     return WAYBACK_CDX_URL.format(url=quote(url, safe=""))
 
@@ -329,7 +335,12 @@ def should_try_recovery(result: dict[str, Any]) -> bool:
     return result["retrieval_status"] not in {"retrieved", "retrieved_truncated"}
 
 
-METADATA_ATTEMPT_METHODS = {"wayback_available", "wayback_cdx_lookup", "parent_page"}
+def result_has_target_year(result: dict[str, Any], target_year: int) -> bool:
+    haystack = f"{result.get('final_url', '')} {result.get('page_title', '')} {result.get('year_hints', '')}"
+    return str(target_year) in haystack
+
+
+METADATA_ATTEMPT_METHODS = {"wayback_available", "wayback_available_latest", "wayback_cdx_lookup", "parent_page"}
 
 
 def build_retrieval_attempts(
@@ -341,6 +352,7 @@ def build_retrieval_attempts(
     rows: list[dict[str, Any]] = []
     created_at = utc_now()
     leads = inventory[inventory["candidate_url"].fillna("").astype(str).str.strip().ne("")].copy()
+    leads = leads.drop_duplicates(subset=["candidate_url"]).copy()
     for _, source in leads.sort_values(["pilot_rank", "unitid", "target_year", "source_id"]).iterrows():
         sequence = 1.0
         source_retrieved = False
@@ -380,14 +392,68 @@ def build_retrieval_attempts(
             sequence += 1.0
 
         if not source_retrieved:
-            wayback_result = retrieve_url(wayback_available_url(original_url, target_year), timeout_seconds=timeout_seconds)
+            for parent_url in parent_urls(original_url):
+                if source_retrieved:
+                    break
+                parent_result = retrieve_url(parent_url, timeout_seconds=timeout_seconds)
+                rows.append(
+                    attempt_row(
+                        source,
+                        len(rows) + 1,
+                        sequence,
+                        "parent_page",
+                        parent_url,
+                        parent_result,
+                        "",
+                        created_at,
+                        recovered_from=original_url,
+                    )
+                )
+                sequence += 1.0
+                if parent_result["retrieval_status"] not in {"retrieved", "retrieved_truncated"}:
+                    continue
+                for link_url in candidate_links_from_parent(parent_result, original_url, target_year):
+                    if source_retrieved:
+                        break
+                    link_result = retrieve_url(link_url, timeout_seconds=timeout_seconds)
+                    link_path = ""
+                    if link_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                        link_path = str(
+                            save_source_body(
+                                repo_root,
+                                str(source["source_id"]),
+                                "parent_link",
+                                link_url,
+                                str(link_result["content_type"]),
+                                link_result["body"],
+                            )
+                        )
+                        source_retrieved = result_has_target_year(link_result, target_year)
+                    rows.append(
+                        attempt_row(
+                            source,
+                            len(rows) + 1,
+                            sequence,
+                            "parent_link",
+                            link_url,
+                            link_result,
+                            link_path,
+                            created_at,
+                            recovered_from=parent_url,
+                        )
+                    )
+                    sequence += 1.0
+
+        if not source_retrieved:
+            wayback_lookup_url = wayback_available_url(original_url, target_year)
+            wayback_result = retrieve_url(wayback_lookup_url, timeout_seconds=timeout_seconds)
             rows.append(
                 attempt_row(
                     source,
                     len(rows) + 1,
                     sequence,
                     "wayback_available",
-                    wayback_available_url(original_url, target_year),
+                    wayback_lookup_url,
                     wayback_result,
                     "",
                     created_at,
@@ -396,8 +462,29 @@ def build_retrieval_attempts(
             )
             sequence += 1.0
             recovered_url = ""
+            recovered_from_url = wayback_lookup_url
             if wayback_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
                 recovered_url = parse_wayback_snapshot(wayback_result["body"])
+            if not recovered_url:
+                wayback_lookup_url = wayback_available_latest_url(original_url)
+                recovered_from_url = wayback_lookup_url
+                wayback_result = retrieve_url(wayback_lookup_url, timeout_seconds=timeout_seconds)
+                rows.append(
+                    attempt_row(
+                        source,
+                        len(rows) + 1,
+                        sequence,
+                        "wayback_available_latest",
+                        wayback_lookup_url,
+                        wayback_result,
+                        "",
+                        created_at,
+                        recovered_from="",
+                    )
+                )
+                sequence += 1.0
+                if wayback_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                    recovered_url = parse_wayback_snapshot(wayback_result["body"])
             if recovered_url:
                 snapshot = retrieve_url(recovered_url, timeout_seconds=timeout_seconds)
                 snapshot_path = ""
@@ -423,7 +510,7 @@ def build_retrieval_attempts(
                         snapshot,
                         snapshot_path,
                         created_at,
-                        recovered_from=wayback_available_url(original_url, target_year),
+                        recovered_from=recovered_from_url,
                     )
                 )
                 sequence += 1.0
@@ -473,59 +560,6 @@ def build_retrieval_attempts(
                             snapshot_path,
                             created_at,
                             recovered_from=wayback_cdx_url(original_url),
-                        )
-                    )
-                    sequence += 1.0
-
-        if not source_retrieved:
-            for parent_url in parent_urls(original_url):
-                if source_retrieved:
-                    break
-                parent_result = retrieve_url(parent_url, timeout_seconds=timeout_seconds)
-                rows.append(
-                    attempt_row(
-                        source,
-                        len(rows) + 1,
-                        sequence,
-                        "parent_page",
-                        parent_url,
-                        parent_result,
-                        "",
-                        created_at,
-                        recovered_from=original_url,
-                    )
-                )
-                sequence += 1.0
-                if parent_result["retrieval_status"] not in {"retrieved", "retrieved_truncated"}:
-                    continue
-                for link_url in candidate_links_from_parent(parent_result, original_url, target_year):
-                    if source_retrieved:
-                        break
-                    link_result = retrieve_url(link_url, timeout_seconds=timeout_seconds)
-                    link_path = ""
-                    if link_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
-                        link_path = str(
-                            save_source_body(
-                                repo_root,
-                                str(source["source_id"]),
-                                "parent_link",
-                                link_url,
-                                str(link_result["content_type"]),
-                                link_result["body"],
-                            )
-                        )
-                        source_retrieved = True
-                    rows.append(
-                        attempt_row(
-                            source,
-                            len(rows) + 1,
-                            sequence,
-                            "parent_link",
-                            link_url,
-                            link_result,
-                            link_path,
-                            created_at,
-                            recovered_from=parent_url,
                         )
                     )
                     sequence += 1.0
@@ -616,7 +650,7 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
         leads = leads.merge(
             best[
                 [
-                    "source_id",
+                    "original_candidate_url",
                     "best_retrieval_status",
                     "best_attempt_method",
                     "best_final_url",
@@ -627,9 +661,11 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
                     "best_sha256",
                 ]
             ],
-            on="source_id",
+            left_on="candidate_url",
+            right_on="original_candidate_url",
             how="left",
         )
+        leads = leads.drop(columns=["original_candidate_url"], errors="ignore")
         leads["best_retrieval_status"] = leads["best_retrieval_status"].fillna("not_retrieved")
         leads["best_attempt_method"] = leads["best_attempt_method"].fillna("")
         leads["best_final_url"] = leads["best_final_url"].fillna("")
@@ -675,7 +711,52 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
     ].sort_values(["pilot_rank", "unitid", "target_year", "source_id"])
 
 
-def write_summary(summary_path: Path, inventory: pd.DataFrame, attempts: pd.DataFrame, coverage: pd.DataFrame) -> None:
+def build_deduped_coverage(coverage: pd.DataFrame) -> pd.DataFrame:
+    grouped = (
+        coverage.groupby(["unitid", "target_year", "candidate_url"], dropna=False)
+        .agg(
+            institution_name=("institution_name", "first"),
+            source_ids=("source_id", unique_join),
+            source_id_count=("source_id", "nunique"),
+            pilot_rank=("pilot_rank", "min"),
+            source_retrieved=("source_retrieved", "max"),
+            best_retrieval_status=("best_retrieval_status", "first"),
+            best_attempt_method=("best_attempt_method", "first"),
+            best_final_url=("best_final_url", "first"),
+            best_content_type=("best_content_type", "first"),
+            best_page_title=("best_page_title", "first"),
+            best_year_hints=("best_year_hints", "first"),
+            target_year_in_hints=("target_year_in_hints", "max"),
+            local_source_path=("local_source_path", "first"),
+            sha256=("sha256", "first"),
+            needs_human_review=("needs_human_review", "max"),
+            review_reason=("review_reason", unique_join),
+            legacy_workbooks=("legacy_workbook", unique_join),
+            legacy_sheet_names=("legacy_sheet_name", unique_join),
+            legacy_excel_rows=("legacy_excel_row", unique_join),
+            legacy_link_ids=("legacy_link_id", unique_join),
+            legacy_selected_prior_count=("legacy_selected_as_prior_evidence", "sum"),
+            legacy_needs_review=("legacy_needs_review", "max"),
+            legacy_review_reasons=("legacy_review_reasons", unique_join),
+        )
+        .reset_index()
+    )
+    return grouped.sort_values(["pilot_rank", "unitid", "target_year", "candidate_url"])
+
+
+def unique_join(values: pd.Series) -> str:
+    nonempty = values.dropna().astype(str).str.strip()
+    nonempty = nonempty[nonempty.ne("")]
+    return "; ".join(sorted(nonempty.unique()))
+
+
+def write_summary(
+    summary_path: Path,
+    inventory: pd.DataFrame,
+    attempts: pd.DataFrame,
+    coverage: pd.DataFrame,
+    deduped_coverage: pd.DataFrame,
+) -> None:
     lines = [
         "# Phase 3 Catalog Retrieval Pilot",
         "",
@@ -683,30 +764,32 @@ def write_summary(summary_path: Path, inventory: pd.DataFrame, attempts: pd.Data
         "",
         "## Scope",
         "",
-        f"- Candidate source leads with URLs: {len(coverage)}",
+        f"- Candidate source provenance rows with URLs: {len(coverage)}",
+        f"- Unique candidate URL leads: {len(deduped_coverage)}",
         f"- Retrieval attempts: {len(attempts)}",
         "- Legacy URLs are still treated as candidate leads until source/year verification is complete.",
         "",
         "## Coverage",
         "",
-        f"- Retrieved source leads: {int(coverage['source_retrieved'].sum())}",
-        f"- Not retrieved source leads: {int((~coverage['source_retrieved']).sum())}",
-        f"- Retrieved leads with target year in hints: {int((coverage['source_retrieved'] & coverage['target_year_in_hints']).sum())}",
+        f"- Retrieved provenance rows: {int(coverage['source_retrieved'].sum())}",
+        f"- Retrieved unique URL leads: {int(deduped_coverage['source_retrieved'].sum())}",
+        f"- Not retrieved unique URL leads: {int((~deduped_coverage['source_retrieved']).sum())}",
+        f"- Retrieved unique URL leads with target year in hints: {int((deduped_coverage['source_retrieved'] & deduped_coverage['target_year_in_hints']).sum())}",
         "",
         "## Best Retrieval Status",
         "",
     ]
-    for status, count in coverage["best_retrieval_status"].value_counts(dropna=False).items():
+    for status, count in deduped_coverage["best_retrieval_status"].value_counts(dropna=False).items():
         lines.append(f"- {status}: {count}")
     lines.extend(["", "## Attempt Status", ""])
     for status, count in attempts["retrieval_status"].value_counts(dropna=False).items():
         lines.append(f"- {status}: {count}")
     lines.extend(["", "## Best Method Attribution", ""])
-    method_counts = coverage["best_attempt_method"].fillna("").replace("", "none").value_counts()
+    method_counts = deduped_coverage["best_attempt_method"].fillna("").replace("", "none").value_counts()
     for method, count in method_counts.items():
-        method_rows = coverage[coverage["best_attempt_method"].fillna("").replace("", "none").eq(method)]
+        method_rows = deduped_coverage[deduped_coverage["best_attempt_method"].fillna("").replace("", "none").eq(method)]
         target_hint_count = int(method_rows["target_year_in_hints"].sum()) if not method_rows.empty else 0
-        lines.append(f"- {method}: {count} source leads ({target_hint_count} with target year in hints)")
+        lines.append(f"- {method}: {count} unique URL leads ({target_hint_count} with target year in hints)")
     lines.extend(
         [
             "",
@@ -722,7 +805,8 @@ def write_summary(summary_path: Path, inventory: pd.DataFrame, attempts: pd.Data
             "## Outputs",
             "",
             f"- Attempts: `{(summary_path.parents[1] / 'interim' / RETRIEVAL_ATTEMPTS_OUTPUT.name).resolve()}`",
-            f"- Coverage: `{(summary_path.parents[1] / 'interim' / RETRIEVAL_COVERAGE_OUTPUT.name).resolve()}`",
+            f"- Provenance-row coverage: `{(summary_path.parents[1] / 'interim' / RETRIEVAL_COVERAGE_OUTPUT.name).resolve()}`",
+            f"- Deduplicated URL coverage: `{(summary_path.parents[1] / 'interim' / RETRIEVAL_DEDUPED_COVERAGE_OUTPUT.name).resolve()}`",
             "",
         ]
     )
@@ -734,9 +818,11 @@ def run_phase3_retrieval_pilot(repo_root: Path, *, timeout_seconds: int = DEFAUL
     inventory = pd.read_csv(repo_root / CATALOG_INVENTORY_INPUT, low_memory=False)
     attempts = build_retrieval_attempts(repo_root, inventory, timeout_seconds=timeout_seconds)
     coverage = build_coverage(inventory, attempts)
+    deduped_coverage = build_deduped_coverage(coverage)
 
     attempts_path = (repo_root / RETRIEVAL_ATTEMPTS_OUTPUT).resolve()
     coverage_path = (repo_root / RETRIEVAL_COVERAGE_OUTPUT).resolve()
+    deduped_coverage_path = (repo_root / RETRIEVAL_DEDUPED_COVERAGE_OUTPUT).resolve()
     summary_path = (repo_root / SUMMARY_OUTPUT).resolve()
     attempts_path.parent.mkdir(parents=True, exist_ok=True)
     coverage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -744,8 +830,14 @@ def run_phase3_retrieval_pilot(repo_root: Path, *, timeout_seconds: int = DEFAUL
 
     attempts.to_csv(attempts_path, index=False)
     coverage.to_csv(coverage_path, index=False)
-    write_summary(summary_path, inventory, attempts, coverage)
-    return RetrievalOutputs(retrieval_attempts=attempts_path, retrieval_coverage=coverage_path, summary_report=summary_path)
+    deduped_coverage.to_csv(deduped_coverage_path, index=False)
+    write_summary(summary_path, inventory, attempts, coverage, deduped_coverage)
+    return RetrievalOutputs(
+        retrieval_attempts=attempts_path,
+        retrieval_coverage=coverage_path,
+        retrieval_coverage_deduped=deduped_coverage_path,
+        summary_report=summary_path,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
