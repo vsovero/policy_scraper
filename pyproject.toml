@@ -1,0 +1,12 @@
+[project]
+name = "course-policy-pipeline"
+version = "0.1.0"
+description = "Evidence-first pipeline for course repetition policy collection and classification."
+requires-python = ">=3.10"
+dependencies = [
+  "openpyxl>=3.1",
+  "pandas>=2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
