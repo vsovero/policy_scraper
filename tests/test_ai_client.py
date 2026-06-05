@@ -35,6 +35,40 @@ def test_api_smoke_live_uses_create_response_and_writes_raw(monkeypatch, tmp_pat
     assert output.raw_response_path.exists()
 
 
+def test_api_smoke_live_logs_api_errors(monkeypatch, tmp_path):
+    config = fake_config(tmp_path, mode="live")
+
+    def fake_create_response(_config):
+        raise RuntimeError("Incorrect API key provided: secret-value")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "secret-value")
+    monkeypatch.setattr("course_policy.ai_client._create_response", fake_create_response)
+
+    output = run_api_smoke(config)
+
+    assert output.validation_status == "api_error"
+    assert output.raw_response_path is not None
+    raw_text = output.raw_response_path.read_text(encoding="utf-8")
+    assert "secret-value" not in raw_text
+    assert "[redacted]" in raw_text
+
+
+def test_api_smoke_live_redacts_masked_key_suffix(monkeypatch, tmp_path):
+    config = fake_config(tmp_path, mode="live")
+
+    def fake_create_response(_config):
+        raise RuntimeError("Incorrect API key provided: sk-proj-********suffix")
+
+    monkeypatch.setattr("course_policy.ai_client._create_response", fake_create_response)
+
+    output = run_api_smoke(config)
+
+    raw_text = output.raw_response_path.read_text(encoding="utf-8")
+    assert "sk-proj" not in raw_text
+    assert "suffix" not in raw_text
+    assert "[redacted-api-key]" in raw_text
+
+
 def fake_config(tmp_path: Path, *, mode: str):
     return AIConfig(
         path=tmp_path / "openai.local.toml",

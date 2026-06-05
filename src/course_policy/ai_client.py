@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -56,13 +57,21 @@ def run_api_smoke(config: AIConfig) -> AISmokeOutput:
     output_text = ""
     validation_status = "dry_run"
     raw_response: dict[str, Any] | None = None
+    error_type = ""
+    error_message = ""
 
     if config.live_enabled:
         raw_response_path = config.workflow.raw_response_dir / f"{call_id}.json"
-        response = _create_response(config)
-        output_text = str(getattr(response, "output_text", "")).strip()
-        validation_status = "passed" if output_text == "API_OK" else "unexpected_output"
-        raw_response = _response_to_dict(response)
+        try:
+            response = _create_response(config)
+            output_text = str(getattr(response, "output_text", "")).strip()
+            validation_status = "passed" if output_text == "API_OK" else "unexpected_output"
+            raw_response = _response_to_dict(response)
+        except Exception as exc:  # pragma: no cover - exact SDK errors vary by version.
+            validation_status = "api_error"
+            error_type = type(exc).__name__
+            error_message = _safe_error_message(str(exc))
+            raw_response = {"error_type": error_type, "error_message": error_message}
         raw_response_path.write_text(json.dumps(raw_response, indent=2, sort_keys=True), encoding="utf-8")
 
     metadata = {
@@ -76,6 +85,8 @@ def run_api_smoke(config: AIConfig) -> AISmokeOutput:
         "output_hash": sha256_text(output_text) if output_text else "",
         "raw_response_path": str(raw_response_path) if raw_response_path else "",
         "validation_status": validation_status,
+        "error_type": error_type,
+        "error_message": error_message,
         "created_at": created_at,
         "notes": "Connectivity check only; not a catalog-discovery or policy-classification result.",
     }
@@ -120,6 +131,13 @@ def _response_to_dict(response: Any) -> dict[str, Any]:
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _safe_error_message(message: str) -> str:
+    exact_key = os.environ.get("OPENAI_API_KEY", "")
+    if exact_key:
+        message = message.replace(exact_key, "[redacted]")
+    return re.sub(r"sk-[A-Za-z0-9*_-]+", "[redacted-api-key]", message)
 
 
 def build_parser() -> argparse.ArgumentParser:
