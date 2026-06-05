@@ -285,7 +285,7 @@ def parse_explicit_catalog_year(text: str) -> tuple[int, int, str] | None:
     if not text:
         return None
     context_pattern = r"(catalog|bulletin|undergraduate|academic standards|general policies)"
-    range_pattern = r"((?:19|20)\d{2})\s*(?:-|/|\s+to\s+|\s+through\s+|\s+)\s*((?:19|20)?\d{2})"
+    range_pattern = r"((?:19|20)\d{2})\s*(?:-|–|—|/|\s+to\s+|\s+through\s+|\s+)\s*((?:19|20)?\d{2})"
     for match in re.finditer(range_pattern, text, flags=re.IGNORECASE):
         snippet = text[max(0, match.start() - 80) : min(len(text), match.end() + 80)]
         if not re.search(context_pattern, snippet, flags=re.IGNORECASE):

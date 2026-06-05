@@ -13,6 +13,11 @@ def test_parse_explicit_catalog_year_requires_catalog_context():
         2014,
         "SFSU Bulletin 2013-2014",
     )
+    assert parse_explicit_catalog_year("SF State Bulletin 2017–2018") == (
+        2017,
+        2018,
+        "SF State Bulletin 2017–2018",
+    )
     assert parse_explicit_catalog_year("bpbootstrap-20160726.pack.js") is None
 
 

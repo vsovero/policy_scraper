@@ -121,6 +121,10 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_candidates_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_year_status_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_ready_inventory_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_panel_year_coverage_retrieved_strict_pilot.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
@@ -137,6 +141,8 @@ Current strict-pilot panel expansion note:
 - the 5-institution strict pilot is being expanded across AY 2000-2020 before adding more institutions;
 - `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;
 - `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
+- `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;
+- `catalog_panel_year_coverage_retrieved_strict_pilot.csv` records the combined strict year coverage after adding ready-candidate retrieval results to the original strict pilot evidence;
 - Oregon Health & Science University is treated as fresh discovery because the legacy School of Nursing lead is wrong-scope for an institution-wide undergraduate catalog source.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot

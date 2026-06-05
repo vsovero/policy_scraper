@@ -21,6 +21,8 @@ STRICT_RETRIEVAL_COVERAGE_INPUT = INTERIM_DIR / "catalog_retrieval_coverage_stri
 STRICT_INVENTORY_INPUT = INTERIM_DIR / "catalog_inventory_strict_pilot.csv"
 PANEL_CANDIDATES_INPUT = INTERIM_DIR / "catalog_panel_candidates_strict_pilot.csv"
 PANEL_YEAR_STATUS_INPUT = INTERIM_DIR / "catalog_panel_year_status_strict_pilot.csv"
+PANEL_RETRIEVAL_COVERAGE_INPUT = INTERIM_DIR / "catalog_panel_retrieval_coverage_strict_pilot.csv"
+PANEL_RETRIEVED_YEAR_COVERAGE_INPUT = INTERIM_DIR / "catalog_panel_year_coverage_retrieved_strict_pilot.csv"
 
 STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
 
@@ -141,6 +143,51 @@ PANEL_CANDIDATE_COLUMNS = [
     "created_at",
 ]
 
+PANEL_RETRIEVAL_COLUMNS = [
+    "source_id",
+    "pilot_rank",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "candidate_url",
+    "source_retrieved",
+    "strict_covers_target_year",
+    "catalog_year_evidence_type",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_text",
+    "best_retrieval_status",
+    "best_attempt_method",
+    "best_final_url",
+    "best_content_type",
+    "best_page_title",
+    "local_source_path",
+    "sha256",
+    "strict_coverage_reason",
+]
+
+PANEL_RETRIEVED_YEAR_COLUMNS = [
+    "strict_pilot_rank",
+    "unitid",
+    "institution_name",
+    "target_year",
+    "has_strict_catalog_source",
+    "source_status",
+    "source_id",
+    "catalog_year_start",
+    "catalog_year_end",
+    "catalog_year_evidence_type",
+    "catalog_year_evidence_text",
+    "candidate_url",
+    "retrieval_method",
+    "local_source_path",
+    "prior_evidence_status",
+    "legacy_evidence_row_count",
+    "legacy_needs_review",
+    "needs_human_review",
+    "review_reason",
+]
+
 
 def read_optional_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -148,13 +195,17 @@ def read_optional_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, low_memory=False)
 
 
-def read_strict_outputs(repo_root: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def read_strict_outputs(
+    repo_root: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return (
         pd.read_csv(repo_root / STRICT_YEAR_COVERAGE_INPUT, low_memory=False),
         pd.read_csv(repo_root / STRICT_RETRIEVAL_COVERAGE_INPUT, low_memory=False),
         pd.read_csv(repo_root / STRICT_INVENTORY_INPUT, low_memory=False),
         read_optional_csv(repo_root / PANEL_YEAR_STATUS_INPUT),
         read_optional_csv(repo_root / PANEL_CANDIDATES_INPUT),
+        read_optional_csv(repo_root / PANEL_RETRIEVAL_COVERAGE_INPUT),
+        read_optional_csv(repo_root / PANEL_RETRIEVED_YEAR_COVERAGE_INPUT),
     )
 
 
@@ -222,6 +273,8 @@ def write_review_workbook(
     inventory: pd.DataFrame,
     panel_year_status: pd.DataFrame,
     panel_candidates: pd.DataFrame,
+    panel_retrieval: pd.DataFrame,
+    panel_retrieved_year_coverage: pd.DataFrame,
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -242,6 +295,14 @@ def write_review_workbook(
         if not panel_candidates.empty:
             select_columns(panel_candidates, PANEL_CANDIDATE_COLUMNS).to_excel(
                 writer, sheet_name="panel_candidates", index=False
+            )
+        if not panel_retrieval.empty:
+            select_columns(panel_retrieval, PANEL_RETRIEVAL_COLUMNS).to_excel(
+                writer, sheet_name="panel_retrieval", index=False
+            )
+        if not panel_retrieved_year_coverage.empty:
+            select_columns(panel_retrieved_year_coverage, PANEL_RETRIEVED_YEAR_COLUMNS).to_excel(
+                writer, sheet_name="panel_retrieved_years", index=False
             )
         inventory.to_excel(writer, sheet_name="inventory_provenance", index=False)
         format_workbook(writer.book)
@@ -265,9 +326,26 @@ def format_workbook(workbook) -> None:
 
 def run_strict_review_workbook(repo_root: Path) -> Path:
     repo_root = repo_root.resolve()
-    year_coverage, retrieval_coverage, inventory, panel_year_status, panel_candidates = read_strict_outputs(repo_root)
+    (
+        year_coverage,
+        retrieval_coverage,
+        inventory,
+        panel_year_status,
+        panel_candidates,
+        panel_retrieval,
+        panel_retrieved_year_coverage,
+    ) = read_strict_outputs(repo_root)
     output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
-    write_review_workbook(year_coverage, retrieval_coverage, inventory, panel_year_status, panel_candidates, output_path)
+    write_review_workbook(
+        year_coverage,
+        retrieval_coverage,
+        inventory,
+        panel_year_status,
+        panel_candidates,
+        panel_retrieval,
+        panel_retrieved_year_coverage,
+        output_path,
+    )
     return output_path
 
 
