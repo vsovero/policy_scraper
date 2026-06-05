@@ -358,6 +358,16 @@ def parse_cdx_snapshots(body: bytes, target_year: int) -> list[str]:
     return [url for _, url in sorted(snapshots, key=lambda item: item[0])]
 
 
+def raw_wayback_snapshot_url(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.netloc.lower() != "web.archive.org":
+        return url
+    match = re.match(r"^/web/(\d{6,14})(?:[a-z_]+)?/(.+)$", parsed.path)
+    if not match:
+        return url
+    return urlunparse(parsed._replace(path=f"/web/{match.group(1)}id_/{match.group(2)}"))
+
+
 def parent_urls(url: str, max_depth: int = 3) -> list[str]:
     parsed = urlparse(url)
     parts = [part for part in parsed.path.split("/") if part]
@@ -621,7 +631,8 @@ def build_retrieval_attempts(
                 if wayback_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
                     recovered_url = parse_wayback_snapshot(wayback_result["body"])
             if recovered_url:
-                snapshot = retrieve_url(recovered_url, timeout_seconds=timeout_seconds)
+                snapshot_url = raw_wayback_snapshot_url(recovered_url)
+                snapshot = retrieve_url(snapshot_url, timeout_seconds=timeout_seconds)
                 snapshot_path = ""
                 if snapshot["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
                     snapshot_path = str(
@@ -629,7 +640,7 @@ def build_retrieval_attempts(
                             repo_root,
                             str(source["source_id"]),
                             "wayback_snapshot",
-                            recovered_url,
+                            snapshot_url,
                             str(snapshot["content_type"]),
                             snapshot["body"],
                         )
@@ -641,7 +652,7 @@ def build_retrieval_attempts(
                         len(rows) + 1,
                         sequence,
                         "wayback_snapshot",
-                        recovered_url,
+                        snapshot_url,
                         snapshot,
                         snapshot_path,
                         created_at,
@@ -670,6 +681,7 @@ def build_retrieval_attempts(
                 for snapshot_url in parse_cdx_snapshots(cdx_result["body"], target_year)[:3]:
                     if source_retrieved:
                         break
+                    snapshot_url = raw_wayback_snapshot_url(snapshot_url)
                     snapshot = retrieve_url(snapshot_url, timeout_seconds=timeout_seconds)
                     snapshot_path = ""
                     if snapshot["retrieval_status"] in {"retrieved", "retrieved_truncated"}:

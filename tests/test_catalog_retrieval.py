@@ -10,6 +10,7 @@ from course_policy.catalog_retrieval import (
     parent_urls,
     parse_cdx_snapshots,
     parse_wayback_snapshot,
+    raw_wayback_snapshot_url,
     request_headers_for_url,
     result_has_target_year,
     infer_catalog_coverage_years,
@@ -43,6 +44,14 @@ def test_parse_wayback_snapshot_returns_closest_available_url():
     body = b'{"archived_snapshots":{"closest":{"available":true,"url":"https://web.archive.org/x"}}}'
 
     assert parse_wayback_snapshot(body) == "https://web.archive.org/x"
+
+
+def test_raw_wayback_snapshot_url_uses_id_replay():
+    url = "http://web.archive.org/web/20240724171827/https://apps.abac.edu/Registrar/Catalogs/Archive/2000-2002.pdf"
+
+    assert raw_wayback_snapshot_url(url) == (
+        "http://web.archive.org/web/20240724171827id_/https://apps.abac.edu/Registrar/Catalogs/Archive/2000-2002.pdf"
+    )
 
 
 def test_wayback_available_latest_url_omits_timestamp():
