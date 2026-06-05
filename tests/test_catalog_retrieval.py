@@ -1,6 +1,7 @@
 import pandas as pd
 
 from course_policy.catalog_retrieval import (
+    MAX_SOURCE_BYTES,
     build_coverage,
     build_deduped_coverage,
     candidate_links_from_parent,
@@ -9,6 +10,7 @@ from course_policy.catalog_retrieval import (
     parent_urls,
     parse_cdx_snapshots,
     parse_wayback_snapshot,
+    request_headers_for_url,
     result_has_target_year,
     infer_catalog_coverage_years,
     source_extension,
@@ -24,6 +26,17 @@ def test_candidate_attempt_urls_includes_scheme_variant_and_wayback():
     assert ("http_variant", "http://example.edu/catalog.pdf") in attempts
     assert attempts[-1][0] == "wayback_available"
     assert "timestamp=20040701" in attempts[-1][1]
+
+
+def test_max_source_bytes_allows_large_catalog_pdfs():
+    assert MAX_SOURCE_BYTES >= 100 * 1024 * 1024
+
+
+def test_opensiuc_viewcontent_uses_pdf_request_headers():
+    headers = request_headers_for_url("https://opensiuc.lib.siu.edu/cgi/viewcontent.cgi?article=1363&context=ua_bcc")
+
+    assert headers["Accept"] == "application/pdf"
+    assert headers["User-Agent"] == "curl/8.0"
 
 
 def test_parse_wayback_snapshot_returns_closest_available_url():

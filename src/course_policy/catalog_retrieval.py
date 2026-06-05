@@ -32,7 +32,7 @@ RETRIEVAL_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_retrieval_coverage_pilot.csv"
 RETRIEVAL_DEDUPED_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_retrieval_coverage_pilot_deduped.csv"
 SUMMARY_OUTPUT = LOG_DIR / "phase3_catalog_retrieval_pilot_summary.md"
 
-MAX_SOURCE_BYTES = 25 * 1024 * 1024
+MAX_SOURCE_BYTES = 100 * 1024 * 1024
 DEFAULT_TIMEOUT_SECONDS = 25
 WAYBACK_AVAILABLE_URL = "https://archive.org/wayback/available?url={url}&timestamp={timestamp}"
 WAYBACK_CDX_URL = (
@@ -84,7 +84,7 @@ def retrieve_url(
         "link_records": [],
     }
     try:
-        request = Request(url, headers=browser_headers())
+        request = Request(url, headers=request_headers_for_url(url))
         with urlopen(request, timeout=timeout_seconds) as response:
             body = response.read(max_bytes + 1)
             if len(body) > max_bytes:
@@ -146,6 +146,20 @@ def browser_headers() -> dict[str, str]:
         "Accept": "text/html,application/pdf,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
     }
+
+
+def request_headers_for_url(url: str) -> dict[str, str]:
+    if is_opensiuc_viewcontent_url(url):
+        return {
+            "User-Agent": "curl/8.0",
+            "Accept": "application/pdf",
+        }
+    return browser_headers()
+
+
+def is_opensiuc_viewcontent_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.netloc.lower() == "opensiuc.lib.siu.edu" and parsed.path == "/cgi/viewcontent.cgi"
 
 
 def decode_body(body: bytes, content_type: str) -> str:
