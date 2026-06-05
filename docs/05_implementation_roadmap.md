@@ -143,6 +143,7 @@ Current strict-pilot panel expansion note:
 
 - the 5-institution strict pilot is being expanded across AY 2000-2020 before adding more institutions;
 - `docs/08_phase3_discovery_protocol.md` defines the general source-root strategy, stop rules, escalation buckets, and scale-up gate;
+- the replication checklist in `docs/08_phase3_discovery_protocol.md` is the operating procedure for the next pilot batch;
 - `catalog_source_root_plan_strict_pilot.csv` records preferred/fallback/rejected source roots for the strict pilot;
 - `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and wrong-scope/fresh discovery;
 - `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;

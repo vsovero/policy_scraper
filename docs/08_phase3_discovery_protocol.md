@@ -12,6 +12,46 @@ Phase 3 should answer three questions for each institution-year:
 
 Institution-specific cases are useful only when they become reusable rules.
 
+## Replication Checklist
+
+Use this checklist for each institution in the next pilot batch.
+
+1. Identify one preferred source root.
+
+   Record the best coherent catalog collection/archive before collecting individual year URLs. Prefer official institution-wide catalog archives, institutional repositories, or state/library digital archive collections. Treat legacy workbook links as prior evidence or fallback leads unless they clearly represent the same coherent root.
+
+2. Record fallback roots separately.
+
+   If another root is useful, assign it a role such as `legacy_prior`, `fallback_official`, `fallback_external_archive`, or `rejected_wrong_scope`. Do not silently mix roots.
+
+3. Extract catalog candidates from the preferred root.
+
+   For each candidate, record title, URL, source-root URL, catalog-year start, catalog-year end, evidence type, and whether the source appears institution-wide and undergraduate.
+
+4. Apply academic-year expansion.
+
+   Expand ranges as `[start, end)`: `2013-2014` covers AY 2013, and `2004-2006` covers AY 2004 and AY 2005.
+
+5. Retrieve easy candidates first.
+
+   Attempt direct retrieval and simple recovery only. Save retrieved source bodies. Do not conduct open-ended web search during the first pass.
+
+6. Verify strict catalog-year evidence.
+
+   Count coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. URL or filename year patterns alone are review leads.
+
+7. Assign every institution-year a first-pass status.
+
+   Each year should be covered or assigned a stop/review status such as OCR needed, archive lower/upper bound reached, wrong-scope lead rejected, fresh discovery needed, or fallback deferred.
+
+8. Move unresolved years to an escalation bucket.
+
+   Escalate by type, not by institution story: OCR/visual review, source-root review, archive-bound revisit, wrong-scope exception review, API-assisted discovery, or manual review.
+
+9. Stop the first pass.
+
+   The first pass is complete when every institution-year is either strict-covered or assigned a defensible status. Do not chase every gap before moving to the next institution.
+
 ## Source-Root Strategy
 
 For each institution, first identify one preferred source root whenever possible. A source root is the collection or archive from which catalog candidates are discovered, such as:
