@@ -20,12 +20,10 @@ def test_build_escalation_queue_maps_general_buckets():
     assert set(queue["escalation_bucket"]) == {
         "ocr_or_visual_review",
         "source_root_review",
-        "wrong_scope_exception_or_fresh_discovery",
+        "wrong_scope_exception_review",
     }
     assert queue.loc[queue["unitid"].eq(138558), "escalation_bucket"].iloc[0] == "ocr_or_visual_review"
-    assert queue.loc[queue["unitid"].eq(209490), "escalation_bucket"].iloc[0] == (
-        "wrong_scope_exception_or_fresh_discovery"
-    )
+    assert queue.loc[queue["unitid"].eq(209490), "escalation_bucket"].iloc[0] == "wrong_scope_exception_review"
 
 
 def institutions():

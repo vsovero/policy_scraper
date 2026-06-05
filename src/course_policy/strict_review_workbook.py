@@ -28,6 +28,7 @@ ESCALATION_QUEUE_INPUT = INTERIM_DIR / "catalog_first_pass_escalation_queue_stri
 CURRENT_SOURCE_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_source_trace_strict_pilot.csv"
 CURRENT_YEAR_TRACE_INPUT = INTERIM_DIR / "catalog_current_process_year_trace_strict_pilot.csv"
 OCR_VISUAL_CONFIRMATION_INPUT = INTERIM_DIR / "catalog_ocr_visual_confirmation_strict_pilot.csv"
+FRESH_DISCOVERY_OHSU_INPUT = INTERIM_DIR / "catalog_fresh_discovery_ohsu_strict_pilot.csv"
 
 STRICT_REVIEW_WORKBOOK_OUTPUT = REVIEW_DIR / "strict_catalog_pilot_review.xlsx"
 
@@ -285,6 +286,33 @@ OCR_VISUAL_COLUMNS = [
     "created_at",
 ]
 
+FRESH_DISCOVERY_OHSU_COLUMNS = [
+    "fresh_discovery_id",
+    "unitid",
+    "institution_name",
+    "source_root_name",
+    "source_root_url",
+    "fresh_discovery_method",
+    "root_scope",
+    "source_root_type",
+    "first_pass_decision",
+    "acceptable_first_pass_catalog_root",
+    "acceptable_policy_evidence_root",
+    "needs_exception_review",
+    "retrieval_status",
+    "http_status",
+    "content_type",
+    "page_title",
+    "year_hints",
+    "link_count",
+    "evidence_snippet",
+    "direct_policy_pdf_url",
+    "local_policy_pdf_path",
+    "policy_evidence_excerpt",
+    "recommended_next_step",
+    "created_at",
+]
+
 
 def read_optional_csv(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -295,6 +323,7 @@ def read_optional_csv(path: Path) -> pd.DataFrame:
 def read_strict_outputs(
     repo_root: Path,
 ) -> tuple[
+    pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
@@ -321,6 +350,7 @@ def read_strict_outputs(
         read_optional_csv(repo_root / CURRENT_SOURCE_TRACE_INPUT),
         read_optional_csv(repo_root / CURRENT_YEAR_TRACE_INPUT),
         read_optional_csv(repo_root / OCR_VISUAL_CONFIRMATION_INPUT),
+        read_optional_csv(repo_root / FRESH_DISCOVERY_OHSU_INPUT),
     )
 
 
@@ -395,6 +425,7 @@ def write_review_workbook(
     current_source_trace: pd.DataFrame,
     current_year_trace: pd.DataFrame,
     ocr_visual_confirmation: pd.DataFrame,
+    fresh_discovery_ohsu: pd.DataFrame,
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -444,6 +475,10 @@ def write_review_workbook(
             select_columns(ocr_visual_confirmation, OCR_VISUAL_COLUMNS).to_excel(
                 writer, sheet_name="ocr_visual_abac", index=False
             )
+        if not fresh_discovery_ohsu.empty:
+            select_columns(fresh_discovery_ohsu, FRESH_DISCOVERY_OHSU_COLUMNS).to_excel(
+                writer, sheet_name="fresh_discovery_ohsu", index=False
+            )
         inventory.to_excel(writer, sheet_name="inventory_provenance", index=False)
         format_workbook(writer.book)
 
@@ -479,6 +514,7 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         current_source_trace,
         current_year_trace,
         ocr_visual_confirmation,
+        fresh_discovery_ohsu,
     ) = read_strict_outputs(repo_root)
     output_path = (repo_root / STRICT_REVIEW_WORKBOOK_OUTPUT).resolve()
     write_review_workbook(
@@ -494,6 +530,7 @@ def run_strict_review_workbook(repo_root: Path) -> Path:
         current_source_trace,
         current_year_trace,
         ocr_visual_confirmation,
+        fresh_discovery_ohsu,
         output_path,
     )
     return output_path

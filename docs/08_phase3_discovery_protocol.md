@@ -18,15 +18,15 @@ Use this checklist for each institution in the next pilot batch.
 
 1. Identify one preferred source root.
 
-   Record the best coherent catalog collection/archive before collecting individual year URLs. Prefer official institution-wide catalog archives, institutional repositories, or state/library digital archive collections. Treat legacy workbook links as prior evidence or fallback leads unless they clearly represent the same coherent root.
+   Record the best coherent source before collecting individual year URLs. Prefer official institution-wide catalog archives, institutional repositories, or state/library digital archive collections. If the course repetition rule is published on an official institution-wide academic policy page, that policy page can be treated as a policy evidence root and catalogs are not required for that rule. Treat legacy workbook links as prior evidence or fallback leads unless they clearly represent the same coherent root.
 
 2. Record fallback roots separately.
 
    If another root is useful, assign it a role such as `legacy_prior`, `fallback_official`, `fallback_external_archive`, or `rejected_wrong_scope`. Do not silently mix roots.
 
-3. Extract catalog candidates from the preferred root.
+3. Extract source candidates from the preferred root.
 
-   For each candidate, record title, URL, source-root URL, catalog-year start, catalog-year end, evidence type, and whether the source appears institution-wide and undergraduate.
+   For each catalog candidate, record title, URL, source-root URL, catalog-year start, catalog-year end, evidence type, and whether the source appears institution-wide and undergraduate. For each policy-page candidate, record the policy title, URL, source-root URL, policy scope, retrieval status, visible/retrieved evidence text, and any available revision or archive-date evidence.
 
 4. Apply academic-year expansion.
 
@@ -36,9 +36,9 @@ Use this checklist for each institution in the next pilot batch.
 
    Attempt direct retrieval and simple recovery only. Save retrieved source bodies. Do not conduct open-ended web search during the first pass.
 
-6. Verify strict catalog-year evidence.
+6. Verify source-year evidence.
 
-   Count coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. URL or filename year patterns alone are review leads.
+   Count catalog coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. For policy-page evidence, do not infer panel-year coverage from a current page alone; historical coverage needs revision history, archived snapshots, or another dated source. URL or filename year patterns alone are review leads.
 
 7. Assign every institution-year a first-pass status.
 
@@ -88,6 +88,7 @@ For each institution, first identify one preferred source root whenever possible
 - an institutional repository collection;
 - a state or library digital archive collection;
 - an institution-hosted legacy catalog URL pattern;
+- an official institution-wide academic policy page or policy manual document that contains the course repetition policy;
 - Internet Archive snapshots of an official source.
 
 Avoid silently mixing source roots during the first pass. If multiple roots are used, record their role:
@@ -95,6 +96,7 @@ Avoid silently mixing source roots during the first pass. If multiple roots are 
 - `preferred_first_pass`: main source root for the institution;
 - `legacy_prior`: legacy workbook lead used as prior evidence or corroboration;
 - `fallback_official`: official alternate source used only when the preferred root has a gap;
+- `preferred_policy_root`: official institution-wide policy page or policy manual document used as direct policy evidence;
 - `fallback_external_archive`: non-institutional archive, such as a state digital archive or Internet Archive;
 - `rejected_wrong_scope`: school-, program-, or handbook-specific source outside the target scope.
 
@@ -104,10 +106,11 @@ Use this order unless an institution-specific note documents a reason to change 
 
 1. Coherent official institution-wide undergraduate catalog archive.
 2. Coherent institution repository or library collection for institution-wide catalogs.
-3. Coherent state/library digital archive collection with institution catalog records.
-4. Legacy workbook URLs, treated as prior evidence and fallback leads.
-5. Internet Archive recovery of official URLs.
-6. AI-assisted discovery for remaining hard cases.
+3. Official institution-wide academic policy page or policy manual document that contains the course repetition rule.
+4. Coherent state/library digital archive collection with institution catalog records.
+5. Legacy workbook URLs, treated as prior evidence and fallback leads.
+6. Internet Archive recovery of official URLs.
+7. AI-assisted discovery for remaining hard cases.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
 
@@ -120,7 +123,8 @@ Stop first-pass discovery for an institution-year when one of these statuses app
 - `official_archive_lower_bound_reached`: preferred source root starts after the target year.
 - `official_archive_upper_bound_reached`: preferred source root ends before the target year.
 - `wrong_scope_lead_rejected`: available lead is school-, program-, or handbook-specific and no exception has been approved.
-- `fresh_discovery_needed`: no acceptable root has been found in the easy first pass.
+- `policy_evidence_root_found_needs_historical_coverage`: current official policy source found, but AY 2000-2020 coverage still needs revision history or archived snapshots.
+- `fresh_discovery_needed`: no acceptable catalog or policy evidence root has been found in the easy first pass.
 - `fallback_deferred`: a deeper fallback is plausible but intentionally deferred.
 
 Do not use open-ended web searching to resolve every gap during the first pass.
@@ -146,6 +150,12 @@ Strict coverage requires explicit catalog-year evidence from one of:
 - OCR or visual review record.
 
 URL or filename year patterns alone are not strict evidence.
+
+## Policy-Page Evidence Rule
+
+If an official institution-wide academic policy page contains the course repetition, repeat grade, remediation, or grade replacement rule, it can substitute for a catalog source for policy extraction. The evidence record must preserve the policy page URL, retrieved source body or PDF, excerpt text, source scope, and retrieval date.
+
+A current policy page is not enough to fill the full AY 2000-2020 panel. Historical panel coverage must be established through policy revision history, effective dates, archived snapshots, dated PDF versions, or another source with explicit year coverage.
 
 ## Academic-Year Rule
 
@@ -184,9 +194,9 @@ Rule: Choose a preferred first-pass root before expanding further. DigitalNC app
 
 ### OHSU
 
-Reusable lesson: School-specific leads can look plausible but be wrong-scope.
+Reusable lesson: School-specific catalog leads can look plausible but be wrong-scope, while an official institution-wide academic policy page may still provide the relevant course repetition rule.
 
-Rule: Reject school-specific sources by default and route the institution to fresh discovery or exception review.
+Rule: Reject school-specific sources by default unless an exception is documented. If an institution-wide academic policy page contains the course repetition policy, use it as a policy evidence root and separately document historical coverage through revisions or archived snapshots.
 
 ## Required First-Pass Outputs
 

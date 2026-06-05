@@ -85,6 +85,16 @@ Current handling: Wrong-scope school-specific leads are routed to fresh discover
 
 Follow-up: Create a clear exception protocol for institutions with unusual structures, especially health science institutions.
 
+## Catalog Sources Versus Academic Policy Sources
+
+Issue: Course repetition policy is sometimes published in official institution-wide academic policy pages or policy manuals rather than in catalogs.
+
+Why it matters: If the policy rule is available directly from an official institution-wide policy source, requiring a catalog can waste effort and may push the workflow toward weaker school-specific sources. OHSU is the current example: the School of Nursing catalog is wrong-scope by default, but the OHSU-wide University Grading policy contains repeated/remediated course language.
+
+Current handling: Phase 3 now records `preferred_policy_root` separately from catalog roots. A policy root can be used for policy evidence when it is official, institution-wide, retrievable, and contains the relevant course repetition rule.
+
+Follow-up: Do not use a current policy page to fill AY 2000-2020 by itself. Historical coverage still needs revision history, effective dates, archived snapshots, or another dated source.
+
 ## Scanned PDFs And OCR
 
 Issue: Some catalog PDFs retrieve successfully but do not expose useful text to `pypdf`.

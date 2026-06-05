@@ -185,17 +185,32 @@ def build_source_root_plan(institutions: pd.DataFrame) -> pd.DataFrame:
         plan_row(
             institutions,
             209490,
+            "preferred_policy_root",
+            "OHSU University Grading Policy 02-70-020",
+            "https://ohsu.ellucid.com/documents/view/20897/?security=851390364c24e4d64d30c543ebc2e928ba06da2e",
+            "policy_manager_document",
+            "institution_wide_grading_policy",
+            "use_as_policy_evidence_root",
+            "",
+            "",
+            "fresh_discovery_official_policy_manual",
+            1,
+            "Fresh discovery found an OHSU-wide University Grading policy with repeated/remediated course language. Historical coverage still needs policy revision history or archived snapshots.",
+        ),
+        plan_row(
+            institutions,
+            209490,
             "rejected_wrong_scope",
             "OHSU School of Nursing Lead",
             "",
             "school_specific_lead",
             "school_specific_or_program_specific",
-            "reject_and_start_fresh_discovery",
+            "wrong_scope_exception_review",
             "",
             "",
             "scope_review",
-            "",
-            "Current lead is wrong-scope for institution-wide undergraduate catalog discovery.",
+            2,
+            "School-specific catalog/handbook lead remains wrong-scope by default, but may become exception evidence if OHSU does not publish institution-wide catalogs.",
         ),
     ]
     return pd.DataFrame(rows, columns=SOURCE_ROOT_COLUMNS).sort_values(
@@ -207,7 +222,7 @@ def build_escalation_queue(source_root_plan: pd.DataFrame) -> pd.DataFrame:
     escalation_map = {
         "route_to_ocr_or_visual_review": "ocr_or_visual_review",
         "review_as_preferred_root_before_next_retrieval": "source_root_review",
-        "reject_and_start_fresh_discovery": "wrong_scope_exception_or_fresh_discovery",
+        "wrong_scope_exception_review": "wrong_scope_exception_review",
     }
     rows = []
     for _, row in source_root_plan.iterrows():
@@ -234,7 +249,7 @@ def recommended_next_step(bucket: str) -> str:
     steps = {
         "ocr_or_visual_review": "Test OCR or rendered-page catalog-year confirmation before counting strict coverage.",
         "source_root_review": "Decide whether this root replaces mixed legacy/official roots for first-pass discovery.",
-        "wrong_scope_exception_or_fresh_discovery": "Search for institution-wide undergraduate source or document a scope exception.",
+        "wrong_scope_exception_review": "Decide whether school-specific catalog/handbook sources are acceptable fallback evidence.",
     }
     return steps[bucket]
 
