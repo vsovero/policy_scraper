@@ -11,7 +11,8 @@ unitid
 year
 ```
 
-When possible, `year` should correspond to the academic/catalog year used in the downstream IPEDS merge. Multi-year catalogs must be represented explicitly with coverage start and end years.
+`year` is the academic year start. For example, a `2013-2014` catalog is academic year `2013`.
+Multi-year catalogs must be represented explicitly with coverage start and end years.
 
 ## Source Hierarchy
 
@@ -40,6 +41,8 @@ When legacy rows are merged into the pipeline:
 
 For the private workbook, sheet-level precedence must be explicit before rows are used as prior evidence. Training, example, automated, and main private sheets may overlap and conflict. Conflicting rows should be retained in the audit trail and routed to review unless a later human-adjudicated source clearly resolves the conflict.
 
+Private workbook example/training rows are not public-institution source evidence. They may be useful for training or documentation, but should be excluded from public catalog-discovery pilots unless a later reviewed protocol explicitly says otherwise.
+
 ## Source Preservation
 
 For each source used, the pipeline should store:
@@ -65,6 +68,8 @@ catalog_year_end = 2006
 ```
 
 Then apply the same source to all covered years only if the catalog clearly represents that entire range.
+
+For a two-year catalog such as `2013-2014`, `catalog_year_start = 2013`; the catalog is the direct source for academic year `2013`.
 
 If the catalog title or metadata is ambiguous, flag for review.
 

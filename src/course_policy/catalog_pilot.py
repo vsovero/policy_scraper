@@ -71,7 +71,7 @@ def read_phase2_inputs(repo_root: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.
 def build_public_pilot_features(universe: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
     public = universe[universe["sector"].eq("public_4_year")].copy()
     public_unitids = set(public["unitid"].dropna().astype(int))
-    public_links = links[links["unitid"].isin(public_unitids)].copy()
+    public_links = links[links["unitid"].isin(public_unitids) & links["legacy_workbook"].eq("public")].copy()
 
     if public_links.empty:
         features = public[["unitid", "institution_name", "state", "webaddr"]].copy()
@@ -204,9 +204,7 @@ def add_selection_fields(features: pd.DataFrame) -> pd.DataFrame:
     )
     out["missing_url_case"] = out["missing_url_count"].gt(0)
     out["cross_workbook_legacy_case"] = out["legacy_workbook_count"].gt(1)
-    out["duplicate_or_conflicting_legacy_case"] = (
-        out["duplicate_count"].gt(0) | out["conflicting_duplicate_count"].gt(0) | out["cross_workbook_legacy_case"]
-    )
+    out["duplicate_or_conflicting_legacy_case"] = out["duplicate_count"].gt(0) | out["conflicting_duplicate_count"].gt(0)
     out["multiple_policy_change_case"] = (
         out["legacy_year_count"].gt(1)
         & (out["legacy_policy_class_count"].gt(1) | out["threshold_signature_count"].gt(1))
@@ -313,7 +311,7 @@ def build_catalog_inventory(pilot: pd.DataFrame, targets: pd.DataFrame, links: p
     pilot_targets = pilot_targets.merge(
         pilot[["unitid", "pilot_rank", "pilot_case_types"]], on="unitid", how="left"
     )
-    pilot_links = links[links["unitid"].isin(pilot_unitids)].copy()
+    pilot_links = links[links["unitid"].isin(pilot_unitids) & links["legacy_workbook"].eq("public")].copy()
 
     rows: list[dict[str, object]] = []
     created_at = datetime.now(timezone.utc).isoformat()
@@ -372,7 +370,7 @@ def placeholder_inventory_row(source_counter: int, target: pd.Series, created_at
 def legacy_inventory_row(source_counter: int, target: pd.Series, link: pd.Series, created_at: str) -> dict[str, object]:
     url = clean_text(link.get("legacy_url", ""))
     review_reasons = inventory_review_reasons(link, has_url=bool(url))
-    years = infer_catalog_years(url, clean_text(link.get("legacy_excerpt", "")))
+    years = infer_catalog_coverage_years(url, clean_text(link.get("legacy_excerpt", "")))
     return {
         "source_id": f"pilot-{source_counter:05d}",
         "pilot_rank": int(target["pilot_rank"]),
@@ -465,13 +463,20 @@ def source_kind_from_url(url: str) -> str:
     return "catalog_or_policy_webpage"
 
 
-def infer_catalog_years(url: str, excerpt: str) -> tuple[int, int] | None:
+def infer_catalog_coverage_years(url: str, excerpt: str) -> tuple[int, int] | None:
     text = f"{url} {excerpt}"
-    years = [int(match.group(0)) for match in re.finditer(r"(?:19|20)\d{2}", text)]
-    years = [year for year in years if 1990 <= year <= 2030]
-    if not years:
+    range_match = re.search(r"((?:19|20)\d{2})\D{0,8}((?:19|20)?\d{2})", text)
+    if range_match:
+        start = int(range_match.group(1))
+        end_text = range_match.group(2)
+        end = int(end_text) if len(end_text) == 4 else int(str(start)[:2] + end_text)
+        if 1990 <= start <= 2030 and start <= end <= 2035:
+            return start, end
+    year_match = re.search(r"(?:19|20)\d{2}", text)
+    if not year_match:
         return None
-    return min(years), max(years)
+    year = int(year_match.group(0))
+    return (year, year) if 1990 <= year <= 2030 else None
 
 
 def write_summary_report(
@@ -516,7 +521,7 @@ def write_summary_report(
             "## Duplicate/Conflict Note",
             "",
             f"- Public-institution legacy rows with explicit duplicate/conflict audit flags: {public_duplicate_conflicts}.",
-            "- When no explicit public duplicate/conflict rows are available, cross-workbook public-institution evidence is used as the closest pilot stress case for provenance handling.",
+            "- Private workbook example/training rows are excluded from the public pilot because they were student guides/training material, not public-institution source evidence.",
             "",
             "## Inventory Status",
             "",

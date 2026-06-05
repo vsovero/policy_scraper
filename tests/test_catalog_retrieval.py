@@ -10,6 +10,7 @@ from course_policy.catalog_retrieval import (
     parse_cdx_snapshots,
     parse_wayback_snapshot,
     result_has_target_year,
+    infer_catalog_coverage_years,
     source_extension,
     wayback_available_latest_url,
 )
@@ -38,8 +39,13 @@ def test_wayback_available_latest_url_omits_timestamp():
 
 
 def test_result_has_target_year_checks_url_title_and_hints():
-    assert result_has_target_year({"final_url": "", "page_title": "Catalog 2004-2006", "year_hints": ""}, 2004)
-    assert not result_has_target_year({"final_url": "", "page_title": "Archive page", "year_hints": "2026"}, 2004)
+    assert result_has_target_year({"catalog_year_start": 2004, "catalog_year_end": 2006}, 2004)
+    assert not result_has_target_year({"catalog_year_start": 2005, "catalog_year_end": 2006}, 2004)
+
+
+def test_infer_catalog_coverage_years_uses_academic_year_start():
+    assert infer_catalog_coverage_years("SFSU Bulletin 2013-2014") == (2013, 2014)
+    assert infer_catalog_coverage_years("2004-06 Undergraduate Catalog") == (2004, 2006)
 
 
 def test_parse_cdx_snapshots_orders_by_target_year_distance():
@@ -116,6 +122,8 @@ def test_build_coverage_does_not_count_wayback_availability_as_source_retrieved(
                 "content_type": "application/json",
                 "page_title": "",
                 "year_hints": "2004",
+                "catalog_year_start": "",
+                "catalog_year_end": "",
                 "local_source_path": "",
                 "sha256": "hash",
             }
@@ -147,6 +155,8 @@ def test_build_coverage_maps_one_retrieval_result_to_duplicate_provenance_rows()
                 "content_type": "application/pdf",
                 "page_title": "Catalog 2004",
                 "year_hints": "2004",
+                "catalog_year_start": 2004,
+                "catalog_year_end": 2006,
                 "local_source_path": "/tmp/catalog.pdf",
                 "sha256": "hash",
             }
@@ -158,6 +168,7 @@ def test_build_coverage_maps_one_retrieval_result_to_duplicate_provenance_rows()
 
     assert len(coverage) == 2
     assert coverage["source_retrieved"].tolist() == [True, True]
+    assert coverage["covers_target_year"].tolist() == [True, True]
     assert len(deduped) == 1
     assert deduped.loc[0, "source_id_count"] == 2
     assert deduped.loc[0, "legacy_workbooks"] == "private; public"

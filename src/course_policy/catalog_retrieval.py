@@ -74,6 +74,8 @@ def retrieve_url(
         "content_length_bytes": "",
         "page_title": "",
         "year_hints": "",
+        "catalog_year_start": "",
+        "catalog_year_end": "",
         "sha256": "",
         "error_type": "",
         "error_message": "",
@@ -100,11 +102,16 @@ def retrieve_url(
                     "content_length_bytes": len(body),
                     "page_title": extract_title(text, final_url, content_type),
                     "year_hints": "; ".join(str(year) for year in infer_years(f"{url} {final_url} {text[:8000]}")),
+                    "catalog_year_start": "",
+                    "catalog_year_end": "",
                     "sha256": sha256_bytes(body),
                     "body": body,
                     "links": extract_links(text, final_url, content_type),
                 }
             )
+            coverage = infer_catalog_coverage_years(f"{url} {final_url} {result['page_title']} {text[:8000]}")
+            if coverage:
+                result["catalog_year_start"], result["catalog_year_end"] = coverage
     except HTTPError as exc:
         result.update(
             {
@@ -185,6 +192,26 @@ def title_from_url(url: str) -> str:
 def infer_years(text: str) -> list[int]:
     years = sorted({int(match.group(0)) for match in re.finditer(r"(?:19|20)\d{2}", text)})
     return [year for year in years if 1990 <= year <= 2030]
+
+
+def infer_catalog_coverage_years(text: str) -> tuple[int, int] | None:
+    range_patterns = [
+        r"((?:19|20)\d{2})\s*[-/]\s*((?:19|20)?\d{2})",
+        r"((?:19|20)\d{2})\s*(?:to|through|thru)\s*((?:19|20)?\d{2})",
+    ]
+    for pattern in range_patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        start = int(match.group(1))
+        end_text = match.group(2)
+        end = int(end_text) if len(end_text) == 4 else int(str(start)[:2] + end_text)
+        if 1990 <= start <= 2030 and start <= end <= 2035:
+            return start, end
+    years = infer_years(text)
+    if years:
+        return years[0], years[0]
+    return None
 
 
 def sha256_bytes(body: bytes) -> str:
@@ -336,8 +363,19 @@ def should_try_recovery(result: dict[str, Any]) -> bool:
 
 
 def result_has_target_year(result: dict[str, Any], target_year: int) -> bool:
-    haystack = f"{result.get('final_url', '')} {result.get('page_title', '')} {result.get('year_hints', '')}"
-    return str(target_year) in haystack
+    start = result.get("catalog_year_start", "")
+    end = result.get("catalog_year_end", "")
+    try:
+        return int(start) <= target_year <= int(end)
+    except (TypeError, ValueError):
+        return False
+
+
+def covers_target_year(row: pd.Series) -> bool:
+    try:
+        return int(row["best_catalog_year_start"]) <= int(row["target_year"]) <= int(row["best_catalog_year_end"])
+    except (TypeError, ValueError):
+        return False
 
 
 METADATA_ATTEMPT_METHODS = {"wayback_available", "wayback_available_latest", "wayback_cdx_lookup", "parent_page"}
@@ -596,6 +634,8 @@ def attempt_row(
         "content_length_bytes": result["content_length_bytes"],
         "page_title": result["page_title"],
         "year_hints": result["year_hints"],
+        "catalog_year_start": result["catalog_year_start"],
+        "catalog_year_end": result["catalog_year_end"],
         "sha256": result["sha256"],
         "local_source_path": local_path,
         "error_type": result["error_type"],
@@ -624,6 +664,8 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
         leads["best_content_type"] = ""
         leads["best_page_title"] = ""
         leads["best_year_hints"] = ""
+        leads["best_catalog_year_start"] = ""
+        leads["best_catalog_year_end"] = ""
         leads["local_source_path"] = ""
         leads["sha256"] = ""
     else:
@@ -643,6 +685,8 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
                 "content_type": "best_content_type",
                 "page_title": "best_page_title",
                 "year_hints": "best_year_hints",
+                "catalog_year_start": "best_catalog_year_start",
+                "catalog_year_end": "best_catalog_year_end",
                 "local_source_path": "best_local_source_path",
                 "sha256": "best_sha256",
             }
@@ -657,6 +701,8 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
                     "best_content_type",
                     "best_page_title",
                     "best_year_hints",
+                    "best_catalog_year_start",
+                    "best_catalog_year_end",
                     "best_local_source_path",
                     "best_sha256",
                 ]
@@ -672,14 +718,14 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
         leads["best_content_type"] = leads["best_content_type"].fillna("")
         leads["best_page_title"] = leads["best_page_title"].fillna("")
         leads["best_year_hints"] = leads["best_year_hints"].fillna("")
+        leads["best_catalog_year_start"] = leads["best_catalog_year_start"].fillna("")
+        leads["best_catalog_year_end"] = leads["best_catalog_year_end"].fillna("")
         leads["local_source_path"] = leads["best_local_source_path"].fillna("")
         leads["sha256"] = leads["best_sha256"].fillna("")
 
     leads["source_retrieved"] = leads["best_retrieval_status"].isin(["retrieved", "retrieved_truncated"])
-    leads["target_year_in_hints"] = leads.apply(
-        lambda row: str(int(row["target_year"])) in str(row.get("best_year_hints", "")),
-        axis=1,
-    )
+    leads["covers_target_year"] = leads.apply(covers_target_year, axis=1)
+    leads["target_year_in_hints"] = leads["covers_target_year"]
     return leads[
         [
             "source_id",
@@ -695,6 +741,9 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
             "best_content_type",
             "best_page_title",
             "best_year_hints",
+            "best_catalog_year_start",
+            "best_catalog_year_end",
+            "covers_target_year",
             "target_year_in_hints",
             "local_source_path",
             "sha256",
@@ -726,6 +775,9 @@ def build_deduped_coverage(coverage: pd.DataFrame) -> pd.DataFrame:
             best_content_type=("best_content_type", "first"),
             best_page_title=("best_page_title", "first"),
             best_year_hints=("best_year_hints", "first"),
+            best_catalog_year_start=("best_catalog_year_start", "first"),
+            best_catalog_year_end=("best_catalog_year_end", "first"),
+            covers_target_year=("covers_target_year", "max"),
             target_year_in_hints=("target_year_in_hints", "max"),
             local_source_path=("local_source_path", "first"),
             sha256=("sha256", "first"),
@@ -774,7 +826,7 @@ def write_summary(
         f"- Retrieved provenance rows: {int(coverage['source_retrieved'].sum())}",
         f"- Retrieved unique URL leads: {int(deduped_coverage['source_retrieved'].sum())}",
         f"- Not retrieved unique URL leads: {int((~deduped_coverage['source_retrieved']).sum())}",
-        f"- Retrieved unique URL leads with target year in hints: {int((deduped_coverage['source_retrieved'] & deduped_coverage['target_year_in_hints']).sum())}",
+        f"- Retrieved unique URL leads covering target academic year: {int((deduped_coverage['source_retrieved'] & deduped_coverage['covers_target_year']).sum())}",
         "",
         "## Best Retrieval Status",
         "",
@@ -788,8 +840,8 @@ def write_summary(
     method_counts = deduped_coverage["best_attempt_method"].fillna("").replace("", "none").value_counts()
     for method, count in method_counts.items():
         method_rows = deduped_coverage[deduped_coverage["best_attempt_method"].fillna("").replace("", "none").eq(method)]
-        target_hint_count = int(method_rows["target_year_in_hints"].sum()) if not method_rows.empty else 0
-        lines.append(f"- {method}: {count} unique URL leads ({target_hint_count} with target year in hints)")
+        coverage_count = int(method_rows["covers_target_year"].sum()) if not method_rows.empty else 0
+        lines.append(f"- {method}: {count} unique URL leads ({coverage_count} covering target academic year)")
     lines.extend(
         [
             "",

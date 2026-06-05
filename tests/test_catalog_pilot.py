@@ -3,7 +3,7 @@ import pandas as pd
 from course_policy.catalog_pilot import (
     build_catalog_inventory,
     build_public_pilot_features,
-    infer_catalog_years,
+    infer_catalog_coverage_years,
     select_pilot_institutions,
 )
 
@@ -30,8 +30,7 @@ def test_build_public_pilot_features_labels_representative_cases():
             ),
             legacy_link(
                 2,
-                2006,
-                legacy_workbook="private",
+                2007,
                 legacy_url="https://messy.edu/catalog-2006.pdf",
                 grade_forgiveness_normalized="0",
                 grade_avg_threshold_normalized="D",
@@ -48,7 +47,7 @@ def test_build_public_pilot_features_labels_representative_cases():
     assert clean["clean_case"]
     assert messy["messy_case"]
     assert messy["missing_url_case"]
-    assert messy["cross_workbook_legacy_case"]
+    assert not messy["cross_workbook_legacy_case"]
     assert messy["multiple_policy_change_case"]
     assert messy["ambiguous_threshold_case"]
     assert no_legacy["no_legacy_evidence_case"]
@@ -103,6 +102,12 @@ def test_build_catalog_inventory_preserves_legacy_link_and_placeholder_rows():
     links = pd.DataFrame(
         [
             legacy_link(1, 2004, legacy_url="https://clean.edu/catalogs/2004-2006-undergraduate.pdf"),
+            legacy_link(
+                1,
+                2004,
+                legacy_workbook="private",
+                legacy_url="https://clean.edu/private-example-should-be-ignored.pdf",
+            ),
         ]
     )
 
@@ -117,8 +122,9 @@ def test_build_catalog_inventory_preserves_legacy_link_and_placeholder_rows():
     assert missing["needs_human_review"]
 
 
-def test_infer_catalog_years_reads_url_year_range():
-    assert infer_catalog_years("https://example.edu/catalog-2004-2006.pdf", "") == (2004, 2006)
+def test_infer_catalog_coverage_years_reads_academic_year_range():
+    assert infer_catalog_coverage_years("https://example.edu/catalog-2013-2014.pdf", "") == (2013, 2014)
+    assert infer_catalog_coverage_years("https://example.edu/catalog-2004-06.pdf", "") == (2004, 2006)
 
 
 def legacy_link(unitid, year, **overrides):
