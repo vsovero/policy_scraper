@@ -12,6 +12,16 @@ Current handling: Source provenance is preserved in candidate and retrieval tabl
 
 Follow-up: For each institution, identify a preferred first-pass source root where possible. Use other roots as documented fallback or corroboration rather than silently mixing them.
 
+## Institution-Specific Cases Versus Scalable Rules
+
+Issue: It is easy to get stuck solving one institution's catalog history in detail.
+
+Why it matters: The purpose of the strict pilot is to build a scalable discovery protocol, not to maximize coverage for a single institution at any cost.
+
+Current handling: Phase 3 now separates source-root planning, first-pass stop rules, and escalation buckets. The strict pilot institutions are treated as examples of reusable cases: clean archive, repository with bounds, scanned PDFs, mixed source roots, and wrong-scope leads.
+
+Follow-up: Before expanding the pilot, use `docs/08_phase3_discovery_protocol.md`, `catalog_source_root_plan_strict_pilot.csv`, and `catalog_first_pass_escalation_queue_strict_pilot.csv` to decide which buckets should be handled next.
+
 ## UNC Charlotte Source Hierarchy
 
 Issue: UNC Charlotte was initially handled with a mix of legacy PDF links and Provost archive pages. This created confusing archive-bound labels because AY 2001-2002 came from legacy evidence, while AY 2003-2011 came from Provost nodes.

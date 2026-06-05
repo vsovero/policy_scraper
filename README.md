@@ -23,6 +23,7 @@ Existing raw workbooks and Stata/R analysis files should remain untouched unless
 - [Implementation Roadmap](docs/05_implementation_roadmap.md): staged build plan from audit to full-scale run.
 - [API Setup](docs/06_api_setup.md): local API configuration, dry-run/live modes, and secret handling.
 - [High-Level Issues Log](docs/07_high_level_issues_log.md): running record of methodological issues, guardrails, and unresolved decisions uncovered during implementation.
+- [Phase 3 Discovery Protocol](docs/08_phase3_discovery_protocol.md): source-root strategy, first-pass stop rules, escalation buckets, and scale-up gates.
 
 ## Current Status
 

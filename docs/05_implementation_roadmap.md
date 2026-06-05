@@ -100,6 +100,7 @@ Tasks:
 - use legacy URLs first;
 - use public workbook legacy rows for the public pilot; ignore private workbook example/training rows;
 - search institution archive pages;
+- record preferred source roots, fallback roots, stop rules, and escalation buckets before expanding beyond the strict pilot;
 - query Internet Archive where needed;
 - use AI-assisted discovery for hard cases;
 - verify all candidate sources by code;
@@ -121,6 +122,8 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_candidates_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_year_status_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_source_root_plan_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_first_pass_escalation_queue_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_ready_inventory_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
@@ -139,6 +142,9 @@ Initial implementation note:
 Current strict-pilot panel expansion note:
 
 - the 5-institution strict pilot is being expanded across AY 2000-2020 before adding more institutions;
+- `docs/08_phase3_discovery_protocol.md` defines the general source-root strategy, stop rules, escalation buckets, and scale-up gate;
+- `catalog_source_root_plan_strict_pilot.csv` records preferred/fallback/rejected source roots for the strict pilot;
+- `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and wrong-scope/fresh discovery;
 - `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;
 - `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
 - `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;
