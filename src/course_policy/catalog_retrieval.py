@@ -198,6 +198,7 @@ def infer_catalog_coverage_years(text: str) -> tuple[int, int] | None:
     range_patterns = [
         r"((?:19|20)\d{2})\s*[-/]\s*((?:19|20)?\d{2})",
         r"((?:19|20)\d{2})\s*(?:to|through|thru)\s*((?:19|20)?\d{2})",
+        r"((?:19|20)\d{2})[\s_]+((?:19|20)?\d{2})",
     ]
     for pattern in range_patterns:
         match = re.search(pattern, text, flags=re.IGNORECASE)
@@ -210,7 +211,7 @@ def infer_catalog_coverage_years(text: str) -> tuple[int, int] | None:
             return start, end
     years = infer_years(text)
     if years:
-        return years[0], years[0]
+        return years[0], years[0] + 1
     return None
 
 
@@ -366,14 +367,14 @@ def result_has_target_year(result: dict[str, Any], target_year: int) -> bool:
     start = result.get("catalog_year_start", "")
     end = result.get("catalog_year_end", "")
     try:
-        return int(start) <= target_year <= int(end)
+        return int(start) <= target_year < int(end)
     except (TypeError, ValueError):
         return False
 
 
 def covers_target_year(row: pd.Series) -> bool:
     try:
-        return int(row["best_catalog_year_start"]) <= int(row["target_year"]) <= int(row["best_catalog_year_end"])
+        return int(row["best_catalog_year_start"]) <= int(row["target_year"]) < int(row["best_catalog_year_end"])
     except (TypeError, ValueError):
         return False
 

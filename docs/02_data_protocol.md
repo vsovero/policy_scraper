@@ -67,9 +67,10 @@ catalog_year_start = 2004
 catalog_year_end = 2006
 ```
 
-Then apply the same source to all covered years only if the catalog clearly represents that entire range.
+Then apply the same source only to academic years from `catalog_year_start` through the year before `catalog_year_end`.
+For example, a `2004-2006` catalog covers AY `2004` and AY `2005`, not AY `2006`.
 
-For a two-year catalog such as `2013-2014`, `catalog_year_start = 2013`; the catalog is the direct source for academic year `2013`.
+For a two-year catalog such as `2013-2014`, `catalog_year_start = 2013` and `catalog_year_end = 2014`; the catalog is the direct source for AY `2013`.
 
 If the catalog title or metadata is ambiguous, flag for review.
 

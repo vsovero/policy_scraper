@@ -125,6 +125,7 @@ def test_build_catalog_inventory_preserves_legacy_link_and_placeholder_rows():
 def test_infer_catalog_coverage_years_reads_academic_year_range():
     assert infer_catalog_coverage_years("https://example.edu/catalog-2013-2014.pdf", "") == (2013, 2014)
     assert infer_catalog_coverage_years("https://example.edu/catalog-2004-06.pdf", "") == (2004, 2006)
+    assert infer_catalog_coverage_years("https://example.edu/catalog-2020.pdf", "") == (2020, 2021)
 
 
 def legacy_link(unitid, year, **overrides):

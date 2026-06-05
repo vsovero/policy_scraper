@@ -476,7 +476,7 @@ def infer_catalog_coverage_years(url: str, excerpt: str) -> tuple[int, int] | No
     if not year_match:
         return None
     year = int(year_match.group(0))
-    return (year, year) if 1990 <= year <= 2030 else None
+    return (year, year + 1) if 1990 <= year <= 2030 else None
 
 
 def write_summary_report(

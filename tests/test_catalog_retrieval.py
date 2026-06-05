@@ -40,12 +40,16 @@ def test_wayback_available_latest_url_omits_timestamp():
 
 def test_result_has_target_year_checks_url_title_and_hints():
     assert result_has_target_year({"catalog_year_start": 2004, "catalog_year_end": 2006}, 2004)
+    assert result_has_target_year({"catalog_year_start": 2004, "catalog_year_end": 2006}, 2005)
+    assert not result_has_target_year({"catalog_year_start": 2004, "catalog_year_end": 2006}, 2006)
     assert not result_has_target_year({"catalog_year_start": 2005, "catalog_year_end": 2006}, 2004)
 
 
 def test_infer_catalog_coverage_years_uses_academic_year_start():
     assert infer_catalog_coverage_years("SFSU Bulletin 2013-2014") == (2013, 2014)
     assert infer_catalog_coverage_years("2004-06 Undergraduate Catalog") == (2004, 2006)
+    assert infer_catalog_coverage_years("Mason 2000 01.pdf") == (2000, 2001)
+    assert infer_catalog_coverage_years("Fall 2020 catalog") == (2020, 2021)
 
 
 def test_parse_cdx_snapshots_orders_by_target_year_distance():
@@ -172,6 +176,38 @@ def test_build_coverage_maps_one_retrieval_result_to_duplicate_provenance_rows()
     assert len(deduped) == 1
     assert deduped.loc[0, "source_id_count"] == 2
     assert deduped.loc[0, "legacy_workbooks"] == "private; public"
+
+
+def test_build_coverage_uses_half_open_academic_year_ranges():
+    inventory = pd.DataFrame(
+        [
+            {**inventory_row("pilot-2005", "public"), "target_year": 2005},
+            {**inventory_row("pilot-2006", "public"), "target_year": 2006},
+        ]
+    )
+    attempts = pd.DataFrame(
+        [
+            {
+                "source_id": "pilot-2005",
+                "original_candidate_url": "https://example.edu/catalog.pdf",
+                "retrieval_status": "retrieved",
+                "attempt_method": "direct",
+                "attempt_sequence": 1,
+                "final_url": "https://example.edu/catalog.pdf",
+                "content_type": "application/pdf",
+                "page_title": "Catalog 2004-2006",
+                "year_hints": "2004; 2006",
+                "catalog_year_start": 2004,
+                "catalog_year_end": 2006,
+                "local_source_path": "/tmp/catalog.pdf",
+                "sha256": "hash",
+            }
+        ]
+    )
+
+    coverage = build_coverage(inventory, attempts).sort_values("target_year")
+
+    assert coverage["covers_target_year"].tolist() == [True, False]
 
 
 def inventory_row(source_id, workbook):
