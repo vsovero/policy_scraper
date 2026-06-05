@@ -18,7 +18,7 @@ Use this checklist for each institution in the next pilot batch.
 
 1. Identify one preferred source root.
 
-   Record the best coherent catalog source before collecting individual year URLs. Prefer official institution-wide catalog archives, institutional repositories, or state/library digital archive collections. Treat legacy workbook links as prior evidence or fallback leads unless they clearly represent the same coherent root.
+   Record the best coherent catalog source before collecting individual year URLs. Prefer official institution-wide catalog archives and institution-specific repositories. Treat legacy workbook links as prior evidence or fallback leads unless they clearly represent the same coherent root.
 
 2. Record fallback roots separately.
 
@@ -105,12 +105,14 @@ Use this order unless an institution-specific note documents a reason to change 
 
 1. Coherent official institution-wide undergraduate catalog archive.
 2. Coherent institution repository or library collection for institution-wide catalogs.
-3. Coherent state/library digital archive collection with institution catalog records.
-4. Legacy workbook URLs, treated as prior evidence and fallback leads.
-5. Internet Archive recovery of official URLs.
+3. Legacy workbook URLs, treated as prior evidence and fallback leads.
+4. Internet Archive recovery of official URLs.
+5. Coherent state/library digital archive collection with institution catalog records, only when it appears organically from legacy links or official-site search.
 6. AI-assisted discovery for remaining hard cases.
 
 Legacy URLs should be inspected early as discovery leads, but they should not override a better coherent source root. When a legacy URL points to a broader official archive, repository collection, or stable catalog root, record the broader root as the preferred first-pass source and keep the legacy URL as prior or corroborating evidence.
+
+Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
 
@@ -192,7 +194,7 @@ Rule: Route scanned/image-only catalogs to OCR or visual review, not deeper disc
 
 Reusable lesson: Mixing legacy links, Provost pages, and DigitalNC makes coverage hard to explain.
 
-Rule: Choose a preferred first-pass root before expanding further. DigitalNC appears to be a coherent candidate root; legacy and Provost links should be treated as fallback or corroborating sources unless the root plan says otherwise.
+Rule: Use the official archive first. Legacy URLs can fill or corroborate years outside the official archive's observed range, but overlapping years should prefer official archive evidence. DigitalNC was found incidentally and should be preserved as a possible later cross-check, not searched as a standard first-pass source.
 
 ### OHSU
 

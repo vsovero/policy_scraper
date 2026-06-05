@@ -140,17 +140,17 @@ def build_source_root_plan(institutions: pd.DataFrame) -> pd.DataFrame:
         plan_row(
             institutions,
             199139,
-            "preferred_first_pass_candidate",
-            "DigitalNC UNC Charlotte Catalog Records",
-            "https://lib.digitalnc.org/",
-            "state_library_digital_archive_collection",
+            "preferred_first_pass",
+            "UNC Charlotte Provost Catalog Nodes",
+            "https://provost.charlotte.edu/",
+            "official_catalog_archive_pages",
             "institution_wide_undergraduate_catalog",
-            "review_as_preferred_root_before_next_retrieval",
-            1999,
-            2009,
-            "observed_search_result_metadata",
+            "use_for_first_pass_with_archive_bounds",
+            2003,
+            2011,
+            "observed_page_titles",
             1,
-            "DigitalNC appears to provide a coherent UNC Charlotte catalog collection. Automated scraping is blocked by AWS WAF, but record pages and metadata are indexed.",
+            "Official archive nodes are the preferred first-pass source. Years outside observed archive bounds are first-pass stops unless revisited later.",
         ),
         plan_row(
             institutions,
@@ -165,22 +165,22 @@ def build_source_root_plan(institutions: pd.DataFrame) -> pd.DataFrame:
             2008,
             "legacy_public_workbook_links",
             2,
-            "Legacy links currently provide strict PDF evidence for AY 2001-2004 and AY 2007-2008.",
+            "Legacy links are retained as prior/corroborating evidence. Use as gap-fill only for years outside official archive coverage, such as AY 2001-2002; overlapping years should prefer official archive evidence.",
         ),
         plan_row(
             institutions,
             199139,
-            "fallback_official",
-            "UNC Charlotte Provost Catalog Nodes",
-            "https://provost.charlotte.edu/",
-            "official_catalog_archive_pages",
+            "deferred_external_archive",
+            "DigitalNC UNC Charlotte Catalog Records",
+            "https://lib.digitalnc.org/",
+            "state_library_digital_archive_collection",
             "institution_wide_undergraduate_catalog",
-            "fallback_after_root_review",
-            2003,
-            2011,
-            "observed_page_titles",
+            "defer_general_digital_archive_search",
+            1999,
+            2009,
+            "observed_search_result_metadata",
             3,
-            "Provost nodes fill some gaps but should not silently mix with DigitalNC/legacy roots.",
+            "DigitalNC was found incidentally and is not a general first-pass search target. Preserve as a possible later cross-check rather than replacing official archive-first discovery.",
         ),
         plan_row(
             institutions,
@@ -221,7 +221,6 @@ def build_source_root_plan(institutions: pd.DataFrame) -> pd.DataFrame:
 def build_escalation_queue(source_root_plan: pd.DataFrame) -> pd.DataFrame:
     escalation_map = {
         "route_to_ocr_or_visual_review": "ocr_or_visual_review",
-        "review_as_preferred_root_before_next_retrieval": "source_root_review",
         "catalog_dead_end_wrong_scope": "catalog_dead_end",
     }
     rows = []
@@ -248,7 +247,6 @@ def build_escalation_queue(source_root_plan: pd.DataFrame) -> pd.DataFrame:
 def recommended_next_step(bucket: str) -> str:
     steps = {
         "ocr_or_visual_review": "Test OCR or rendered-page catalog-year confirmation before counting strict coverage.",
-        "source_root_review": "Decide whether this root replaces mixed legacy/official roots for first-pass discovery.",
         "catalog_dead_end": "Stop catalog-first discovery for this institution in the pilot and preserve deferred non-catalog leads separately.",
     }
     return steps[bucket]

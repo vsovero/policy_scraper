@@ -4,13 +4,13 @@ This is a running log of methodological and workflow issues uncovered while buil
 
 ## Source Root Consistency
 
-Issue: For a given institution, candidate catalog coverage can come from multiple source roots: legacy workbook links, official institutional archive pages, repository collections, DigitalNC, Internet Archive, or page-level search results.
+Issue: For a given institution, candidate catalog coverage can come from multiple source roots: legacy workbook links, official institutional archive pages, repository collections, state/library digital archives, Internet Archive, or page-level search results.
 
-Why it matters: Mixing roots can improve coverage but makes first-pass logic harder to audit. UNC Charlotte is the current example: legacy links covered some early years, Provost pages filled some later years, and DigitalNC appears to provide a more coherent collection root.
+Why it matters: Mixing roots can improve coverage but makes first-pass logic harder to audit. UNC Charlotte is the current example: legacy links covered some early years, Provost pages filled some later years, and a DigitalNC lead was found incidentally.
 
 Current handling: Source provenance is preserved in candidate and retrieval tables, but the first-pass selection hierarchy needs to be made more explicit.
 
-Follow-up: For each institution, identify a preferred first-pass source root where possible. Use other roots as documented fallback or corroboration rather than silently mixing them.
+Follow-up: For each institution, identify a preferred first-pass source root where possible. Use the official archive/root first; use legacy URLs as leads, gap-fill, or corroboration only after checking whether they fall outside official archive coverage.
 
 ## Institution-Specific Cases Versus Scalable Rules
 
@@ -43,7 +43,7 @@ Current handling: Guardrail statuses now distinguish lower-bound and upper-bound
 - `official_archive_lower_bound_reached`;
 - `official_archive_upper_bound_reached`.
 
-Follow-up: Rework UNC Charlotte discovery around DigitalNC as a coherent first-pass collection root, then treat legacy and Provost URLs as secondary evidence or fallback sources.
+Follow-up: Keep UNC Charlotte official-archive first. Treat legacy URLs as prior/corroborating evidence and use them as gap-fill only for years outside the official archive's observed coverage. Do not turn incidental DigitalNC discovery into a standard search step.
 
 ## Archive Bound Guardrails
 
