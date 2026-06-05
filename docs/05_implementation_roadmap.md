@@ -105,7 +105,7 @@ Tasks:
 - use AI-assisted discovery for hard cases;
 - verify all candidate sources by code;
 - reject or route school-specific handbook leads to review unless a documented exception says the institution-wide undergraduate catalog is unavailable;
-- use official institution-wide academic policy pages as direct policy evidence roots when they contain the course repetition rule; in those cases, catalogs are not required for policy extraction, but historical panel coverage still needs dated/revision evidence;
+- preserve official institution-wide academic policy pages as deferred policy-extraction leads when they contain the course repetition rule, but keep Phase 3 catalog-first because current policy pages create historical dating problems for AY 2000-2020;
 - record academic years by start year. For example, a `2013-2014` catalog is AY 2013, and a `2004-2006` catalog covers AY 2004 and AY 2005;
 - require explicit catalog-year evidence from source title/heading, source metadata, or extracted text. URL or filename year patterns are review leads, not accepted coverage by themselves.
 
@@ -153,12 +153,12 @@ Current strict-pilot panel expansion note:
 - `catalog_first_pass_escalation_queue_strict_pilot.csv` records unresolved first-pass buckets such as OCR, source-root review, and wrong-scope/fresh discovery;
 - `catalog_current_process_source_trace_strict_pilot.csv` and `catalog_current_process_year_trace_strict_pilot.csv` reverse engineer the actual mixed-root process that produced the current strict-pilot results;
 - `catalog_ocr_visual_confirmation_strict_pilot.csv` records rendered-page/API visual OCR attempts for scanned PDF candidates, currently tested on ABAC;
-- `catalog_fresh_discovery_ohsu_strict_pilot.csv` records the controlled OHSU fresh-discovery pass, including an OHSU-wide University Grading policy root with repeated/remediated course language;
+- `catalog_fresh_discovery_ohsu_strict_pilot.csv` records the controlled OHSU fresh-discovery pass, including an OHSU-wide University Grading policy lead with repeated/remediated course language that is deferred while Phase 3 stays catalog-first;
 - `catalog_panel_candidates_strict_pilot.csv` records candidate catalog/bulletin sources discovered from official archive/index pages;
 - `catalog_panel_year_status_strict_pilot.csv` records each pilot institution-year as already strictly covered, ready for retrieval, needing OCR/visual review, requiring fresh discovery, or having no current candidate;
 - `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;
 - `catalog_panel_year_coverage_retrieved_strict_pilot.csv` records the combined strict year coverage after adding ready-candidate retrieval results to the original strict pilot evidence;
-- Oregon Health & Science University is treated as a fresh-discovery/policy-root case: the legacy School of Nursing lead is wrong-scope by default, but the OHSU-wide University Grading policy can serve as current policy evidence while historical coverage is resolved.
+- Oregon Health & Science University remains a catalog fresh-discovery case: the legacy School of Nursing lead is wrong-scope by default, and the OHSU-wide University Grading policy is preserved only as a deferred extraction lead.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 

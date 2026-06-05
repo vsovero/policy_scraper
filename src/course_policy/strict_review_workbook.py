@@ -298,6 +298,7 @@ FRESH_DISCOVERY_OHSU_COLUMNS = [
     "first_pass_decision",
     "acceptable_first_pass_catalog_root",
     "acceptable_policy_evidence_root",
+    "deferred_policy_lead",
     "needs_exception_review",
     "retrieval_status",
     "http_status",

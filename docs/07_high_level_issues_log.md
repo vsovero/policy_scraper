@@ -91,9 +91,9 @@ Issue: Course repetition policy is sometimes published in official institution-w
 
 Why it matters: If the policy rule is available directly from an official institution-wide policy source, requiring a catalog can waste effort and may push the workflow toward weaker school-specific sources. OHSU is the current example: the School of Nursing catalog is wrong-scope by default, but the OHSU-wide University Grading policy contains repeated/remediated course language.
 
-Current handling: Phase 3 now records `preferred_policy_root` separately from catalog roots. A policy root can be used for policy evidence when it is official, institution-wide, retrievable, and contains the relevant course repetition rule.
+Current handling: Phase 3 now records `deferred_policy_lead` separately from catalog roots. A current policy root can be useful later, but it is not used for Phase 3 catalog coverage.
 
-Follow-up: Do not use a current policy page to fill AY 2000-2020 by itself. Historical coverage still needs revision history, effective dates, archived snapshots, or another dated source.
+Follow-up: Keep the main pilot catalog-first. Revisit policy pages later only if catalog discovery fails or if a later extraction/classification phase can handle revision history, effective dates, archived snapshots, or another dated source.
 
 ## Scanned PDFs And OCR
 

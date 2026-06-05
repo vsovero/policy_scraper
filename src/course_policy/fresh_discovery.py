@@ -32,7 +32,7 @@ OHSU_SEED_ROOTS = [
         "root_scope": "institution_wide_academic_policy",
         "source_root_type": "academic_policy_landing_page",
         "first_pass_decision": "possible_policy_root_not_catalog",
-        "recommended_next_step": "Use as an institution-wide policy root only if catalog/handbook roots cannot support source coverage.",
+        "recommended_next_step": "Retain as a later policy-extraction lead; keep Phase 3 catalog-first for panel source discovery.",
     },
     {
         "source_root_name": "OHSU Office of the Registrar",
@@ -50,7 +50,7 @@ OHSU_SEED_ROOTS = [
         "root_scope": "institution_wide_policy_manual",
         "source_root_type": "policy_manual",
         "first_pass_decision": "possible_policy_root_not_catalog",
-        "recommended_next_step": "Evaluate if university-wide grading/repeat policies can substitute for catalog evidence under an exception protocol.",
+        "recommended_next_step": "Retain as a later policy-extraction lead; do not use current policy pages to fill the AY 2000-2020 catalog panel.",
     },
     {
         "source_root_name": "OHSU University Grading Policy 02-70-020",
@@ -58,8 +58,8 @@ OHSU_SEED_ROOTS = [
         "fresh_discovery_method": "official_policy_manual_link_followed",
         "root_scope": "institution_wide_grading_policy",
         "source_root_type": "policy_manager_document",
-        "first_pass_decision": "use_as_policy_evidence_root",
-        "recommended_next_step": "Use as a current institution-wide policy evidence root for repeated/remediated course treatment; historical coverage still needs Wayback or policy revision history.",
+        "first_pass_decision": "defer_policy_lead_catalog_first",
+        "recommended_next_step": "Preserve as a policy-extraction lead only. For Phase 3, continue catalog discovery because historical policy-page coverage would require Wayback or revision-history work.",
     },
     {
         "source_root_name": "OHSU School of Nursing Catalog and Student Handbook",
@@ -163,7 +163,7 @@ def build_fresh_discovery_table(
         direct_policy_pdf_url = ""
         local_policy_pdf_path = ""
         policy_evidence_excerpt = ""
-        if seed["first_pass_decision"] == "use_as_policy_evidence_root":
+        if seed["first_pass_decision"] == "defer_policy_lead_catalog_first":
             direct_policy_pdf_url, local_policy_pdf_path, policy_evidence_excerpt = policy_evidence_from_pdf(
                 repo_root, seed["source_root_name"], result
             )
@@ -179,7 +179,8 @@ def build_fresh_discovery_table(
                 "source_root_type": seed["source_root_type"],
                 "first_pass_decision": seed["first_pass_decision"],
                 "recommended_next_step": seed["recommended_next_step"],
-                "acceptable_policy_evidence_root": seed["first_pass_decision"] == "use_as_policy_evidence_root",
+                "acceptable_policy_evidence_root": False,
+                "deferred_policy_lead": seed["first_pass_decision"] == "defer_policy_lead_catalog_first",
                 "retrieval_status": result["retrieval_status"],
                 "http_status": result["http_status"],
                 "content_type": result["content_type"],
@@ -201,8 +202,8 @@ def build_fresh_discovery_table(
 def overall_fresh_discovery_status(discovery: pd.DataFrame) -> str:
     if discovery["acceptable_first_pass_catalog_root"].any():
         return "acceptable_catalog_root_found"
-    if discovery["acceptable_policy_evidence_root"].any():
-        return "acceptable_policy_evidence_root_found"
+    if "deferred_policy_lead" in discovery and discovery["deferred_policy_lead"].any():
+        return "catalog_root_not_found_policy_lead_deferred"
     if discovery["needs_exception_review"].any():
         return "exception_review_needed"
     if discovery["first_pass_decision"].str.contains("policy", case=False, na=False).any():
@@ -222,7 +223,7 @@ def write_summary(path: Path, discovery: pd.DataFrame) -> None:
         f"- Overall status: {status}",
         f"- Candidate roots reviewed: {len(discovery)}",
         f"- Acceptable first-pass catalog roots: {int(discovery['acceptable_first_pass_catalog_root'].sum())}",
-        f"- Acceptable policy evidence roots: {int(discovery['acceptable_policy_evidence_root'].sum())}",
+        f"- Deferred policy leads: {int(discovery.get('deferred_policy_lead', pd.Series(dtype=bool)).sum())}",
         f"- Roots needing exception review: {int(discovery['needs_exception_review'].sum())}",
         "",
         "## First-Pass Decisions",
