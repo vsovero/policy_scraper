@@ -2,8 +2,11 @@ import pandas as pd
 
 from course_policy.catalog_retrieval import (
     build_coverage,
+    candidate_links_from_parent,
     candidate_attempt_urls,
     infer_years,
+    parent_urls,
+    parse_cdx_snapshots,
     parse_wayback_snapshot,
     source_extension,
 )
@@ -22,6 +25,38 @@ def test_parse_wayback_snapshot_returns_closest_available_url():
     body = b'{"archived_snapshots":{"closest":{"available":true,"url":"https://web.archive.org/x"}}}'
 
     assert parse_wayback_snapshot(body) == "https://web.archive.org/x"
+
+
+def test_parse_cdx_snapshots_orders_by_target_year_distance():
+    body = (
+        b'[["timestamp","original","mimetype","statuscode","digest"],'
+        b'["20100101000000","https://example.edu/catalog.pdf","application/pdf","200","a"],'
+        b'["20040101000000","https://example.edu/catalog.pdf","application/pdf","200","b"]]'
+    )
+
+    snapshots = parse_cdx_snapshots(body, 2004)
+
+    assert snapshots[0].startswith("https://web.archive.org/web/20040101000000/")
+
+
+def test_parent_urls_climbs_path_without_query():
+    assert parent_urls("https://example.edu/a/b/file.pdf?x=1")[:2] == [
+        "https://example.edu/a/b/",
+        "https://example.edu/a/",
+    ]
+
+
+def test_candidate_links_from_parent_scores_catalog_year_links():
+    parent_result = {
+        "links": [
+            "https://example.edu/archive/random.pdf",
+            "https://example.edu/archive/catalog-2004-2006.pdf",
+        ]
+    }
+
+    assert candidate_links_from_parent(parent_result, "https://example.edu/archive/missing.pdf", 2004)[0].endswith(
+        "catalog-2004-2006.pdf"
+    )
 
 
 def test_source_extension_uses_content_type_when_url_has_no_suffix():

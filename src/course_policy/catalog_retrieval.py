@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import quote, urljoin, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 import pandas as pd
@@ -34,6 +34,10 @@ SUMMARY_OUTPUT = LOG_DIR / "phase3_catalog_retrieval_pilot_summary.md"
 MAX_SOURCE_BYTES = 25 * 1024 * 1024
 DEFAULT_TIMEOUT_SECONDS = 25
 WAYBACK_AVAILABLE_URL = "https://archive.org/wayback/available?url={url}&timestamp={timestamp}"
+WAYBACK_CDX_URL = (
+    "https://web.archive.org/cdx?url={url}&output=json&filter=statuscode:200"
+    "&collapse=digest&fl=timestamp,original,mimetype,statuscode,digest&limit=10"
+)
 
 
 @dataclass(frozen=True)
@@ -72,6 +76,7 @@ def retrieve_url(
         "error_type": "",
         "error_message": "",
         "body": b"",
+        "links": [],
     }
     try:
         request = Request(url, headers=browser_headers())
@@ -95,6 +100,7 @@ def retrieve_url(
                     "year_hints": "; ".join(str(year) for year in infer_years(f"{url} {final_url} {text[:8000]}")),
                     "sha256": sha256_bytes(body),
                     "body": body,
+                    "links": extract_links(text, final_url, content_type),
                 }
             )
     except HTTPError as exc:
@@ -158,6 +164,17 @@ def extract_title(text: str, url: str, content_type: str) -> str:
     return title_from_url(url)
 
 
+def extract_links(text: str, base_url: str, content_type: str) -> list[str]:
+    if "html" not in content_type.lower() and "<a" not in text.lower():
+        return []
+    links: list[str] = []
+    for match in re.finditer(r"""href=["']([^"']+)["']""", text, flags=re.IGNORECASE):
+        href = html.unescape(match.group(1)).strip()
+        if href and not href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            links.append(urljoin(base_url, href))
+    return sorted(set(links))
+
+
 def title_from_url(url: str) -> str:
     path = urlparse(url).path.rstrip("/")
     return path.rsplit("/", 1)[-1].replace("-", " ").replace("_", " ")[:300]
@@ -203,13 +220,18 @@ def save_source_body(
 
 
 def candidate_attempt_urls(url: str, target_year: int) -> list[tuple[str, str]]:
+    attempts = direct_attempt_urls(url)
+    attempts.append(("wayback_available", wayback_available_url(url, target_year)))
+    return dedupe_attempts(attempts)
+
+
+def direct_attempt_urls(url: str) -> list[tuple[str, str]]:
     attempts = [("direct", url)]
     parsed = urlparse(url)
     if parsed.scheme == "http":
         attempts.append(("https_variant", urlunparse(parsed._replace(scheme="https"))))
     elif parsed.scheme == "https":
         attempts.append(("http_variant", urlunparse(parsed._replace(scheme="http"))))
-    attempts.append(("wayback_available", wayback_available_url(url, target_year)))
     return dedupe_attempts(attempts)
 
 
@@ -228,6 +250,10 @@ def wayback_available_url(url: str, target_year: int) -> str:
     return WAYBACK_AVAILABLE_URL.format(url=quote(url, safe=""), timestamp=timestamp)
 
 
+def wayback_cdx_url(url: str) -> str:
+    return WAYBACK_CDX_URL.format(url=quote(url, safe=""))
+
+
 def parse_wayback_snapshot(body: bytes) -> str:
     try:
         data = json.loads(body.decode("utf-8"))
@@ -239,8 +265,71 @@ def parse_wayback_snapshot(body: bytes) -> str:
     return ""
 
 
+def parse_cdx_snapshots(body: bytes, target_year: int) -> list[str]:
+    try:
+        rows = json.loads(body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(rows, list) or len(rows) < 2:
+        return []
+    snapshots: list[tuple[int, str]] = []
+    for row in rows[1:]:
+        if not isinstance(row, list) or not row:
+            continue
+        timestamp = str(row[0])
+        if not timestamp.isdigit():
+            continue
+        distance = abs(int(timestamp[:4]) - target_year)
+        snapshots.append((distance, f"https://web.archive.org/web/{timestamp}/{row[1] if len(row) > 1 else ''}"))
+    return [url for _, url in sorted(snapshots, key=lambda item: item[0])]
+
+
+def parent_urls(url: str, max_depth: int = 3) -> list[str]:
+    parsed = urlparse(url)
+    parts = [part for part in parsed.path.split("/") if part]
+    urls: list[str] = []
+    for depth in range(1, min(max_depth, len(parts)) + 1):
+        parent_path = "/" + "/".join(parts[:-depth]) + "/"
+        if parent_path == "//":
+            parent_path = "/"
+        urls.append(urlunparse(parsed._replace(path=parent_path, query="", fragment="")))
+    return dedupe_urls(urls)
+
+
+def dedupe_urls(urls: list[str]) -> list[str]:
+    seen = set()
+    out = []
+    for url in urls:
+        if url and url not in seen:
+            out.append(url)
+            seen.add(url)
+    return out
+
+
+def candidate_links_from_parent(parent_result: dict[str, Any], original_url: str, target_year: int) -> list[str]:
+    original_name = Path(urlparse(original_url).path).name.lower()
+    candidates: list[tuple[int, str]] = []
+    for link in parent_result.get("links", []):
+        link_lower = link.lower()
+        score = 0
+        if original_name and Path(urlparse(link).path).name.lower() == original_name:
+            score += 50
+        if str(target_year) in link_lower or str(target_year + 1) in link_lower or str(target_year - 1) in link_lower:
+            score += 20
+        if any(keyword in link_lower for keyword in ["catalog", "bulletin", "undergrad", "policy", "archive"]):
+            score += 10
+        if link_lower.endswith((".pdf", ".html", ".htm")):
+            score += 5
+        if score > 0:
+            candidates.append((score, link))
+    return [url for _, url in sorted(candidates, key=lambda item: item[0], reverse=True)[:5]]
+
+
 def should_try_recovery(result: dict[str, Any]) -> bool:
     return result["retrieval_status"] not in {"retrieved", "retrieved_truncated"}
+
+
+METADATA_ATTEMPT_METHODS = {"wayback_available", "wayback_cdx_lookup", "parent_page"}
 
 
 def build_retrieval_attempts(
@@ -253,57 +342,28 @@ def build_retrieval_attempts(
     created_at = utc_now()
     leads = inventory[inventory["candidate_url"].fillna("").astype(str).str.strip().ne("")].copy()
     for _, source in leads.sort_values(["pilot_rank", "unitid", "target_year", "source_id"]).iterrows():
-        prior_failed = True
-        for sequence, (method, attempt_url) in enumerate(
-            candidate_attempt_urls(str(source["candidate_url"]), int(source["target_year"])),
-            start=1,
-        ):
-            if not prior_failed:
+        sequence = 1.0
+        source_retrieved = False
+        original_url = str(source["candidate_url"])
+        target_year = int(source["target_year"])
+
+        for method, attempt_url in direct_attempt_urls(original_url):
+            if source_retrieved:
                 break
             result = retrieve_url(attempt_url, timeout_seconds=timeout_seconds)
             local_path = ""
-            recovered_url = ""
             if result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
-                if method == "wayback_available":
-                    recovered_url = parse_wayback_snapshot(result["body"])
-                    if recovered_url:
-                        snapshot = retrieve_url(recovered_url, timeout_seconds=timeout_seconds)
-                        snapshot_path = ""
-                        if snapshot["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
-                            snapshot_path = str(
-                                save_source_body(
-                                    repo_root,
-                                    str(source["source_id"]),
-                                    "wayback_snapshot",
-                                    recovered_url,
-                                    str(snapshot["content_type"]),
-                                    snapshot["body"],
-                                )
-                            )
-                        rows.append(
-                            attempt_row(
-                                source,
-                                len(rows) + 1,
-                                sequence + 0.1,
-                                "wayback_snapshot",
-                                recovered_url,
-                                snapshot,
-                                snapshot_path,
-                                created_at,
-                                recovered_from=attempt_url,
-                            )
-                        )
-                else:
-                    local_path = str(
-                        save_source_body(
-                            repo_root,
-                            str(source["source_id"]),
-                            method,
-                            attempt_url,
-                            str(result["content_type"]),
-                            result["body"],
-                        )
+                local_path = str(
+                    save_source_body(
+                        repo_root,
+                        str(source["source_id"]),
+                        method,
+                        attempt_url,
+                        str(result["content_type"]),
+                        result["body"],
                     )
+                )
+                source_retrieved = True
             rows.append(
                 attempt_row(
                     source,
@@ -317,7 +377,158 @@ def build_retrieval_attempts(
                     recovered_from="",
                 )
             )
-            prior_failed = should_try_recovery(result)
+            sequence += 1.0
+
+        if not source_retrieved:
+            wayback_result = retrieve_url(wayback_available_url(original_url, target_year), timeout_seconds=timeout_seconds)
+            rows.append(
+                attempt_row(
+                    source,
+                    len(rows) + 1,
+                    sequence,
+                    "wayback_available",
+                    wayback_available_url(original_url, target_year),
+                    wayback_result,
+                    "",
+                    created_at,
+                    recovered_from="",
+                )
+            )
+            sequence += 1.0
+            recovered_url = ""
+            if wayback_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                recovered_url = parse_wayback_snapshot(wayback_result["body"])
+            if recovered_url:
+                snapshot = retrieve_url(recovered_url, timeout_seconds=timeout_seconds)
+                snapshot_path = ""
+                if snapshot["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                    snapshot_path = str(
+                        save_source_body(
+                            repo_root,
+                            str(source["source_id"]),
+                            "wayback_snapshot",
+                            recovered_url,
+                            str(snapshot["content_type"]),
+                            snapshot["body"],
+                        )
+                    )
+                    source_retrieved = True
+                rows.append(
+                    attempt_row(
+                        source,
+                        len(rows) + 1,
+                        sequence,
+                        "wayback_snapshot",
+                        recovered_url,
+                        snapshot,
+                        snapshot_path,
+                        created_at,
+                        recovered_from=wayback_available_url(original_url, target_year),
+                    )
+                )
+                sequence += 1.0
+
+        if not source_retrieved:
+            cdx_result = retrieve_url(wayback_cdx_url(original_url), timeout_seconds=timeout_seconds)
+            rows.append(
+                attempt_row(
+                    source,
+                    len(rows) + 1,
+                    sequence,
+                    "wayback_cdx_lookup",
+                    wayback_cdx_url(original_url),
+                    cdx_result,
+                    "",
+                    created_at,
+                    recovered_from="",
+                )
+            )
+            sequence += 1.0
+            if cdx_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                for snapshot_url in parse_cdx_snapshots(cdx_result["body"], target_year)[:3]:
+                    if source_retrieved:
+                        break
+                    snapshot = retrieve_url(snapshot_url, timeout_seconds=timeout_seconds)
+                    snapshot_path = ""
+                    if snapshot["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                        snapshot_path = str(
+                            save_source_body(
+                                repo_root,
+                                str(source["source_id"]),
+                                "wayback_cdx_snapshot",
+                                snapshot_url,
+                                str(snapshot["content_type"]),
+                                snapshot["body"],
+                            )
+                        )
+                        source_retrieved = True
+                    rows.append(
+                        attempt_row(
+                            source,
+                            len(rows) + 1,
+                            sequence,
+                            "wayback_cdx_snapshot",
+                            snapshot_url,
+                            snapshot,
+                            snapshot_path,
+                            created_at,
+                            recovered_from=wayback_cdx_url(original_url),
+                        )
+                    )
+                    sequence += 1.0
+
+        if not source_retrieved:
+            for parent_url in parent_urls(original_url):
+                if source_retrieved:
+                    break
+                parent_result = retrieve_url(parent_url, timeout_seconds=timeout_seconds)
+                rows.append(
+                    attempt_row(
+                        source,
+                        len(rows) + 1,
+                        sequence,
+                        "parent_page",
+                        parent_url,
+                        parent_result,
+                        "",
+                        created_at,
+                        recovered_from=original_url,
+                    )
+                )
+                sequence += 1.0
+                if parent_result["retrieval_status"] not in {"retrieved", "retrieved_truncated"}:
+                    continue
+                for link_url in candidate_links_from_parent(parent_result, original_url, target_year):
+                    if source_retrieved:
+                        break
+                    link_result = retrieve_url(link_url, timeout_seconds=timeout_seconds)
+                    link_path = ""
+                    if link_result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+                        link_path = str(
+                            save_source_body(
+                                repo_root,
+                                str(source["source_id"]),
+                                "parent_link",
+                                link_url,
+                                str(link_result["content_type"]),
+                                link_result["body"],
+                            )
+                        )
+                        source_retrieved = True
+                    rows.append(
+                        attempt_row(
+                            source,
+                            len(rows) + 1,
+                            sequence,
+                            "parent_link",
+                            link_url,
+                            link_result,
+                            link_path,
+                            created_at,
+                            recovered_from=parent_url,
+                        )
+                    )
+                    sequence += 1.0
     return pd.DataFrame(rows).sort_values(["source_id", "attempt_sequence", "attempt_method"])
 
 
@@ -370,7 +581,7 @@ def build_coverage(inventory: pd.DataFrame, attempts: pd.DataFrame) -> pd.DataFr
     leads = inventory[inventory["candidate_url"].fillna("").astype(str).str.strip().ne("")].copy()
     success = attempts[
         attempts["retrieval_status"].isin(["retrieved", "retrieved_truncated"])
-        & ~attempts["attempt_method"].eq("wayback_available")
+        & ~attempts["attempt_method"].isin(METADATA_ATTEMPT_METHODS)
     ].copy()
     if success.empty:
         leads["best_retrieval_status"] = "not_retrieved"
@@ -490,6 +701,12 @@ def write_summary(summary_path: Path, inventory: pd.DataFrame, attempts: pd.Data
     lines.extend(["", "## Attempt Status", ""])
     for status, count in attempts["retrieval_status"].value_counts(dropna=False).items():
         lines.append(f"- {status}: {count}")
+    lines.extend(["", "## Best Method Attribution", ""])
+    method_counts = coverage["best_attempt_method"].fillna("").replace("", "none").value_counts()
+    for method, count in method_counts.items():
+        method_rows = coverage[coverage["best_attempt_method"].fillna("").replace("", "none").eq(method)]
+        target_hint_count = int(method_rows["target_year_in_hints"].sum()) if not method_rows.empty else 0
+        lines.append(f"- {method}: {count} source leads ({target_hint_count} with target year in hints)")
     lines.extend(
         [
             "",
