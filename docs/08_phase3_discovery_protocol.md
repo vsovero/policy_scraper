@@ -110,6 +110,8 @@ Use this order unless an institution-specific note documents a reason to change 
 5. Internet Archive recovery of official URLs.
 6. AI-assisted discovery for remaining hard cases.
 
+Legacy URLs should be inspected early as discovery leads, but they should not override a better coherent source root. When a legacy URL points to a broader official archive, repository collection, or stable catalog root, record the broader root as the preferred first-pass source and keep the legacy URL as prior or corroborating evidence.
+
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
 
 ## First-Pass Stop Rules
