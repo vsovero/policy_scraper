@@ -223,10 +223,18 @@ Strict coverage requires explicit catalog-year evidence from one of:
 
 - source title or heading;
 - page metadata;
+- visible archive-page context, such as table-row text, dropdown option text, or an undergraduate catalog archive page title paired with a visible year-range link;
 - extracted PDF/document text;
 - OCR or visual review record.
 
 URL or filename year patterns alone are not strict evidence.
+
+Batch 3 converts two reusable page-context patterns into code:
+
+- table rows where the year appears in a neighboring cell and the link text is generic, such as `PDF` or `HTML`;
+- catalog dropdowns where archived catalog years appear in visible `<option>` text.
+
+The year still must appear in visible page context. URL or filename years may help identify the linked source or undergraduate scope, but they should not be the sole year evidence.
 
 ## Policy-Page Deferral Rule
 

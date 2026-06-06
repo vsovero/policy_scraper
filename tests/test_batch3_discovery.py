@@ -1,0 +1,229 @@
+import pandas as pd
+
+from course_policy.batch3_discovery import (
+    build_inventory,
+    build_observed_candidate_bounds,
+    build_stage_status,
+    build_year_coverage,
+    is_relevant_catalog_link,
+    select_batch3_institutions,
+    select_option_context_records,
+    stage_for_row,
+    table_row_context_records,
+)
+
+
+def test_select_batch3_excludes_strict_and_batch2_unitids():
+    pilot = pd.DataFrame(
+        [
+            {"pilot_rank": 1, "unitid": 122597, "institution_name": "SFSU"},
+            {"pilot_rank": 2, "unitid": 139940, "institution_name": "GSU"},
+            {"pilot_rank": 3, "unitid": 213349, "institution_name": "Kutztown"},
+            {"pilot_rank": 4, "unitid": 185828, "institution_name": "NJIT"},
+        ]
+    )
+    batch2 = pd.DataFrame([{"unitid": 139940}])
+
+    selected = select_batch3_institutions(pilot, batch2, batch_size=2)
+
+    assert selected["unitid"].tolist() == [213349, 185828]
+    assert selected["batch3_rank"].tolist() == [1, 2]
+
+
+def test_batch3_relevant_catalog_link_is_generic_and_undergraduate_first():
+    assert is_relevant_catalog_link(
+        {"text": "2015-2016 Undergraduate Catalog", "url": "https://example.edu/catalog/2015-2016"}
+    )
+    assert is_relevant_catalog_link(
+        {"text": "2015-2016 University Catalog", "url": "https://example.edu/catalog/2015-2016"}
+    )
+    assert not is_relevant_catalog_link(
+        {"text": "2015-2016 Graduate Catalog", "url": "https://example.edu/catalog/2015-2016"}
+    )
+    assert not is_relevant_catalog_link(
+        {"text": "2015-2016 Course Schedule", "url": "https://example.edu/schedule/2015-2016"}
+    )
+    assert not is_relevant_catalog_link(
+        {"text": "PDF", "url": "https://example.edu/2015-2016Undergraduate.pdf"}
+    )
+
+
+def test_table_row_context_uses_visible_row_year_without_url_year_inference():
+    records = table_row_context_records(
+        """
+        <table><tr>
+          <td>2003-2004</td>
+          <td><a href="2003-2004Graduate.pdf">PDF</a></td>
+          <td><a href="2003-2004Undergraduate.pdf">PDF</a></td>
+        </tr></table>
+        """,
+        "https://archive.example.edu/",
+    )
+
+    undergraduate = [record for record in records if "Undergraduate" in record["evidence_text"]]
+
+    assert undergraduate
+    assert is_relevant_catalog_link(undergraduate[0])
+
+
+def test_select_option_context_builds_acalog_catalog_urls():
+    records = select_option_context_records(
+        """
+        <select name="catalog">
+          <option value="50">2020-2021 Catalog [ARCHIVED CATALOG]</option>
+          <option value="59">2002-2026 Senate Policy Catalog</option>
+        </select>
+        """,
+        "https://catalog.example.edu/",
+    )
+
+    assert records[0]["url"] == "https://catalog.example.edu/index.php?catoid=50"
+    assert is_relevant_catalog_link(records[0])
+    assert not is_relevant_catalog_link(records[1])
+
+
+def test_observed_candidate_bounds_can_come_from_years_outside_target_panel():
+    archive_pages = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "archive_url": "https://example.edu/archive",
+                "retrieval_status": "retrieved",
+                "page_title": "Undergraduate Course Catalog Archive",
+            }
+        ]
+    )
+    result_by_url = {
+        "https://example.edu/archive": {
+            "content_type": "text/html",
+            "body": b'<a href="catalog-2023-2024.pdf">2023-2024</a>',
+            "link_records": [{"url": "https://example.edu/catalog-2023-2024.pdf", "text": "2023-2024"}],
+        }
+    }
+
+    bounds = build_observed_candidate_bounds(archive_pages, result_by_url)
+
+    assert bounds.loc[0, "observed_candidate_start_year"] == 2023
+
+
+def test_build_year_coverage_infers_archive_bound_only_after_observed_span():
+    batch = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "pilot_rank": 10,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "pilot_case_types": "clean",
+            }
+        ]
+    )
+    targets = pd.DataFrame(
+        [
+            {"unitid": 1, "institution_name": "Example U", "year": 2000},
+            {"unitid": 1, "institution_name": "Example U", "year": 2001},
+            {"unitid": 1, "institution_name": "Example U", "year": 2002},
+            {"unitid": 1, "institution_name": "Example U", "year": 2003},
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "decision_status": "preferred_source_root_identified",
+                "preferred_source_root_url": "https://example.edu/catalog/",
+                "preferred_source_root_type": "generated_catalog_path",
+            }
+        ]
+    )
+    candidates = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2003,
+                "candidate_url": "https://example.edu/catalog/2003-2004",
+                "candidate_link_text": "2003-2004 Undergraduate Catalog",
+                "archive_url": "https://example.edu/catalog/",
+                "catalog_year_start": 2003,
+                "catalog_year_end": 2004,
+                "candidate_priority": 10,
+            }
+        ]
+    )
+
+    coverage = build_year_coverage(batch, targets, decisions, candidates, pd.DataFrame())
+
+    assert coverage.loc[coverage["target_year"].eq(2000), "archive_bound_inferred"].iloc[0]
+    assert not coverage.loc[coverage["target_year"].eq(2003), "archive_bound_inferred"].iloc[0]
+
+
+def test_stage_for_row_maps_pipeline_queue_cases():
+    assert stage_for_row(pd.Series({"decision_status": "source_root_not_found"}))[:3] == (
+        "no_source_path",
+        "no_root_found",
+        "source_root_discovery",
+    )
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "preferred_source_root_identified",
+                "candidate_url": "https://example.edu/catalog/2001-2002",
+                "source_retrieved": False,
+            }
+        )
+    )[:3] == ("candidate_identified", "source_not_retrieved", "retrieval_recovery")
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "preferred_source_root_identified",
+                "candidate_url": "",
+                "source_retrieved": float("nan"),
+                "archive_bound_inferred": False,
+            }
+        )
+    )[:3] == ("root_identified", "no_candidate_found", "source_root_discovery")
+
+
+def test_build_inventory_and_stage_status_keep_one_source_per_year():
+    coverage = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2000,
+                "decision_status": "preferred_source_root_identified",
+                "candidate_url": "https://example.edu/catalog/2000-2001",
+                "candidate_link_text": "2000-2001 Undergraduate Catalog",
+                "archive_url": "https://example.edu/catalog/",
+                "catalog_year_start": 2000,
+                "catalog_year_end": 2001,
+                "archive_bound_inferred": False,
+                "archive_bound_note": "",
+            }
+        ]
+    )
+    inventory = build_inventory(coverage)
+    retrieval = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "target_year": 2000,
+                "source_id": "batch3-00001",
+                "source_retrieved": True,
+                "best_retrieval_status": "retrieved",
+                "best_attempt_method": "direct",
+                "best_content_type": "application/pdf",
+                "local_source_path": "/tmp/catalog.pdf",
+                "covers_target_year": True,
+            }
+        ]
+    )
+
+    status = build_stage_status(coverage, retrieval)
+
+    assert inventory["source_id"].tolist() == ["batch3-00001"]
+    assert status["pipeline_stage"].iloc[0] == "source_retrieved"
+    assert status["next_batch_action"].iloc[0] == "policy_term_search"
