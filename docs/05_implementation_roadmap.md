@@ -142,6 +142,10 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_batch2_archive_pages.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_year_candidates.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_year_coverage.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_combined_inventory.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_retrieval_attempts.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_retrieval_coverage.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_runthrough_year_summary.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_year_status.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_status_summary.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
