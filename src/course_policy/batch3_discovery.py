@@ -650,8 +650,19 @@ def build_legacy_gap_candidates(year_coverage: pd.DataFrame, legacy_leads: pd.Da
     candidates["catalog_year_start"] = candidates["target_year"]
     candidates["catalog_year_end"] = candidates["target_year"].astype(int) + 1
     candidates["candidate_source_method"] = "legacy_prior_gap_fill"
+    candidates.loc[candidates["candidate_url"].map(is_policy_page_lead), "candidate_source_method"] = (
+        "legacy_policy_page_deferred"
+    )
     candidates["candidate_scope"] = "legacy_catalog_lead"
-    candidates["validation_status"] = "legacy_url_gap_fill_candidate"
+    candidates.loc[candidates["candidate_source_method"].eq("legacy_policy_page_deferred"), "candidate_scope"] = (
+        "legacy_policy_page_lead"
+    )
+    candidates["validation_status"] = candidates["candidate_source_method"].map(
+        {
+            "legacy_prior_gap_fill": "legacy_url_gap_fill_candidate",
+            "legacy_policy_page_deferred": "legacy_policy_page_deferred",
+        }
+    )
     candidates["created_at"] = utc_now()
     return candidates[
         [
@@ -676,13 +687,49 @@ def build_legacy_gap_candidates(year_coverage: pd.DataFrame, legacy_leads: pd.Da
     ].sort_values(["batch3_rank", "unitid", "target_year", "legacy_link_id"])
 
 
-def build_inventory(year_coverage: pd.DataFrame, legacy_gap_candidates: pd.DataFrame | None = None) -> pd.DataFrame:
+def is_policy_page_lead(url: str) -> bool:
+    lowered = clean_text(url).lower()
+    if not lowered:
+        return False
+    policy_terms = ("policy", "policies", "repeat", "forgiveness")
+    source_terms = ("bulletin", ".pdf")
+    return any(term in lowered for term in policy_terms) and not any(term in lowered for term in source_terms)
+
+
+def add_legacy_gap_status(year_coverage: pd.DataFrame, legacy_gap_candidates: pd.DataFrame) -> pd.DataFrame:
+    if legacy_gap_candidates.empty:
+        return year_coverage
+    policy_leads = legacy_gap_candidates.loc[
+        legacy_gap_candidates["candidate_source_method"].eq("legacy_policy_page_deferred")
+    ].copy()
+    if policy_leads.empty:
+        return year_coverage
+    policy_leads = (
+        policy_leads.sort_values(["unitid", "target_year", "candidate_url"])
+        .groupby(["unitid", "target_year"], as_index=False)
+        .first()
+    )
+    return year_coverage.merge(
+        policy_leads[["unitid", "target_year", "candidate_url"]].rename(
+            columns={"candidate_url": "legacy_policy_page_url"}
+        ),
+        on=["unitid", "target_year"],
+        how="left",
+    )
+
+
+def build_inventory(
+    year_coverage: pd.DataFrame,
+    legacy_gap_candidates: pd.DataFrame | None = None,
+    *,
+    source_prefix: str = "batch3",
+) -> pd.DataFrame:
     rows = []
     source_counter = 1
     for _, row in year_coverage.loc[year_coverage["candidate_url"].fillna("").astype(str).str.strip().ne("")].iterrows():
         rows.append(
             {
-                "source_id": f"batch3-{source_counter:05d}",
+                "source_id": f"{source_prefix}-{source_counter:05d}",
                 "pilot_rank": int(row["batch3_rank"]),
                 "batch3_rank": int(row["batch3_rank"]),
                 "unitid": int(row["unitid"]),
@@ -711,10 +758,13 @@ def build_inventory(year_coverage: pd.DataFrame, legacy_gap_candidates: pd.DataF
         )
         source_counter += 1
     if legacy_gap_candidates is not None and not legacy_gap_candidates.empty:
-        for _, row in legacy_gap_candidates.iterrows():
+        legacy_retrieval_candidates = legacy_gap_candidates.loc[
+            legacy_gap_candidates["candidate_source_method"].eq("legacy_prior_gap_fill")
+        ]
+        for _, row in legacy_retrieval_candidates.iterrows():
             rows.append(
                 {
-                    "source_id": f"batch3-{source_counter:05d}",
+                    "source_id": f"{source_prefix}-{source_counter:05d}",
                     "pilot_rank": int(row["batch3_rank"]),
                     "batch3_rank": int(row["batch3_rank"]),
                     "unitid": int(row["unitid"]),
@@ -839,19 +889,36 @@ def to_bool(value: object) -> bool:
 
 
 def stage_for_row(row: pd.Series) -> tuple[str, str, str, str]:
-    if clean_text(row.get("decision_status", "")) != "preferred_source_root_identified":
-        return (
-            "no_source_path",
-            "no_root_found",
-            "source_root_discovery",
-            "No likely official catalog root was identified by the bounded generated-root and legacy-lead pass.",
-        )
     if to_bool(row.get("source_retrieved", False)):
         return (
             "source_retrieved",
             "policy_terms_not_searched",
             "policy_term_search",
             "Catalog source body was retrieved and saved; policy-term search has not run yet.",
+        )
+    retrieved_candidate_url = clean_text(row.get("retrieved_candidate_url", "")) or clean_text(
+        row.get("candidate_url_retrieved", "")
+    )
+    if retrieved_candidate_url:
+        return (
+            "candidate_identified",
+            "source_not_retrieved",
+            "retrieval_recovery",
+            "A year-level fallback candidate exists, but direct retrieval/recovery did not retrieve a source body.",
+        )
+    if clean_text(row.get("legacy_policy_page_url", "")):
+        return (
+            "root_identified",
+            "policy_dating_needed",
+            "policy_dating_workflow",
+            "Legacy evidence provides a policy-page lead, but historical dating is needed before it can support panel years.",
+        )
+    if clean_text(row.get("decision_status", "")) != "preferred_source_root_identified":
+        return (
+            "no_source_path",
+            "no_root_found",
+            "source_root_discovery",
+            "No likely official catalog root was identified by the bounded generated-root and legacy-lead pass.",
         )
     if clean_text(row.get("candidate_url", "")):
         return (
@@ -921,6 +988,7 @@ def run_batch3_discovery(
     observed_bounds = build_observed_candidate_bounds(archive_pages, result_by_url)
     year_coverage = build_year_coverage(batch, targets, decisions, year_candidates, archive_pages, observed_bounds)
     legacy_gap_candidates = build_legacy_gap_candidates(year_coverage, legacy_leads)
+    year_coverage = add_legacy_gap_status(year_coverage, legacy_gap_candidates)
     inventory = build_inventory(year_coverage, legacy_gap_candidates)
     retrieval_attempts = build_retrieval_attempts(repo_root, inventory, timeout_seconds=timeout_seconds) if not inventory.empty else pd.DataFrame()
     retrieval_coverage = build_coverage(inventory, retrieval_attempts) if not inventory.empty else pd.DataFrame()

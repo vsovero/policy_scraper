@@ -159,6 +159,8 @@ Legacy URLs should be inspected early as discovery leads, but they should not ov
 
 When the preferred root does not produce a year-level candidate, legacy URLs may be used as bounded gap-fill candidates. Record these as `legacy_prior_gap_fill`, not as preferred-root coverage. This preserves the student-discovered source while keeping the root-first audit trail clear.
 
+If a legacy URL is a current or archived policy page rather than a catalog, bulletin, or catalog PDF, preserve it as `legacy_policy_page_deferred` and route the institution-year to `policy_dating_workflow`. Do not retrieve it as catalog-source coverage.
+
 Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
@@ -218,6 +220,8 @@ After first pass, unresolved institution-years should be routed by next action:
 - `api_assisted_discovery`: deterministic discovery failed and AI/search assistance is warranted.
 
 `human_decision_needed` should be reserved for project-level choices, such as changing scope rules, accepting a non-catalog source class, or deciding to spend resources on archive-bound years. Ordinary retrieval recovery, OCR, secondary archive expansion, and text extraction are pipeline queues, not manual row review.
+
+For larger batches, keep preferred-root discovery and legacy gap-fill retrieval as separate, restartable stages. The batch 4 run showed that legacy recovery is productive but slow enough that it should be capped or resumed independently rather than bundled into one long full-scale run.
 
 ## Catalog-Year Evidence Rule
 

@@ -1,12 +1,14 @@
 import pandas as pd
 
 from course_policy.batch3_discovery import (
+    add_legacy_gap_status,
     build_inventory,
     build_legacy_gap_candidates,
     build_observed_candidate_bounds,
     build_stage_status,
     build_year_coverage,
     is_relevant_catalog_link,
+    is_policy_page_lead,
     select_batch3_institutions,
     select_option_context_records,
     stage_for_row,
@@ -217,12 +219,77 @@ def test_legacy_gap_candidates_only_fill_uncovered_years():
     assert inventory.loc[inventory["target_year"].eq(2001), "candidate_source_method"].iloc[0] == "preferred_root_archive"
 
 
+def test_policy_page_legacy_gap_leads_are_deferred_not_retrieved():
+    coverage = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2017,
+                "candidate_url": "",
+            }
+        ]
+    )
+    legacy = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2017,
+                "legacy_url": "https://catalog.example.edu/archive/2017-2018/undergrad/policies/course-repeat-policy/",
+                "legacy_url_parent": "https://catalog.example.edu/archive/2017-2018/undergrad/policies/",
+                "legacy_link_id": "legacy-policy",
+                "selected_as_prior_evidence": True,
+                "legacy_needs_review": False,
+                "legacy_review_reasons": "",
+            }
+        ]
+    )
+
+    gap = build_legacy_gap_candidates(coverage, legacy)
+    updated = add_legacy_gap_status(coverage, gap)
+    inventory = build_inventory(updated, gap)
+
+    assert is_policy_page_lead(gap["candidate_url"].iloc[0])
+    assert gap["candidate_source_method"].iloc[0] == "legacy_policy_page_deferred"
+    assert updated["legacy_policy_page_url"].iloc[0] == gap["candidate_url"].iloc[0]
+    assert inventory.empty
+
+
 def test_stage_for_row_maps_pipeline_queue_cases():
     assert stage_for_row(pd.Series({"decision_status": "source_root_not_found"}))[:3] == (
         "no_source_path",
         "no_root_found",
         "source_root_discovery",
     )
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "source_root_not_found",
+                "source_retrieved": True,
+                "retrieved_candidate_url": "https://legacy.example.edu/catalog.pdf",
+            }
+        )
+    )[:3] == ("source_retrieved", "policy_terms_not_searched", "policy_term_search")
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "source_root_not_found",
+                "source_retrieved": False,
+                "retrieved_candidate_url": "https://legacy.example.edu/catalog.pdf",
+            }
+        )
+    )[:3] == ("candidate_identified", "source_not_retrieved", "retrieval_recovery")
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "preferred_source_root_identified",
+                "legacy_policy_page_url": "https://catalog.example.edu/archive/policies/course-repeat-policy/",
+            }
+        )
+    )[:3] == ("root_identified", "policy_dating_needed", "policy_dating_workflow")
     assert stage_for_row(
         pd.Series(
             {
@@ -290,3 +357,21 @@ def test_build_inventory_and_stage_status_keep_one_source_per_year():
     assert status["pipeline_stage"].iloc[0] == "source_retrieved"
     assert status["next_batch_action"].iloc[0] == "policy_term_search"
     assert status["retrieved_candidate_method"].iloc[0] == "legacy_prior_gap_fill"
+
+
+def test_build_inventory_accepts_source_prefix():
+    coverage = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2000,
+                "candidate_url": "https://example.edu/catalog/2000",
+            }
+        ]
+    )
+
+    inventory = build_inventory(coverage, source_prefix="batch4")
+
+    assert inventory["source_id"].tolist() == ["batch4-00001"]
