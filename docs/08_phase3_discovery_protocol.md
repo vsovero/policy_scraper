@@ -4,13 +4,52 @@ This protocol translates the strict 5-institution pilot into a scalable first-pa
 
 ## Operating Principle
 
-Phase 3 should answer three questions for each institution-year:
+Phase 3 should move each institution-year as far as possible along the same source-to-policy stage ladder:
 
-1. Is there a source-root candidate that can cover this year?
-2. Can that source be retrieved and verified with explicit catalog-year evidence?
-3. If not, what is the next controlled escalation bucket?
+| Stage | `pipeline_stage` | Meaning |
+|---:|---|---|
+| 0 | `no_source_path` | No acceptable source root or source path has been identified. |
+| 1 | `root_identified` | A preferred or secondary source root exists, but no year-level source candidate has been identified for this institution-year. |
+| 2 | `candidate_identified` | A year-level source candidate exists with explicit catalog-year metadata/title/heading evidence. |
+| 3 | `source_retrieved` | The source body has been saved and is ready for text/OCR work. |
+| 4 | `text_available` | Searchable text or OCR text exists. |
+| 5 | `policy_excerpt_found` | Candidate course-repeat policy text has been found. |
+| 6 | `policy_classified` | The policy excerpt has been classified and coded. |
 
-Institution-specific cases are useful only when they become reusable rules.
+Each row should also record:
+
+- `stop_reason`: why the row has not advanced to the next stage;
+- `next_batch_action`: which pipeline module or work queue should handle it next;
+- `human_decision_needed`: true only for project-level judgment calls, not ordinary retrieval, OCR, archive expansion, or extraction work.
+
+Most rows should not require row-by-row human troubleshooting. They should either advance to the next stage or be assigned to a defined next batch action.
+
+Institution-specific cases are useful only when they become reusable rules that fit this stage ladder.
+
+## Stage Stops And Next Actions
+
+Use these stop reasons and actions to explain why a row paused.
+
+| `stop_reason` | Typical current stage | `next_batch_action` | Meaning |
+|---|---|---|---|
+| `archive_bound` | `root_identified` | `defer_archive_bound` | The preferred archive visibly starts after or ends before the target year. |
+| `no_root_found` | `no_source_path` | `source_root_discovery` | No acceptable catalog root has been found in the deterministic pass. |
+| `secondary_archive_needed` | `root_identified` | `expand_secondary_archive` | Legacy/official context points to a bounded institutional archive that should be expanded. |
+| `body_access_blocked` | `candidate_identified` | `retrieval_recovery` | Candidate metadata exists, but the source body is blocked or challenge-protected. |
+| `source_not_retrieved` | `candidate_identified` | `retrieval_recovery` | Candidate URL exists, but direct retrieval failed. |
+| `ocr_needed` | `source_retrieved` | `ocr_batch` | Source is likely scanned/image-only. |
+| `text_extraction_failed` | `source_retrieved` | `text_extraction_repair` | Source body exists, but text extraction failed for a non-OCR reason. |
+| `policy_terms_not_searched` | `text_available` | `policy_term_search` | Text exists but policy search has not run. |
+| `policy_excerpt_ambiguous` | `policy_excerpt_found` | `classification_review` | Candidate policy text exists, but classification is not settled. |
+| `wrong_scope` | `no_source_path` or `root_identified` | `defer_wrong_scope` | Available leads are school-, program-, or handbook-specific and not approved for institution-wide coding. |
+| `policy_dating_needed` | `no_source_path` or `candidate_identified` | `policy_dating_workflow` | A current policy page exists but needs historical dating before it can support AY 2000-2020. |
+
+Examples:
+
+- UNC AY 2000-2010 after the OAI test: `pipeline_stage = candidate_identified`, `stop_reason = body_access_blocked`, `next_batch_action = retrieval_recovery`.
+- ABAC scanned catalogs: `pipeline_stage = source_retrieved`, `stop_reason = ocr_needed`, `next_batch_action = ocr_batch`.
+- ETSU AY 2000-2009 after the official archive check: `pipeline_stage = root_identified`, `stop_reason = archive_bound`, `next_batch_action = defer_archive_bound`.
+- GMU AY 2000 after retrieval: `pipeline_stage = source_retrieved`, `stop_reason = policy_terms_not_searched`, `next_batch_action = policy_term_search`.
 
 ## Replication Checklist
 
@@ -44,13 +83,13 @@ Use this checklist for each institution in the next pilot batch.
 
    Count catalog coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. URL or filename year patterns alone are review leads.
 
-8. Assign every institution-year a first-pass status.
+8. Assign every institution-year a stage status.
 
-   Each year should be covered or assigned a stop/review status such as OCR needed, archive lower/upper bound reached, wrong-scope lead rejected, fresh discovery needed, or fallback deferred.
+   Record `pipeline_stage`, `stop_reason`, and `next_batch_action`. The row should either advance to the next stage or land in a defined queue.
 
-9. Move unresolved years to an escalation bucket.
+9. Move unresolved years to the next batch action.
 
-   Escalate by type, not by institution story: OCR/visual review, source-root review, archive-bound revisit, wrong-scope exception review, API-assisted discovery, or manual review.
+   Escalate by type, not by institution story: retrieval recovery, OCR, secondary archive expansion, archive-bound deferral, wrong-scope deferral, policy dating, or text/policy extraction.
 
 10. Stop the first pass.
 
@@ -145,7 +184,7 @@ UNC batch 2 example: SmartCatalog is the preferred root for AY 2011-2020. Legacy
 
 ## First-Pass Stop Rules
 
-Stop first-pass discovery for an institution-year when one of these statuses applies:
+Stop first-pass discovery for an institution-year when one of these conditions applies, then map it to `pipeline_stage`, `stop_reason`, and `next_batch_action`:
 
 - `strict_source_found`: retrieved source has explicit catalog-year evidence covering the year.
 - `source_found_needs_ocr_or_visual_review`: candidate source appears to cover the year but cannot be verified with text extraction.
@@ -160,18 +199,23 @@ Stop first-pass discovery for an institution-year when one of these statuses app
 
 Do not use open-ended web searching to resolve every gap during the first pass.
 
-## Escalation Buckets
+## Next Batch Actions
 
-After first pass, unresolved institution-years should be routed by bucket:
+After first pass, unresolved institution-years should be routed by next action:
 
-- `ocr_or_visual_review`: scanned or image-only sources need OCR or page-image confirmation.
-- `source_root_review`: multiple plausible roots exist and a coherent hierarchy must be chosen.
-- `institutional_archive_expansion`: legacy/official context reveals a bounded university digital archive that should be expanded within its collection context for years outside the preferred root span.
-- `archive_bound_revisit`: source root has a lower or upper bound; deeper search may be revisited later.
-- `wrong_scope_exception_review`: institution structure may require a documented exception to institution-wide source rules.
-- `catalog_dead_end`: catalog-first discovery found no usable university-wide catalog root; preserve provenance and move on in the pilot.
-- `api_assisted_discovery`: deterministic source-root discovery failed and AI/search assistance is warranted.
-- `manual_review`: source or policy evidence is too ambiguous for automated handling.
+- `source_root_discovery`: no acceptable root has been found.
+- `expand_secondary_archive`: bounded institutional archive expansion is the next automated source-candidate step.
+- `retrieval_recovery`: source candidate exists but body retrieval needs mechanical recovery.
+- `ocr_batch`: source body exists but needs OCR or visual confirmation.
+- `text_extraction_repair`: source body exists but extraction failed.
+- `policy_term_search`: text exists and needs policy keyword/excerpt search.
+- `classification_review`: candidate policy excerpt exists but classification needs review or AI-assisted coding.
+- `defer_archive_bound`: preferred archive bound is recorded; do not chase this year in the current batch.
+- `defer_wrong_scope`: only wrong-scope sources have been found in the current batch.
+- `policy_dating_workflow`: policy page exists but historical dating is needed before it can support panel years.
+- `api_assisted_discovery`: deterministic discovery failed and AI/search assistance is warranted.
+
+`human_decision_needed` should be reserved for project-level choices, such as changing scope rules, accepting a non-catalog source class, or deciding to spend resources on archive-bound years. Ordinary retrieval recovery, OCR, secondary archive expansion, and text extraction are pipeline queues, not manual row review.
 
 ## Catalog-Year Evidence Rule
 

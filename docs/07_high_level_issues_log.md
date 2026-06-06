@@ -22,6 +22,16 @@ Current handling: Phase 3 now separates source-root planning, first-pass stop ru
 
 Follow-up: Before expanding the pilot, use `docs/08_phase3_discovery_protocol.md`, `catalog_source_root_plan_strict_pilot.csv`, and `catalog_first_pass_escalation_queue_strict_pilot.csv` to decide which buckets should be handled next.
 
+## Stage Ladder Versus Row-Level Troubleshooting
+
+Issue: A long list of row-level edge cases can make the process look like manual troubleshooting, even when most unresolved rows simply need the next automated pipeline module.
+
+Why it matters: Scale-up requires a small common workflow across all institution-years. The row table should say how far the row has progressed, why it stopped, and which batch action handles it next.
+
+Current handling: The Phase 3 protocol now uses a stage ladder: `no_source_path`, `root_identified`, `candidate_identified`, `source_retrieved`, `text_available`, `policy_excerpt_found`, and `policy_classified`. Separate fields should record `stop_reason`, `next_batch_action`, and `human_decision_needed`.
+
+Follow-up: Update review/status outputs to use these three fields. Reserve `human_decision_needed` for project-level decisions, not ordinary retrieval recovery, OCR, secondary archive expansion, or text extraction.
+
 ## Reverse-Engineering Current Results
 
 Issue: The current strict-pilot data files were produced through iterative troubleshooting, not a fully pre-specified protocol.

@@ -180,6 +180,7 @@ Current strict-pilot panel expansion note:
 - `catalog_batch2_*` files set up the next 5-institution expansion batch using the finalized source-root protocol. They identify selected institutions, legacy leads, candidate source roots, preferred root decisions, archive pages, explicit year-level catalog candidates, controlled legacy gap-fill, retrieval status, institution-year setup statuses, and the batch dashboard; they do not count policy coverage yet.
 - Batch 2 adds a reusable rule for university-wide digital archives: if legacy/official context reveals a bounded institution-specific catalog archive outside the preferred root's span, promote it to `secondary_institutional_digital_archive` and expand only within that collection/sibling-object context.
 - `catalog_batch2_secondary_archive_*` tests this rule on UNC. Digital UNC OAI metadata exposes bounded catalog sets for 2000-2009 and 2010-2019, but direct catalog body retrieval is WAF/challenge-blocked from the pipeline environment.
+- The Phase 3 protocol now frames institution-year progress using `pipeline_stage`, `stop_reason`, and `next_batch_action`, rather than treating every unresolved case as manual review.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 
