@@ -134,6 +134,11 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
 - `data_policy_pipeline/interim/catalog_panel_year_coverage_retrieved_strict_pilot.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_institutions.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_legacy_leads.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_source_root_tasks.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_year_status.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_status_summary.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
 - saved sources in `data_policy_pipeline/catalog_sources/`;
 - discovery validation report.
@@ -161,6 +166,7 @@ Current strict-pilot panel expansion note:
 - `catalog_panel_retrieval_coverage_strict_pilot.csv` records retrieval and strict catalog-year evidence for ready candidates only;
 - `catalog_panel_year_coverage_retrieved_strict_pilot.csv` records the combined strict year coverage after adding ready-candidate retrieval results to the original strict pilot evidence;
 - Oregon Health & Science University is marked as a catalog dead end for this pilot: the catalog leads found are school-specific rather than university-wide, and the OHSU-wide University Grading policy is preserved only as a deferred extraction lead.
+- `catalog_batch2_*` files set up the next 5-institution expansion batch using the finalized source-root protocol. They identify selected institutions, legacy leads, source-root discovery tasks, institution-year setup statuses, and the batch dashboard; they do not count catalog coverage yet.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 
