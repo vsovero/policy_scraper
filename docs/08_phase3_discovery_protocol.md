@@ -157,6 +157,8 @@ Use this order unless an institution-specific note documents a reason to change 
 
 Legacy URLs should be inspected early as discovery leads, but they should not override a better coherent source root. When a legacy URL points to a broader official archive, repository collection, or stable catalog root, record the broader root as the preferred first-pass source and keep the legacy URL as prior or corroborating evidence.
 
+When the preferred root does not produce a year-level candidate, legacy URLs may be used as bounded gap-fill candidates. Record these as `legacy_prior_gap_fill`, not as preferred-root coverage. This preserves the student-discovered source while keeping the root-first audit trail clear.
+
 Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.

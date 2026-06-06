@@ -46,6 +46,7 @@ BATCH3_SOURCE_ROOT_DECISIONS_OUTPUT = INTERIM_DIR / "catalog_batch3_source_root_
 BATCH3_ARCHIVE_PAGES_OUTPUT = INTERIM_DIR / "catalog_batch3_archive_pages.csv"
 BATCH3_YEAR_CANDIDATES_OUTPUT = INTERIM_DIR / "catalog_batch3_year_candidates.csv"
 BATCH3_YEAR_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_batch3_year_coverage.csv"
+BATCH3_LEGACY_GAP_CANDIDATES_OUTPUT = INTERIM_DIR / "catalog_batch3_legacy_gap_candidates.csv"
 BATCH3_COMBINED_INVENTORY_OUTPUT = INTERIM_DIR / "catalog_batch3_combined_inventory.csv"
 BATCH3_RETRIEVAL_ATTEMPTS_OUTPUT = INTERIM_DIR / "catalog_batch3_retrieval_attempts.csv"
 BATCH3_RETRIEVAL_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_batch3_retrieval_coverage.csv"
@@ -86,6 +87,7 @@ class Batch3Outputs:
     archive_pages: Path
     year_candidates: Path
     year_coverage: Path
+    legacy_gap_candidates: Path
     combined_inventory: Path
     retrieval_attempts: Path
     retrieval_coverage: Path
@@ -621,7 +623,60 @@ def build_observed_candidate_bounds(
     )
 
 
-def build_inventory(year_coverage: pd.DataFrame) -> pd.DataFrame:
+def build_legacy_gap_candidates(year_coverage: pd.DataFrame, legacy_leads: pd.DataFrame) -> pd.DataFrame:
+    """Use legacy URLs only for institution-years without preferred-root candidates."""
+    if legacy_leads.empty:
+        return pd.DataFrame()
+    gap_years = year_coverage.loc[
+        year_coverage["candidate_url"].fillna("").astype(str).str.strip().eq(""),
+        ["batch3_rank", "unitid", "institution_name", "target_year"],
+    ].copy()
+    if gap_years.empty:
+        return pd.DataFrame()
+    leads = legacy_leads.loc[legacy_leads["legacy_url"].fillna("").astype(str).str.strip().ne("")].copy()
+    if leads.empty:
+        return pd.DataFrame()
+    candidates = gap_years.merge(
+        leads,
+        on=["batch3_rank", "unitid", "institution_name", "target_year"],
+        how="inner",
+        suffixes=("", "_legacy"),
+    )
+    if candidates.empty:
+        return pd.DataFrame()
+    candidates["candidate_url"] = candidates["legacy_url"].map(clean_text)
+    candidates["candidate_link_text"] = "legacy workbook URL"
+    candidates["archive_url"] = candidates["legacy_url_parent"].map(clean_text)
+    candidates["catalog_year_start"] = candidates["target_year"]
+    candidates["catalog_year_end"] = candidates["target_year"].astype(int) + 1
+    candidates["candidate_source_method"] = "legacy_prior_gap_fill"
+    candidates["candidate_scope"] = "legacy_catalog_lead"
+    candidates["validation_status"] = "legacy_url_gap_fill_candidate"
+    candidates["created_at"] = utc_now()
+    return candidates[
+        [
+            "batch3_rank",
+            "unitid",
+            "institution_name",
+            "target_year",
+            "candidate_url",
+            "candidate_link_text",
+            "archive_url",
+            "catalog_year_start",
+            "catalog_year_end",
+            "candidate_source_method",
+            "candidate_scope",
+            "validation_status",
+            "legacy_link_id",
+            "selected_as_prior_evidence",
+            "legacy_needs_review",
+            "legacy_review_reasons",
+            "created_at",
+        ]
+    ].sort_values(["batch3_rank", "unitid", "target_year", "legacy_link_id"])
+
+
+def build_inventory(year_coverage: pd.DataFrame, legacy_gap_candidates: pd.DataFrame | None = None) -> pd.DataFrame:
     rows = []
     source_counter = 1
     for _, row in year_coverage.loc[year_coverage["candidate_url"].fillna("").astype(str).str.strip().ne("")].iterrows():
@@ -635,10 +690,10 @@ def build_inventory(year_coverage: pd.DataFrame) -> pd.DataFrame:
                 "target_year": int(row["target_year"]),
                 "candidate_url": row["candidate_url"],
                 "candidate_source_method": "preferred_root_archive",
-                "candidate_link_text": row["candidate_link_text"],
-                "archive_url": row["archive_url"],
-                "catalog_year_start": row["catalog_year_start"],
-                "catalog_year_end": row["catalog_year_end"],
+                "candidate_link_text": clean_text(row.get("candidate_link_text", "")),
+                "archive_url": clean_text(row.get("archive_url", "")),
+                "catalog_year_start": row.get("catalog_year_start", ""),
+                "catalog_year_end": row.get("catalog_year_end", ""),
                 "retrieval_status": "not_attempted",
                 "text_extract_status": "not_attempted",
                 "needs_human_review": False,
@@ -655,12 +710,48 @@ def build_inventory(year_coverage: pd.DataFrame) -> pd.DataFrame:
             }
         )
         source_counter += 1
+    if legacy_gap_candidates is not None and not legacy_gap_candidates.empty:
+        for _, row in legacy_gap_candidates.iterrows():
+            rows.append(
+                {
+                    "source_id": f"batch3-{source_counter:05d}",
+                    "pilot_rank": int(row["batch3_rank"]),
+                    "batch3_rank": int(row["batch3_rank"]),
+                    "unitid": int(row["unitid"]),
+                    "institution_name": row["institution_name"],
+                    "target_year": int(row["target_year"]),
+                    "candidate_url": row["candidate_url"],
+                    "candidate_source_method": "legacy_prior_gap_fill",
+                    "candidate_link_text": row["candidate_link_text"],
+                    "archive_url": row["archive_url"],
+                    "catalog_year_start": row["catalog_year_start"],
+                    "catalog_year_end": row["catalog_year_end"],
+                    "retrieval_status": "not_attempted",
+                    "text_extract_status": "not_attempted",
+                    "needs_human_review": False,
+                    "review_reason": "",
+                    "legacy_workbook": "public",
+                    "legacy_sheet_name": "",
+                    "legacy_excel_row": "",
+                    "legacy_link_id": row.get("legacy_link_id", ""),
+                    "legacy_selected_as_prior_evidence": row.get("selected_as_prior_evidence", ""),
+                    "legacy_needs_review": row.get("legacy_needs_review", ""),
+                    "legacy_review_reasons": row.get("legacy_review_reasons", ""),
+                    "created_at": utc_now(),
+                    "updated_at": utc_now(),
+                }
+            )
+            source_counter += 1
     return pd.DataFrame(rows)
 
 
 def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataFrame) -> pd.DataFrame:
     best = pd.DataFrame()
     if not retrieval_coverage.empty:
+        retrieval_coverage = retrieval_coverage.copy()
+        for col in ["candidate_url", "candidate_source_method", "candidate_link_text", "archive_url"]:
+            if col not in retrieval_coverage.columns:
+                retrieval_coverage[col] = ""
         best = (
             retrieval_coverage.sort_values(["unitid", "target_year", "source_id"])
             .groupby(["unitid", "target_year"], as_index=False)
@@ -674,6 +765,10 @@ def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataF
                     "unitid",
                     "target_year",
                     "source_id",
+                    "candidate_url",
+                    "candidate_source_method",
+                    "candidate_link_text",
+                    "archive_url",
                     "source_retrieved",
                     "best_retrieval_status",
                     "best_attempt_method",
@@ -684,6 +779,7 @@ def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataF
             ],
             on=["unitid", "target_year"],
             how="left",
+            suffixes=("", "_retrieved"),
         )
     for col in [
         "source_id",
@@ -715,6 +811,10 @@ def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataF
                 "candidate_url": clean_text(row.get("candidate_url", "")),
                 "candidate_link_text": clean_text(row.get("candidate_link_text", "")),
                 "archive_url": clean_text(row.get("archive_url", "")),
+                "retrieved_candidate_url": clean_text(row.get("candidate_url_retrieved", "")),
+                "retrieved_candidate_method": clean_text(row.get("candidate_source_method", "")),
+                "retrieved_candidate_link_text": clean_text(row.get("candidate_link_text_retrieved", "")),
+                "retrieved_archive_url": clean_text(row.get("archive_url_retrieved", "")),
                 "retrieved_source_id": clean_text(row.get("source_id", "")),
                 "source_retrieved": to_bool(row.get("source_retrieved", False)),
                 "retrieval_status": clean_text(row.get("best_retrieval_status", "")),
@@ -820,9 +920,16 @@ def run_batch3_discovery(
     year_candidates = build_year_candidates(archive_pages, result_by_url)
     observed_bounds = build_observed_candidate_bounds(archive_pages, result_by_url)
     year_coverage = build_year_coverage(batch, targets, decisions, year_candidates, archive_pages, observed_bounds)
-    inventory = build_inventory(year_coverage)
+    legacy_gap_candidates = build_legacy_gap_candidates(year_coverage, legacy_leads)
+    inventory = build_inventory(year_coverage, legacy_gap_candidates)
     retrieval_attempts = build_retrieval_attempts(repo_root, inventory, timeout_seconds=timeout_seconds) if not inventory.empty else pd.DataFrame()
     retrieval_coverage = build_coverage(inventory, retrieval_attempts) if not inventory.empty else pd.DataFrame()
+    if not retrieval_coverage.empty:
+        retrieval_coverage = retrieval_coverage.merge(
+            inventory[["source_id", "candidate_source_method", "candidate_link_text", "archive_url"]],
+            on="source_id",
+            how="left",
+        )
     stage_status = build_stage_status(year_coverage, retrieval_coverage)
 
     outputs = Batch3Outputs(
@@ -833,6 +940,7 @@ def run_batch3_discovery(
         archive_pages=(repo_root / BATCH3_ARCHIVE_PAGES_OUTPUT).resolve(),
         year_candidates=(repo_root / BATCH3_YEAR_CANDIDATES_OUTPUT).resolve(),
         year_coverage=(repo_root / BATCH3_YEAR_COVERAGE_OUTPUT).resolve(),
+        legacy_gap_candidates=(repo_root / BATCH3_LEGACY_GAP_CANDIDATES_OUTPUT).resolve(),
         combined_inventory=(repo_root / BATCH3_COMBINED_INVENTORY_OUTPUT).resolve(),
         retrieval_attempts=(repo_root / BATCH3_RETRIEVAL_ATTEMPTS_OUTPUT).resolve(),
         retrieval_coverage=(repo_root / BATCH3_RETRIEVAL_COVERAGE_OUTPUT).resolve(),
@@ -848,6 +956,7 @@ def run_batch3_discovery(
     archive_pages.to_csv(outputs.archive_pages, index=False)
     year_candidates.to_csv(outputs.year_candidates, index=False)
     year_coverage.to_csv(outputs.year_coverage, index=False)
+    legacy_gap_candidates.to_csv(outputs.legacy_gap_candidates, index=False)
     inventory.to_csv(outputs.combined_inventory, index=False)
     retrieval_attempts.to_csv(outputs.retrieval_attempts, index=False)
     retrieval_coverage.to_csv(outputs.retrieval_coverage, index=False)

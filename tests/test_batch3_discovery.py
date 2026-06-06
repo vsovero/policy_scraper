@@ -2,6 +2,7 @@ import pandas as pd
 
 from course_policy.batch3_discovery import (
     build_inventory,
+    build_legacy_gap_candidates,
     build_observed_candidate_bounds,
     build_stage_status,
     build_year_coverage,
@@ -159,6 +160,63 @@ def test_build_year_coverage_infers_archive_bound_only_after_observed_span():
     assert not coverage.loc[coverage["target_year"].eq(2003), "archive_bound_inferred"].iloc[0]
 
 
+def test_legacy_gap_candidates_only_fill_uncovered_years():
+    coverage = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2000,
+                "candidate_url": "",
+            },
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2001,
+                "candidate_url": "https://example.edu/catalog/2001",
+            },
+        ]
+    )
+    legacy = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2000,
+                "legacy_url": "https://legacy.example.edu/2000.pdf",
+                "legacy_url_parent": "https://legacy.example.edu/",
+                "legacy_link_id": "legacy-1",
+                "selected_as_prior_evidence": True,
+                "legacy_needs_review": False,
+                "legacy_review_reasons": "",
+            },
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2001,
+                "legacy_url": "https://legacy.example.edu/2001.pdf",
+                "legacy_url_parent": "https://legacy.example.edu/",
+                "legacy_link_id": "legacy-2",
+                "selected_as_prior_evidence": True,
+                "legacy_needs_review": False,
+                "legacy_review_reasons": "",
+            },
+        ]
+    )
+
+    gap = build_legacy_gap_candidates(coverage, legacy)
+    inventory = build_inventory(coverage, gap)
+
+    assert gap["target_year"].tolist() == [2000]
+    assert gap["candidate_source_method"].iloc[0] == "legacy_prior_gap_fill"
+    assert inventory.loc[inventory["target_year"].eq(2000), "candidate_source_method"].iloc[0] == "legacy_prior_gap_fill"
+    assert inventory.loc[inventory["target_year"].eq(2001), "candidate_source_method"].iloc[0] == "preferred_root_archive"
+
+
 def test_stage_for_row_maps_pipeline_queue_cases():
     assert stage_for_row(pd.Series({"decision_status": "source_root_not_found"}))[:3] == (
         "no_source_path",
@@ -218,6 +276,10 @@ def test_build_inventory_and_stage_status_keep_one_source_per_year():
                 "best_content_type": "application/pdf",
                 "local_source_path": "/tmp/catalog.pdf",
                 "covers_target_year": True,
+                "candidate_source_method": "legacy_prior_gap_fill",
+                "candidate_url": "https://legacy.example.edu/catalog.pdf",
+                "candidate_link_text": "legacy workbook URL",
+                "archive_url": "https://legacy.example.edu/",
             }
         ]
     )
@@ -227,3 +289,4 @@ def test_build_inventory_and_stage_status_keep_one_source_per_year():
     assert inventory["source_id"].tolist() == ["batch3-00001"]
     assert status["pipeline_stage"].iloc[0] == "source_retrieved"
     assert status["next_batch_action"].iloc[0] == "policy_term_search"
+    assert status["retrieved_candidate_method"].iloc[0] == "legacy_prior_gap_fill"
