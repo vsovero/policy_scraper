@@ -154,12 +154,22 @@ def request_headers_for_url(url: str) -> dict[str, str]:
             "User-Agent": "curl/8.0",
             "Accept": "application/pdf",
         }
+    if is_louis_uah_viewcontent_url(url):
+        return {
+            "User-Agent": "curl/8.0",
+            "Accept": "application/pdf",
+        }
     return browser_headers()
 
 
 def is_opensiuc_viewcontent_url(url: str) -> bool:
     parsed = urlparse(url)
     return parsed.netloc.lower() == "opensiuc.lib.siu.edu" and parsed.path == "/cgi/viewcontent.cgi"
+
+
+def is_louis_uah_viewcontent_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.netloc.lower() == "louis.uah.edu" and parsed.path == "/cgi/viewcontent.cgi"
 
 
 def decode_body(body: bytes, content_type: str) -> str:

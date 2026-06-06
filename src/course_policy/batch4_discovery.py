@@ -27,6 +27,7 @@ from .batch3_discovery import (
     source_root_tasks,
     utc_now,
 )
+from .catalog_retrieval import retrieve_url, save_source_body
 
 
 DATA_DIR = Path("../data_policy_pipeline")
@@ -45,6 +46,7 @@ BATCH4_LEGACY_LEADS_OUTPUT = INTERIM_DIR / "catalog_batch4_legacy_leads.csv"
 BATCH4_ROOT_CANDIDATES_OUTPUT = INTERIM_DIR / "catalog_batch4_root_candidates.csv"
 BATCH4_SOURCE_ROOT_DECISIONS_OUTPUT = INTERIM_DIR / "catalog_batch4_source_root_decisions.csv"
 BATCH4_ARCHIVE_PAGES_OUTPUT = INTERIM_DIR / "catalog_batch4_archive_pages.csv"
+BATCH4_SECONDARY_ARCHIVE_SEEDS_OUTPUT = INTERIM_DIR / "catalog_batch4_secondary_archive_seeds.csv"
 BATCH4_YEAR_CANDIDATES_OUTPUT = INTERIM_DIR / "catalog_batch4_year_candidates.csv"
 BATCH4_YEAR_COVERAGE_OUTPUT = INTERIM_DIR / "catalog_batch4_year_coverage.csv"
 BATCH4_LEGACY_GAP_CANDIDATES_OUTPUT = INTERIM_DIR / "catalog_batch4_legacy_gap_candidates.csv"
@@ -62,6 +64,7 @@ class Batch4Outputs:
     root_candidates: Path
     source_root_decisions: Path
     archive_pages: Path
+    secondary_archive_seeds: Path
     year_candidates: Path
     year_coverage: Path
     legacy_gap_candidates: Path
@@ -154,6 +157,89 @@ def select_batch4_institutions(
     return selected[columns]
 
 
+def reviewed_secondary_archive_seeds(batch: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    reviewed = {
+        100706: {
+            "archive_url": "https://louis.uah.edu/catalogs/",
+            "archive_source": "reviewed_root_page_pointer",
+            "archive_link_text": "UAH root page points to library archive course catalogs.",
+        }
+    }
+    for _, inst in batch.iterrows():
+        seed = reviewed.get(int(inst["unitid"]))
+        if not seed:
+            continue
+        rows.append(
+            {
+                "batch3_rank": int(inst["batch3_rank"]),
+                "unitid": int(inst["unitid"]),
+                "institution_name": inst["institution_name"],
+                "preferred_source_root_url": "",
+                "archive_url": seed["archive_url"],
+                "archive_source": seed["archive_source"],
+                "archive_link_text": seed["archive_link_text"],
+                "created_at": utc_now(),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def append_secondary_archive_pages(
+    repo_root: Path,
+    archive_pages: pd.DataFrame,
+    result_by_url: dict[str, dict[str, object]],
+    seeds: pd.DataFrame,
+    *,
+    timeout_seconds: int,
+) -> tuple[pd.DataFrame, dict[str, dict[str, object]]]:
+    if seeds.empty:
+        return archive_pages, result_by_url
+    rows = []
+    existing_urls = set(archive_pages["archive_url"].fillna("").astype(str)) if not archive_pages.empty else set()
+    for idx, seed in seeds.sort_values(["batch3_rank", "unitid", "archive_url"]).iterrows():
+        archive_url = seed["archive_url"]
+        if archive_url in existing_urls:
+            continue
+        result = retrieve_url(archive_url, timeout_seconds=timeout_seconds, max_bytes=5_000_000)
+        result_by_url[archive_url] = result
+        local_source_path = ""
+        if result["retrieval_status"] in {"retrieved", "retrieved_truncated"}:
+            local_source_path = str(
+                save_source_body(
+                    repo_root,
+                    f"batch4-secondary-archive-{int(seed['unitid'])}-{len(rows) + 1:02d}",
+                    "archive_page",
+                    archive_url,
+                    str(result["content_type"]),
+                    result["body"],
+                )
+            )
+        rows.append(
+            {
+                "batch3_rank": int(seed["batch3_rank"]),
+                "unitid": int(seed["unitid"]),
+                "institution_name": seed["institution_name"],
+                "preferred_source_root_url": seed.get("preferred_source_root_url", ""),
+                "archive_url": archive_url,
+                "archive_source": seed["archive_source"],
+                "archive_link_text": seed["archive_link_text"],
+                "retrieval_status": result["retrieval_status"],
+                "http_status": result["http_status"],
+                "final_url": result["final_url"],
+                "content_type": result["content_type"],
+                "page_title": result["page_title"],
+                "year_hints": result["year_hints"],
+                "link_count": len(result.get("link_records", [])),
+                "local_source_path": local_source_path,
+                "created_at": utc_now(),
+            }
+        )
+    if rows:
+        archive_pages = pd.concat([archive_pages, pd.DataFrame(rows)], ignore_index=True)
+    return archive_pages, result_by_url
+
+
 def run_batch4_discovery(
     repo_root: Path,
     *,
@@ -168,6 +254,14 @@ def run_batch4_discovery(
     root_candidates = build_root_candidates(repo_root, legacy_leads, tasks, timeout_seconds=timeout_seconds)
     decisions = build_source_root_decisions(root_candidates, tasks)
     archive_pages, result_by_url = build_archive_pages(repo_root, decisions, timeout_seconds=timeout_seconds)
+    secondary_archive_seeds = reviewed_secondary_archive_seeds(batch)
+    archive_pages, result_by_url = append_secondary_archive_pages(
+        repo_root,
+        archive_pages,
+        result_by_url,
+        secondary_archive_seeds,
+        timeout_seconds=timeout_seconds,
+    )
     year_candidates = build_year_candidates(archive_pages, result_by_url)
     observed_bounds = build_observed_candidate_bounds(archive_pages, result_by_url)
     year_coverage = build_year_coverage(batch, targets, decisions, year_candidates, archive_pages, observed_bounds)
@@ -190,6 +284,7 @@ def run_batch4_discovery(
         root_candidates=(repo_root / BATCH4_ROOT_CANDIDATES_OUTPUT).resolve(),
         source_root_decisions=(repo_root / BATCH4_SOURCE_ROOT_DECISIONS_OUTPUT).resolve(),
         archive_pages=(repo_root / BATCH4_ARCHIVE_PAGES_OUTPUT).resolve(),
+        secondary_archive_seeds=(repo_root / BATCH4_SECONDARY_ARCHIVE_SEEDS_OUTPUT).resolve(),
         year_candidates=(repo_root / BATCH4_YEAR_CANDIDATES_OUTPUT).resolve(),
         year_coverage=(repo_root / BATCH4_YEAR_COVERAGE_OUTPUT).resolve(),
         legacy_gap_candidates=(repo_root / BATCH4_LEGACY_GAP_CANDIDATES_OUTPUT).resolve(),
@@ -206,6 +301,7 @@ def run_batch4_discovery(
     root_candidates.to_csv(outputs.root_candidates, index=False)
     decisions.to_csv(outputs.source_root_decisions, index=False)
     archive_pages.to_csv(outputs.archive_pages, index=False)
+    secondary_archive_seeds.to_csv(outputs.secondary_archive_seeds, index=False)
     year_candidates.to_csv(outputs.year_candidates, index=False)
     year_coverage.to_csv(outputs.year_coverage, index=False)
     legacy_gap_candidates.to_csv(outputs.legacy_gap_candidates, index=False)

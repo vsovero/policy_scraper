@@ -433,6 +433,7 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
         text = body.decode("utf-8", errors="replace")
         records.extend(table_row_context_records(text, clean_text(page["archive_url"])))
         records.extend(select_option_context_records(text, clean_text(page["archive_url"])))
+        records.extend(bepress_gallery_context_records(text, clean_text(page["archive_url"])))
     title_context = clean_text(page.get("page_title", "")).lower()
     if "undergraduate" in title_context and "catalog" in title_context:
         for record in result.get("link_records", []):
@@ -485,6 +486,34 @@ def select_option_context_records(text: str, base_url: str) -> list[dict[str, st
                 "text": option_text,
                 "evidence_text": option_text,
                 "evidence_source": "select_option_context",
+            }
+        )
+    return rows
+
+
+def bepress_gallery_context_records(text: str, base_url: str) -> list[dict[str, str]]:
+    rows = []
+    parsed_base = urljoin(base_url, "/")
+    for block_match in re.finditer(
+        r"<li>\s*<div class=\"content_block\">(.*?)</div>\s*</li>",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        block = block_match.group(1)
+        title_match = re.search(r"<h2>\s*<a\b[^>]*>(.*?)</a>\s*</h2>", block, flags=re.IGNORECASE | re.DOTALL)
+        asset_match = re.search(r"/catalogs/(\d+)/(?:thumbnail|preview)\.jpg", block, flags=re.IGNORECASE)
+        if not title_match or not asset_match:
+            continue
+        title = visible_fragment_text(title_match.group(1))
+        if not normalized_year_range(title):
+            continue
+        article_id = asset_match.group(1)
+        rows.append(
+            {
+                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context=catalogs"),
+                "text": title,
+                "evidence_text": title,
+                "evidence_source": "bepress_gallery_context",
             }
         )
     return rows

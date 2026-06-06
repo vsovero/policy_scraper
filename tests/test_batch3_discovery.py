@@ -2,6 +2,7 @@ import pandas as pd
 
 from course_policy.batch3_discovery import (
     add_legacy_gap_status,
+    bepress_gallery_context_records,
     build_inventory,
     build_legacy_gap_candidates,
     build_observed_candidate_bounds,
@@ -83,6 +84,33 @@ def test_select_option_context_builds_acalog_catalog_urls():
     assert records[0]["url"] == "https://catalog.example.edu/index.php?catoid=50"
     assert is_relevant_catalog_link(records[0])
     assert not is_relevant_catalog_link(records[1])
+
+
+def test_bepress_gallery_context_builds_download_url_from_visible_title_and_asset_id():
+    records = bepress_gallery_context_records(
+        """
+        <ul id="gallery_items">
+          <li><div class="content_block">
+            <a href="https://louis.example.edu/catalogs/44" class="cover">
+              <img src="https://louis.example.edu/catalogs/1043/thumbnail.jpg"
+                   alt="2013-2014 Undergraduate Catalog">
+            </a>
+            <h2><a href="https://louis.example.edu/catalogs/44">2013-2014 Undergraduate Catalog</a></h2>
+          </div></li>
+        </ul>
+        """,
+        "https://louis.example.edu/catalogs/",
+    )
+
+    assert records == [
+        {
+            "url": "https://louis.example.edu/cgi/viewcontent.cgi?article=1043&context=catalogs",
+            "text": "2013-2014 Undergraduate Catalog",
+            "evidence_text": "2013-2014 Undergraduate Catalog",
+            "evidence_source": "bepress_gallery_context",
+        }
+    ]
+    assert is_relevant_catalog_link(records[0])
 
 
 def test_observed_candidate_bounds_can_come_from_years_outside_target_panel():

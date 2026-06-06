@@ -161,6 +161,8 @@ When the preferred root does not produce a year-level candidate, legacy URLs may
 
 If a legacy URL is a current or archived policy page rather than a catalog, bulletin, or catalog PDF, preserve it as `legacy_policy_page_deferred` and route the institution-year to `policy_dating_workflow`. Do not retrieve it as catalog-source coverage.
 
+If an official catalog root is JavaScript-rendered and points users to a library or institutional repository archive, record that archive as a reviewed secondary archive seed. Batch 4 example: UAH's Kuali catalog page points to the LOUIS Course Catalogs collection, which is a BePress gallery with visible catalog-year titles and downloadable `viewcontent.cgi` PDF sources.
+
 Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
@@ -239,6 +241,7 @@ Batch 3 converts two reusable page-context patterns into code:
 
 - table rows where the year appears in a neighboring cell and the link text is generic, such as `PDF` or `HTML`;
 - catalog dropdowns where archived catalog years appear in visible `<option>` text.
+- BePress gallery cards where the visible title contains the catalog year and the item asset id maps to a downloadable `viewcontent.cgi` source.
 
 The year still must appear in visible page context. URL or filename years may help identify the linked source or undergraduate scope, but they should not be the sole year evidence.
 

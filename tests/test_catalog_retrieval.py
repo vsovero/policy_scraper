@@ -40,6 +40,13 @@ def test_opensiuc_viewcontent_uses_pdf_request_headers():
     assert headers["User-Agent"] == "curl/8.0"
 
 
+def test_louis_uah_viewcontent_uses_pdf_request_headers():
+    headers = request_headers_for_url("https://louis.uah.edu/cgi/viewcontent.cgi?article=1043&context=catalogs")
+
+    assert headers["Accept"] == "application/pdf"
+    assert headers["User-Agent"] == "curl/8.0"
+
+
 def test_parse_wayback_snapshot_returns_closest_available_url():
     body = b'{"archived_snapshots":{"closest":{"available":true,"url":"https://web.archive.org/x"}}}'
 
