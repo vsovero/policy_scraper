@@ -76,6 +76,8 @@ EXCLUDE_TERMS = (
     "senate policy",
     "policy catalog",
 )
+GRADUATE_ONLY_TERMS = ("graduate", "grad")
+NON_SCOPE_EXCLUDE_TERMS = tuple(term for term in EXCLUDE_TERMS if term not in GRADUATE_ONLY_TERMS)
 
 
 @dataclass(frozen=True)
@@ -366,11 +368,18 @@ def is_relevant_catalog_link(record: dict[str, str]) -> bool:
     lowered = evidence_text.lower()
     if not normalized_year_range(evidence_text):
         return False
-    exclude_text = lowered.replace("undergraduate", "").replace("undergrad", "")
-    if any(term in exclude_text for term in EXCLUDE_TERMS):
+    if any(term in lowered for term in NON_SCOPE_EXCLUDE_TERMS):
         return False
-    if "undergraduate" in lowered or "undergrad" in lowered:
+
+    has_undergraduate = "undergraduate" in lowered or re.search(r"\bundergrad\b", lowered) is not None
+    has_graduate = (
+        "graduate" in lowered.replace("undergraduate", "")
+        or re.search(r"\bgrad\b", lowered.replace("undergrad", "")) is not None
+    )
+    if has_undergraduate:
         return True
+    if has_graduate:
+        return False
     if "catalog" in lowered or "bulletin" in lowered:
         return True
     return False
@@ -494,6 +503,23 @@ def select_option_context_records(text: str, base_url: str) -> list[dict[str, st
 def bepress_gallery_context_records(text: str, base_url: str) -> list[dict[str, str]]:
     rows = []
     parsed_base = urljoin(base_url, "/")
+    for preview_match in re.finditer(
+        r"""<a\b[^>]*href=["'][^"']*/catalogs/(\d+)/(?:thumbnail|preview)\.jpg["'][^>]*\btitle=["']([^"']+)["'][^>]*>""",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        article_id = preview_match.group(1)
+        title = clean_text(html.unescape(preview_match.group(2)))
+        if not normalized_year_range(title):
+            continue
+        rows.append(
+            {
+                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context=catalogs"),
+                "text": title,
+                "evidence_text": title,
+                "evidence_source": "bepress_slideshow_context",
+            }
+        )
     for block_match in re.finditer(
         r"<li>\s*<div class=\"content_block\">(.*?)</div>\s*</li>",
         text,
@@ -528,7 +554,7 @@ def dedupe_context_records(records: list[dict[str, str]]) -> list[dict[str, str]
     seen = set()
     out = []
     for record in records:
-        key = (record.get("url", ""), record.get("evidence_text", ""), record.get("evidence_source", ""))
+        key = (record.get("url", ""), record.get("evidence_text", ""))
         if not record.get("url") or key in seen:
             continue
         seen.add(key)

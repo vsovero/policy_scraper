@@ -39,6 +39,12 @@ def test_batch3_relevant_catalog_link_is_generic_and_undergraduate_first():
         {"text": "2015-2016 Undergraduate Catalog", "url": "https://example.edu/catalog/2015-2016"}
     )
     assert is_relevant_catalog_link(
+        {
+            "text": "2015-2016 Undergraduate and Graduate Catalog",
+            "url": "https://example.edu/catalog/2015-2016",
+        }
+    )
+    assert is_relevant_catalog_link(
         {"text": "2015-2016 University Catalog", "url": "https://example.edu/catalog/2015-2016"}
     )
     assert not is_relevant_catalog_link(
@@ -108,6 +114,29 @@ def test_bepress_gallery_context_builds_download_url_from_visible_title_and_asse
             "text": "2013-2014 Undergraduate Catalog",
             "evidence_text": "2013-2014 Undergraduate Catalog",
             "evidence_source": "bepress_gallery_context",
+        }
+    ]
+    assert is_relevant_catalog_link(records[0])
+
+
+def test_bepress_slideshow_context_builds_download_url_from_preview_title():
+    records = bepress_gallery_context_records(
+        """
+        <div class="gallery-tools">
+          <a href="https://louis.example.edu/catalogs/1008/preview.jpg"
+             class="floatbox"
+             title="1999-2001 Undergraduate Catalog"></a>
+        </div>
+        """,
+        "https://louis.example.edu/catalogs/",
+    )
+
+    assert records == [
+        {
+            "url": "https://louis.example.edu/cgi/viewcontent.cgi?article=1008&context=catalogs",
+            "text": "1999-2001 Undergraduate Catalog",
+            "evidence_text": "1999-2001 Undergraduate Catalog",
+            "evidence_source": "bepress_slideshow_context",
         }
     ]
     assert is_relevant_catalog_link(records[0])
