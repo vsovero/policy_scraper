@@ -141,7 +141,7 @@ Use these statuses and roles:
 - unresolved status: `secondary_archive_gap_unfilled`;
 - escalation bucket: `institutional_archive_expansion`.
 
-UNC batch 2 example: SmartCatalog is the preferred root for AY 2011-2020. Legacy evidence points to UNC Digital Archive objects for AY 2000, AY 2002, and AY 2008. Because those leads are institution-specific and outside the SmartCatalog span, the UNC Digital Archive may be promoted to a bounded secondary root for AY 2000-2010. Expansion should inspect the object parent/collection/sibling context to try to fill AY 2001, AY 2003-2007, and AY 2009-2010; it should not become a general digital-archive search.
+UNC batch 2 example: SmartCatalog is the preferred root for AY 2011-2020. Legacy evidence points to UNC Digital Archive objects for AY 2000, AY 2002, and AY 2008. Because those leads are institution-specific and outside the SmartCatalog span, the UNC Digital Archive can be promoted to a bounded secondary root for AY 2000-2010. The tested route is Digital UNC's OAI endpoint, which exposes `Catalogs 2000-2009` and `Catalogs 2010-2019` sets with explicit catalog-year metadata. This fills AY 2000-2010 as source candidates, but direct catalog body retrieval remains WAF/challenge-blocked from the pipeline environment; extraction needs a browser/manual/approved access path.
 
 ## First-Pass Stop Rules
 

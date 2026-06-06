@@ -146,6 +146,8 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_batch2_retrieval_attempts.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_retrieval_coverage.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_runthrough_year_summary.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_secondary_archive_candidates.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_secondary_archive_year_summary.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_year_status.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_status_summary.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
@@ -177,6 +179,7 @@ Current strict-pilot panel expansion note:
 - Oregon Health & Science University is marked as a catalog dead end for this pilot: the catalog leads found are school-specific rather than university-wide, and the OHSU-wide University Grading policy is preserved only as a deferred extraction lead.
 - `catalog_batch2_*` files set up the next 5-institution expansion batch using the finalized source-root protocol. They identify selected institutions, legacy leads, candidate source roots, preferred root decisions, archive pages, explicit year-level catalog candidates, controlled legacy gap-fill, retrieval status, institution-year setup statuses, and the batch dashboard; they do not count policy coverage yet.
 - Batch 2 adds a reusable rule for university-wide digital archives: if legacy/official context reveals a bounded institution-specific catalog archive outside the preferred root's span, promote it to `secondary_institutional_digital_archive` and expand only within that collection/sibling-object context.
+- `catalog_batch2_secondary_archive_*` tests this rule on UNC. Digital UNC OAI metadata exposes bounded catalog sets for 2000-2009 and 2010-2019, but direct catalog body retrieval is WAF/challenge-blocked from the pipeline environment.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 

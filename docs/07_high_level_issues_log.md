@@ -123,9 +123,9 @@ Issue: Some legacy URLs point to a university-wide digital archive collection ra
 
 Why it matters: Treating these URLs only as isolated legacy gap-fill leaves adjacent years missing even when the same institutional archive may contain sibling catalog records. Treating them as broad web-search leads would undermine the source-root guardrails.
 
-Current handling: The Phase 3 protocol now allows a bounded `secondary_institutional_digital_archive` root when the archive appears organically from legacy/official context, is institution-specific, appears catalog/bulletin-related, and covers years outside the preferred root's observed span.
+Current handling: The Phase 3 protocol now allows a bounded `secondary_institutional_digital_archive` root when the archive appears organically from legacy/official context, is institution-specific, appears catalog/bulletin-related, and covers years outside the preferred root's observed span. The UNC test confirms the candidate-discovery part of this rule: Digital UNC's OAI endpoint exposes bounded `Catalogs 2000-2009` and `Catalogs 2010-2019` sets, and metadata titles fill AY 2000-2010.
 
-Follow-up: Add a bounded secondary archive expansion pass for cases like UNC: inspect parent/collection/sibling archive context, fill only explicit catalog-year candidates, and mark remaining years as `secondary_archive_gap_unfilled` or `institutional_archive_expansion`.
+Follow-up: Direct Digital UNC catalog body retrieval is WAF/challenge-blocked from the pipeline environment, so the next extraction step needs a browser/manual/approved access path or another downloadable file endpoint. Until then, UNC secondary archive rows are source candidates with metadata year evidence, not extracted policy text.
 
 ## Private Workbook Example Sheet
 
