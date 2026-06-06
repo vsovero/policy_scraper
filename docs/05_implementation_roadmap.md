@@ -148,6 +148,7 @@ Deliverables:
 - `data_policy_pipeline/interim/catalog_batch2_runthrough_year_summary.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_secondary_archive_candidates.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_secondary_archive_year_summary.csv`;
+- `data_policy_pipeline/interim/catalog_batch2_stage_status.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_year_status.csv`;
 - `data_policy_pipeline/interim/catalog_batch2_status_summary.csv`;
 - `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
@@ -181,6 +182,7 @@ Current strict-pilot panel expansion note:
 - Batch 2 adds a reusable rule for university-wide digital archives: if legacy/official context reveals a bounded institution-specific catalog archive outside the preferred root's span, promote it to `secondary_institutional_digital_archive` and expand only within that collection/sibling-object context.
 - `catalog_batch2_secondary_archive_*` tests this rule on UNC. Digital UNC OAI metadata exposes bounded catalog sets for 2000-2009 and 2010-2019, but direct catalog body retrieval is WAF/challenge-blocked from the pipeline environment.
 - The Phase 3 protocol now frames institution-year progress using `pipeline_stage`, `stop_reason`, and `next_batch_action`, rather than treating every unresolved case as manual review.
+- `catalog_batch2_stage_status.csv` applies the stage ladder to the current batch-2 institution-years.
 
 ## Phase 4: Text Extraction and Excerpt Search Pilot
 
