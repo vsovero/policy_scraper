@@ -865,6 +865,7 @@ def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataF
                 "retrieved_candidate_method": clean_text(row.get("candidate_source_method", "")),
                 "retrieved_candidate_link_text": clean_text(row.get("candidate_link_text_retrieved", "")),
                 "retrieved_archive_url": clean_text(row.get("archive_url_retrieved", "")),
+                "legacy_policy_page_url": clean_text(row.get("legacy_policy_page_url", "")),
                 "retrieved_source_id": clean_text(row.get("source_id", "")),
                 "source_retrieved": to_bool(row.get("source_retrieved", False)),
                 "retrieval_status": clean_text(row.get("best_retrieval_status", "")),
