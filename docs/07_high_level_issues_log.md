@@ -117,6 +117,16 @@ Current handling: Legacy rows are preserved as prior evidence with audit flags. 
 
 Follow-up: Keep selected legacy evidence separate from final source-confirmed evidence.
 
+## Institutional Digital Archives As Secondary Roots
+
+Issue: Some legacy URLs point to a university-wide digital archive collection rather than isolated pages. University of Northern Colorado is the current example: the preferred SmartCatalog root covers AY 2011-2020, while legacy rows point to `digarch.unco.edu` objects for AY 2000, AY 2002, and AY 2008.
+
+Why it matters: Treating these URLs only as isolated legacy gap-fill leaves adjacent years missing even when the same institutional archive may contain sibling catalog records. Treating them as broad web-search leads would undermine the source-root guardrails.
+
+Current handling: The Phase 3 protocol now allows a bounded `secondary_institutional_digital_archive` root when the archive appears organically from legacy/official context, is institution-specific, appears catalog/bulletin-related, and covers years outside the preferred root's observed span.
+
+Follow-up: Add a bounded secondary archive expansion pass for cases like UNC: inspect parent/collection/sibling archive context, fill only explicit catalog-year candidates, and mark remaining years as `secondary_archive_gap_unfilled` or `institutional_archive_expansion`.
+
 ## Private Workbook Example Sheet
 
 Issue: The private workbook contains an example/training sheet that should not be treated as real institutional evidence.

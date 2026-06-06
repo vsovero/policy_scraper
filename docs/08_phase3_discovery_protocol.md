@@ -22,33 +22,37 @@ Use this checklist for each institution in the next pilot batch.
 
 2. Record fallback roots separately.
 
-   If another root is useful, assign it a role such as `legacy_prior`, `fallback_official`, `fallback_external_archive`, or `rejected_wrong_scope`. Do not silently mix roots.
+   If another root is useful, assign it a role such as `legacy_prior`, `fallback_official`, `secondary_institutional_digital_archive`, `fallback_external_archive`, or `rejected_wrong_scope`. Do not silently mix roots.
 
-3. Extract source candidates from the preferred root.
+3. Promote bounded secondary roots when justified.
+
+   Do not make university-wide digital archives the default main-root search target. Promote one only when the preferred catalog root is missing, dead, or visibly bounded, or when legacy/official context points to a university-wide institutional digital archive or repository collection that covers years outside the preferred root's observed archive span. Inspect the parent/collection context first. If it is catalog-specific, institution-wide, and bounded, promote it to `secondary_institutional_digital_archive` for those gap years only.
+
+4. Extract source candidates from the preferred root.
 
    For each catalog candidate, record title, URL, source-root URL, catalog-year start, catalog-year end, evidence type, and whether the source appears institution-wide and undergraduate. Policy-page leads can be logged as later extraction leads, but they should not drive the Phase 3 catalog panel.
 
-4. Apply academic-year expansion.
+5. Apply academic-year expansion.
 
    Expand ranges as `[start, end)`: `2013-2014` covers AY 2013, and `2004-2006` covers AY 2004 and AY 2005.
 
-5. Retrieve easy candidates first.
+6. Retrieve easy candidates first.
 
    Attempt direct retrieval and simple recovery only. Save retrieved source bodies. Do not conduct open-ended web search during the first pass.
 
-6. Verify source-year evidence.
+7. Verify source-year evidence.
 
    Count catalog coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. URL or filename year patterns alone are review leads.
 
-7. Assign every institution-year a first-pass status.
+8. Assign every institution-year a first-pass status.
 
    Each year should be covered or assigned a stop/review status such as OCR needed, archive lower/upper bound reached, wrong-scope lead rejected, fresh discovery needed, or fallback deferred.
 
-8. Move unresolved years to an escalation bucket.
+9. Move unresolved years to an escalation bucket.
 
    Escalate by type, not by institution story: OCR/visual review, source-root review, archive-bound revisit, wrong-scope exception review, API-assisted discovery, or manual review.
 
-9. Stop the first pass.
+10. Stop the first pass.
 
    The first pass is complete when every institution-year is either strict-covered or assigned a defensible status. Do not chase every gap before moving to the next institution.
 
@@ -95,6 +99,7 @@ Avoid silently mixing source roots during the first pass. If multiple roots are 
 - `preferred_first_pass`: main source root for the institution;
 - `legacy_prior`: legacy workbook lead used as prior evidence or corroboration;
 - `fallback_official`: official alternate source used only when the preferred root has a gap;
+- `secondary_institutional_digital_archive`: university-wide institutional archive or repository collection promoted from legacy/official context to fill years outside the preferred root's observed span;
 - `deferred_policy_lead`: official policy page or policy manual document that may help later policy extraction, but is not used for Phase 3 catalog coverage.
 - `fallback_external_archive`: non-institutional archive, such as a state digital archive or Internet Archive;
 - `rejected_wrong_scope`: school-, program-, or handbook-specific source outside the target scope.
@@ -106,15 +111,37 @@ Use this order unless an institution-specific note documents a reason to change 
 1. Coherent official institution-wide undergraduate catalog archive.
 2. Coherent institution repository or library collection for institution-wide catalogs.
 3. Legacy workbook URLs, treated as prior evidence and fallback leads.
-4. Internet Archive recovery of official URLs.
-5. Coherent state/library digital archive collection with institution catalog records, only when it appears organically from legacy links or official-site search.
-6. AI-assisted discovery for remaining hard cases.
+4. Bounded secondary institutional digital archive collection promoted from legacy or official context for years outside the preferred root span, or after the normal catalog-root search fails.
+5. Internet Archive recovery of official URLs.
+6. Coherent state/library digital archive collection with institution catalog records, only when it appears organically from legacy links or official-site search.
+7. AI-assisted discovery for remaining hard cases.
 
 Legacy URLs should be inspected early as discovery leads, but they should not override a better coherent source root. When a legacy URL points to a broader official archive, repository collection, or stable catalog root, record the broader root as the preferred first-pass source and keep the legacy URL as prior or corroborating evidence.
 
 Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
+
+## Secondary Institutional Digital Archive Rule
+
+A university-wide institutional digital archive can be promoted from `legacy_prior` to `secondary_institutional_digital_archive` when all of these conditions hold:
+
+- the normal catalog-root search is missing, dead, or visibly bounded, or the archive appears organically from legacy evidence or an official institution page;
+- the source is institution-specific, not a broad external search result;
+- the parent page, collection page, object metadata, or sibling records indicate an institution-wide catalog/bulletin collection;
+- the archive's target years fall outside the preferred source root's observed coverage span;
+- candidate records expose explicit catalog-year evidence in title, heading, metadata, extracted text, OCR, or visual review.
+
+When promoted, expansion must remain bounded to the identified collection or sibling-object context. Do not use the archive as a reason to run a broad web search. The search target is not "find any digital archive"; it is "find a catalog archive/root first, then use a university digital archive only if the catalog root fails or leaves documented gaps." For overlapping years, prefer the preferred official root/archive unless the secondary archive is needed for corroboration or the preferred source fails retrieval.
+
+Use these statuses and roles:
+
+- source-root role: `secondary_institutional_digital_archive`;
+- candidate method: `institutional_digital_archive_gap_fill`;
+- unresolved status: `secondary_archive_gap_unfilled`;
+- escalation bucket: `institutional_archive_expansion`.
+
+UNC batch 2 example: SmartCatalog is the preferred root for AY 2011-2020. Legacy evidence points to UNC Digital Archive objects for AY 2000, AY 2002, and AY 2008. Because those leads are institution-specific and outside the SmartCatalog span, the UNC Digital Archive may be promoted to a bounded secondary root for AY 2000-2010. Expansion should inspect the object parent/collection/sibling context to try to fill AY 2001, AY 2003-2007, and AY 2009-2010; it should not become a general digital-archive search.
 
 ## First-Pass Stop Rules
 
@@ -124,6 +151,7 @@ Stop first-pass discovery for an institution-year when one of these statuses app
 - `source_found_needs_ocr_or_visual_review`: candidate source appears to cover the year but cannot be verified with text extraction.
 - `official_archive_lower_bound_reached`: preferred source root starts after the target year.
 - `official_archive_upper_bound_reached`: preferred source root ends before the target year.
+- `secondary_archive_gap_unfilled`: a promoted secondary institutional digital archive was checked but no explicit candidate was found for the target year.
 - `wrong_scope_lead_rejected`: available lead is school-, program-, or handbook-specific and no exception has been approved.
 - `catalog_dead_end_wrong_scope`: fresh discovery found only wrong-scope catalog leads, so catalog-first discovery stops for the institution in this pilot.
 - `policy_lead_deferred`: current official policy source found, but deferred because using it for AY 2000-2020 would require revision-history or Wayback work outside the catalog-first pass.
@@ -138,6 +166,7 @@ After first pass, unresolved institution-years should be routed by bucket:
 
 - `ocr_or_visual_review`: scanned or image-only sources need OCR or page-image confirmation.
 - `source_root_review`: multiple plausible roots exist and a coherent hierarchy must be chosen.
+- `institutional_archive_expansion`: legacy/official context reveals a bounded university digital archive that should be expanded within its collection context for years outside the preferred root span.
 - `archive_bound_revisit`: source root has a lower or upper bound; deeper search may be revisited later.
 - `wrong_scope_exception_review`: institution structure may require a documented exception to institution-wide source rules.
 - `catalog_dead_end`: catalog-first discovery found no usable university-wide catalog root; preserve provenance and move on in the pilot.
@@ -195,6 +224,12 @@ Rule: Route scanned/image-only catalogs to OCR or visual review, not deeper disc
 Reusable lesson: Mixing legacy links, Provost pages, and DigitalNC makes coverage hard to explain.
 
 Rule: Use the official archive first. Legacy URLs can fill or corroborate years outside the official archive's observed range, but overlapping years should prefer official archive evidence. DigitalNC was found incidentally and should be preserved as a possible later cross-check, not searched as a standard first-pass source.
+
+### University of Northern Colorado
+
+Reusable lesson: A legacy URL can reveal a university-wide institutional digital archive that is more than a one-off prior evidence link.
+
+Rule: If the preferred root starts later than the target panel and legacy URLs point to an institution-specific catalog archive, promote that archive to a bounded `secondary_institutional_digital_archive` root for the missing pre-root years. Expand only within the archive's catalog collection or sibling-object context, preserve the preferred-root/secondary-root distinction, and keep unresolved archive gaps in `institutional_archive_expansion` or `secondary_archive_gap_unfilled`.
 
 ### OHSU
 
