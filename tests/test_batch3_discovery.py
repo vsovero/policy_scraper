@@ -219,6 +219,84 @@ def test_build_year_coverage_infers_archive_bound_only_after_observed_span():
     assert not coverage.loc[coverage["target_year"].eq(2003), "archive_bound_inferred"].iloc[0]
 
 
+def test_build_year_coverage_flags_single_missing_year_inside_archive_span():
+    batch = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "pilot_rank": 10,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "pilot_case_types": "clean",
+            }
+        ]
+    )
+    targets = pd.DataFrame(
+        [
+            {"unitid": 1, "institution_name": "Example U", "year": 2007},
+            {"unitid": 1, "institution_name": "Example U", "year": 2008},
+            {"unitid": 1, "institution_name": "Example U", "year": 2009},
+            {"unitid": 1, "institution_name": "Example U", "year": 2010},
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "decision_status": "preferred_source_root_identified",
+                "preferred_source_root_url": "https://example.edu/catalog/",
+                "preferred_source_root_type": "official_archive",
+            }
+        ]
+    )
+    candidates = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2007,
+                "candidate_url": "https://example.edu/catalog/2007-2009",
+                "candidate_link_text": "2007-2009 Undergraduate Catalog",
+                "archive_url": "https://example.edu/catalog/",
+                "catalog_year_start": 2007,
+                "catalog_year_end": 2009,
+                "candidate_priority": 10,
+            },
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2008,
+                "candidate_url": "https://example.edu/catalog/2007-2009",
+                "candidate_link_text": "2007-2009 Undergraduate Catalog",
+                "archive_url": "https://example.edu/catalog/",
+                "catalog_year_start": 2007,
+                "catalog_year_end": 2009,
+                "candidate_priority": 10,
+            },
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example U",
+                "target_year": 2010,
+                "candidate_url": "https://example.edu/catalog/2010-2011",
+                "candidate_link_text": "2010-2011 Catalog",
+                "archive_url": "https://example.edu/catalog/",
+                "catalog_year_start": 2010,
+                "catalog_year_end": 2011,
+                "candidate_priority": 10,
+            },
+        ]
+    )
+
+    coverage = build_year_coverage(batch, targets, decisions, candidates, pd.DataFrame())
+    gap = coverage.loc[coverage["target_year"].eq(2009)].iloc[0]
+
+    assert gap["interior_archive_gap_inferred"]
+    assert not gap["archive_bound_inferred"]
+
+
 def test_legacy_gap_candidates_only_fill_uncovered_years():
     coverage = pd.DataFrame(
         [
@@ -363,6 +441,19 @@ def test_stage_for_row_maps_pipeline_queue_cases():
                 "candidate_url": "",
                 "source_retrieved": float("nan"),
                 "archive_bound_inferred": False,
+                "interior_archive_gap_inferred": True,
+                "interior_archive_gap_note": "Target AY falls inside observed archive candidate span.",
+            }
+        )
+    )[:3] == ("root_identified", "interior_archive_gap", "targeted_archive_gap_search")
+    assert stage_for_row(
+        pd.Series(
+            {
+                "decision_status": "preferred_source_root_identified",
+                "candidate_url": "",
+                "source_retrieved": float("nan"),
+                "archive_bound_inferred": False,
+                "interior_archive_gap_inferred": False,
             }
         )
     )[:3] == ("root_identified", "no_candidate_found", "source_root_discovery")

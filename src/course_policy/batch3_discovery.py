@@ -631,16 +631,40 @@ def add_archive_bounds(
     status = status.merge(bounds, on="unitid", how="left")
     status["archive_bound_inferred"] = False
     status["archive_bound_note"] = ""
+    status["interior_archive_gap_inferred"] = False
+    status["interior_archive_gap_note"] = ""
+    candidate_years_by_unitid: dict[int, set[int]] = {}
+    if not candidates.empty:
+        candidate_years_by_unitid = {
+            int(unitid): set(group["target_year"].dropna().astype(int))
+            for unitid, group in candidates.groupby("unitid", dropna=False)
+            if not pd.isna(unitid)
+        }
     for unitid, group in status.groupby("unitid", dropna=False):
         start_values = group["observed_candidate_start_year"].dropna()
-        if start_values.empty:
+        end_values = group["observed_candidate_end_year"].dropna()
+        if start_values.empty or end_values.empty:
             continue
         start_year = int(start_values.iloc[0])
+        end_year = int(end_values.iloc[0])
         early_missing = group["target_year"].astype(int).lt(start_year)
         if early_missing.sum() > ARCHIVE_BOUND_GRACE_YEARS:
             mask = status["unitid"].eq(unitid) & status["target_year"].astype(int).lt(start_year)
             status.loc[mask, "archive_bound_inferred"] = True
             status.loc[mask, "archive_bound_note"] = f"Preferred root/archive produced explicit candidates starting at AY {start_year}."
+        observed_years = candidate_years_by_unitid.get(int(unitid), set()) if not pd.isna(unitid) else set()
+        if not observed_years:
+            continue
+        missing_inside_span = (
+            status["unitid"].eq(unitid)
+            & status["target_year"].astype(int).between(start_year, end_year)
+            & status["candidate_url"].fillna("").astype(str).str.strip().eq("")
+        )
+        status.loc[missing_inside_span, "interior_archive_gap_inferred"] = True
+        status.loc[missing_inside_span, "interior_archive_gap_note"] = (
+            f"Target AY falls inside observed archive candidate span AY {start_year}-{end_year}, "
+            "but no explicit candidate was extracted; run targeted archive-gap search before treating as absent."
+        )
     return status
 
 
@@ -930,6 +954,8 @@ def build_stage_status(year_coverage: pd.DataFrame, retrieval_coverage: pd.DataF
                 "local_source_path": clean_text(row.get("local_source_path", "")),
                 "archive_bound_inferred": to_bool(row.get("archive_bound_inferred", False)),
                 "archive_bound_note": clean_text(row.get("archive_bound_note", "")),
+                "interior_archive_gap_inferred": to_bool(row.get("interior_archive_gap_inferred", False)),
+                "interior_archive_gap_note": clean_text(row.get("interior_archive_gap_note", "")),
                 "created_at": utc_now(),
             }
         )
@@ -989,6 +1015,13 @@ def stage_for_row(row: pd.Series) -> tuple[str, str, str, str]:
             "archive_bound",
             "defer_archive_bound",
             clean_text(row.get("archive_bound_note", "")),
+        )
+    if to_bool(row.get("interior_archive_gap_inferred", False)):
+        return (
+            "root_identified",
+            "interior_archive_gap",
+            "targeted_archive_gap_search",
+            clean_text(row.get("interior_archive_gap_note", "")),
         )
     return (
         "root_identified",

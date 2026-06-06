@@ -33,6 +33,7 @@ Use these stop reasons and actions to explain why a row paused.
 | `stop_reason` | Typical current stage | `next_batch_action` | Meaning |
 |---|---|---|---|
 | `archive_bound` | `root_identified` | `defer_archive_bound` | The preferred archive visibly starts after or ends before the target year. |
+| `interior_archive_gap` | `root_identified` | `targeted_archive_gap_search` | The target year falls inside the observed archive span, but no explicit candidate was extracted. Treat this as a likely missed item until targeted archive/search checks are exhausted. |
 | `no_root_found` | `no_source_path` | `source_root_discovery` | No acceptable catalog root has been found in the deterministic pass. |
 | `secondary_archive_needed` | `root_identified` | `expand_secondary_archive` | Legacy/official context points to a bounded institutional archive that should be expanded. |
 | `body_access_blocked` | `candidate_identified` | `retrieval_recovery` | Candidate metadata exists, but the source body is blocked or challenge-protected. |
@@ -86,6 +87,8 @@ Use this checklist for each institution in the next pilot batch.
 8. Assign every institution-year a stage status.
 
    Record `pipeline_stage`, `stop_reason`, and `next_batch_action`. The row should either advance to the next stage or land in a defined queue.
+
+   A missing year inside an otherwise observed archive span is not a routine `no_candidate_found` row. Because archives rarely omit a single year within a continuous run, classify it as `interior_archive_gap` and send it to `targeted_archive_gap_search`. First check for missed pagination, hidden slideshow/gallery entries, alternate title patterns, search facets within the same archive, and adjacent sibling records. Only downgrade after those bounded checks fail.
 
 9. Move unresolved years to the next batch action.
 
