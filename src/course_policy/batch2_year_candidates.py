@@ -123,6 +123,17 @@ def candidate_archive_urls(root_result: dict[str, object], preferred_root_url: s
             "archive_link_text": "preferred root",
         }
     ]
+    parsed_root = urlparse(preferred_root_url)
+    path_parts = [part for part in parsed_root.path.split("/") if part]
+    if len(path_parts) >= 3 and path_parts[0] == "digital" and path_parts[1] == "collection":
+        alias = path_parts[2]
+        rows.append(
+            {
+                "archive_url": f"{parsed_root.scheme}://{parsed_root.netloc}/digital/api/search/collection/{alias}/searchterm/catalog/field/title/maxRecords/250",
+                "archive_source": "contentdm_collection_api",
+                "archive_link_text": "CONTENTdm collection API catalog title search",
+            }
+        )
     for record in root_result.get("link_records", []):
         if is_archive_link(record):
             rows.append(

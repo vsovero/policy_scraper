@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -438,6 +439,8 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
     ]
     body = result.get("body", b"")
     content_type = clean_text(result.get("content_type", ""))
+    if isinstance(body, bytes) and ("json" in content_type.lower() or body.lstrip().startswith(b"{")):
+        records.extend(contentdm_api_context_records(body, clean_text(result.get("final_url", "")) or clean_text(page["archive_url"])))
     if isinstance(body, bytes) and "html" in content_type.lower():
         text = body.decode("utf-8", errors="replace")
         records.extend(table_row_context_records(text, clean_text(page["archive_url"])))
@@ -456,7 +459,41 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
                         "evidence_source": "archive_page_title_context",
                     }
                 )
+    if "catalog" in title_context and "archive" in title_context:
+        for record in result.get("link_records", []):
+            link_text = clean_text(record.get("text", ""))
+            if normalized_year_range(link_text):
+                records.append(
+                    {
+                        **record,
+                        "text": link_text,
+                        "evidence_text": f"{link_text} {page.get('page_title', '')}",
+                        "evidence_source": "catalog_archive_page_title_context",
+                    }
+                )
     return dedupe_context_records(records)
+
+
+def contentdm_api_context_records(body: bytes, base_url: str) -> list[dict[str, str]]:
+    try:
+        data = json.loads(body.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return []
+    rows = []
+    for item in data.get("items", []):
+        title = clean_text(item.get("title", ""))
+        item_link = clean_text(item.get("itemLink", ""))
+        if not title or not item_link or not normalized_year_range(title):
+            continue
+        rows.append(
+            {
+                "url": urljoin(base_url, item_link),
+                "text": title,
+                "evidence_text": title,
+                "evidence_source": "contentdm_api_context",
+            }
+        )
+    return rows
 
 
 def table_row_context_records(text: str, base_url: str) -> list[dict[str, str]]:

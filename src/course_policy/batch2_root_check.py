@@ -6,7 +6,7 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 
@@ -67,12 +67,98 @@ def registrable_domain(hostname: str) -> str:
     return ".".join(parts[-2:])
 
 
+def catalog_archive_path_candidates(domain: str, web_host: str = "") -> list[dict[str, str]]:
+    hosts = [domain]
+    if web_host and web_host.lower() not in {"", domain}:
+        hosts.append(web_host.lower())
+    if f"www.{domain}" not in hosts:
+        hosts.append(f"www.{domain}")
+
+    paths = [
+        "catalogarchive/",
+        "catalogarchives/",
+        "catalog-archive/",
+        "catalog-archives/",
+        "catalog/archive/",
+        "catalog/archives/",
+        "catalogs/archive/",
+        "catalogs/archives/",
+        "archives/catalogs/",
+        "academic-catalog/",
+        "academic-catalogs/",
+        "registrar/catalog/",
+        "registrar/catalogs/",
+        "academics/catalog/",
+        "academics/catalogs/",
+    ]
+    rows = []
+    for host in hosts:
+        for path in paths:
+            rows.append(
+                {
+                    "candidate_url": f"https://{host}/{path}",
+                    "candidate_source_type": "generated_catalog_archive_path",
+                }
+            )
+    return rows
+
+
+def legacy_derived_collection_roots(url: str) -> list[dict[str, str]]:
+    raw_url = clean_text(url)
+    if not raw_url:
+        return []
+    parsed = urlparse(raw_url if "://" in raw_url else f"https://{raw_url}")
+    rows: list[dict[str, str]] = []
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    path_parts = [part for part in parsed.path.split("/") if part]
+    query = parse_qs(parsed.query)
+
+    context = query.get("context", [""])[0]
+    if parsed.path == "/cgi/viewcontent.cgi" and context:
+        rows.append(
+            {
+                "candidate_url": f"{base}/{context.strip('/')}/",
+                "candidate_source_type": "legacy_derived_repository_collection",
+            }
+        )
+
+    if len(path_parts) >= 3 and path_parts[0] == "digital" and path_parts[1] == "collection":
+        rows.append(
+            {
+                "candidate_url": f"{base}/digital/collection/{path_parts[2]}/",
+                "candidate_source_type": "legacy_derived_repository_collection",
+            }
+        )
+
+    lowered_parts = [part.lower() for part in path_parts]
+    for idx, part in enumerate(lowered_parts):
+        if "catalogarchive" in part or (("catalog" in part or "bulletin" in part) and "archive" in part):
+            rows.append(
+                {
+                    "candidate_url": f"{base}/{'/'.join(path_parts[: idx + 1])}/",
+                    "candidate_source_type": "legacy_derived_archive_root",
+                }
+            )
+
+    for idx, part in enumerate(lowered_parts):
+        if part in {"catalog", "catalogs", "bulletin", "bulletins"}:
+            rows.append(
+                {
+                    "candidate_url": f"{base}/{'/'.join(path_parts[: idx + 1])}/",
+                    "candidate_source_type": "legacy_derived_archive_root",
+                }
+            )
+
+    return rows
+
+
 def candidate_urls_for_task(task: pd.Series, legacy_leads: pd.DataFrame) -> list[dict[str, str]]:
     webaddr = normalized_url(str(task.get("webaddr", "")))
     parsed = urlparse(webaddr)
     domain = registrable_domain(parsed.netloc)
     urls: list[dict[str, str]] = []
 
+    urls.extend(catalog_archive_path_candidates(domain, parsed.netloc))
     for template, source_type in [
         (f"https://catalog.{domain}/", "generated_catalog_subdomain"),
         (f"https://catalogs.{domain}/", "generated_catalogs_subdomain"),
@@ -85,7 +171,9 @@ def candidate_urls_for_task(task: pd.Series, legacy_leads: pd.DataFrame) -> list
 
     rows = legacy_leads.loc[legacy_leads["unitid"].eq(task["unitid"])]
     for _, lead in rows.iterrows():
-        legacy_url = normalized_url(str(lead.get("legacy_url", "")))
+        raw_legacy_url = clean_text(lead.get("legacy_url", ""))
+        urls.extend(legacy_derived_collection_roots(raw_legacy_url))
+        legacy_url = normalized_url(raw_legacy_url)
         legacy_parent = normalized_url(str(lead.get("legacy_url_parent", "")))
         if legacy_url and not legacy_parent:
             legacy_parent = normalized_url(parent_url(legacy_url))
@@ -98,10 +186,11 @@ def candidate_urls_for_task(task: pd.Series, legacy_leads: pd.DataFrame) -> list
     deduped = []
     for row in urls:
         url = row["candidate_url"]
-        if not url or url in seen:
+        key = (url, row["candidate_source_type"])
+        if not url or key in seen:
             continue
         deduped.append(row)
-        seen.add(url)
+        seen.add(key)
     return deduped
 
 
@@ -123,10 +212,16 @@ def likely_catalog_root(result: dict[str, object], candidate_url: str, source_ty
         return False
     title = str(result.get("page_title", "")).lower()
     host = urlparse(candidate_url).netloc.lower()
+    path = urlparse(candidate_url).path.lower()
     catalog_links, archive_links = link_score(result)
     return (
         "catalog" in title
+        or "bulletin" in title
         or host.startswith(("catalog.", "catalogs."))
+        or source_type == "legacy_derived_repository_collection"
+        or source_type in {"legacy_derived_archive_root", "legacy_derived_repository_collection"}
+        and ("catalog" in path or "bulletin" in path)
+        and (catalog_links >= 1 or archive_links >= 1 or "catalog" in title or "bulletin" in title)
         or catalog_links >= 3
         or (source_type == "legacy_parent_url" and archive_links >= 1)
     )
@@ -134,6 +229,13 @@ def likely_catalog_root(result: dict[str, object], candidate_url: str, source_ty
 
 def root_priority(source_type: str, result: dict[str, object], candidate_url: str) -> int:
     host = urlparse(candidate_url).netloc.lower()
+    path = urlparse(candidate_url).path.lower()
+    if source_type in {"legacy_derived_archive_root", "legacy_derived_repository_collection"}:
+        return 5
+    if source_type == "generated_catalog_archive_path" and likely_catalog_root(result, candidate_url, source_type):
+        return 8
+    if "archive" in path and likely_catalog_root(result, candidate_url, source_type):
+        return 8
     if source_type.startswith("generated") and host.startswith(("catalog.", "catalogs.")):
         return 10
     if source_type == "legacy_parent_url" and likely_catalog_root(result, candidate_url, source_type):

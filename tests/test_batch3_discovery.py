@@ -1,12 +1,16 @@
 import pandas as pd
 
+from course_policy.batch2_root_check import candidate_urls_for_task, legacy_derived_collection_roots
+from course_policy.batch2_year_candidates import candidate_archive_urls
 from course_policy.batch3_discovery import (
     add_legacy_gap_status,
     bepress_gallery_context_records,
     build_inventory,
     build_legacy_gap_candidates,
     build_observed_candidate_bounds,
+    contextual_link_records,
     build_stage_status,
+    contentdm_api_context_records,
     build_year_coverage,
     is_relevant_catalog_link,
     is_policy_page_lead,
@@ -15,6 +19,89 @@ from course_policy.batch3_discovery import (
     stage_for_row,
     table_row_context_records,
 )
+
+
+def test_legacy_derived_collection_roots_uses_bepress_context_query():
+    roots = legacy_derived_collection_roots(
+        "https://scholarworks.example.edu/cgi/viewcontent.cgi?article=1065&context=catalogs"
+    )
+
+    assert {
+        "candidate_url": "https://scholarworks.example.edu/catalogs/",
+        "candidate_source_type": "legacy_derived_repository_collection",
+    } in roots
+
+
+def test_legacy_derived_collection_roots_uses_digital_collection_path():
+    roots = legacy_derived_collection_roots("https://dmr.example.edu/digital/collection/BSUCoursCat/id/33307/rec/17")
+
+    assert {
+        "candidate_url": "https://dmr.example.edu/digital/collection/BSUCoursCat/",
+        "candidate_source_type": "legacy_derived_repository_collection",
+    } in roots
+
+
+def test_contentdm_collection_root_adds_api_archive_url():
+    archives = candidate_archive_urls({}, "https://dmr.example.edu/digital/collection/BSUCoursCat/")
+
+    assert {
+        "archive_url": "https://dmr.example.edu/digital/api/search/collection/BSUCoursCat/searchterm/catalog/field/title/maxRecords/250",
+        "archive_source": "contentdm_collection_api",
+        "archive_link_text": "CONTENTdm collection API catalog title search",
+    } in archives
+
+
+def test_candidate_urls_include_catalogarchive_and_legacy_archive_parent():
+    task = pd.Series({"unitid": 1, "webaddr": "www.jsu.edu/"})
+    leads = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "legacy_url": "http://www.jsu.edu/catalogarchive/pdf/jsucatalogue04-05.pdf",
+                "legacy_url_parent": "http://www.jsu.edu/catalogarchive/pdf/",
+            }
+        ]
+    )
+
+    urls = candidate_urls_for_task(task, leads)
+
+    assert {
+        "candidate_url": "https://www.jsu.edu/catalogarchive/",
+        "candidate_source_type": "generated_catalog_archive_path",
+    } in urls
+    assert {
+        "candidate_url": "http://www.jsu.edu/catalogarchive/",
+        "candidate_source_type": "legacy_derived_archive_root",
+    } in urls
+
+
+def test_contentdm_api_context_records_builds_item_links_from_titles():
+    records = contentdm_api_context_records(
+        b"""
+        {
+          "items": [
+            {
+              "title": "2011-2012 Ball State University course catalog",
+              "itemLink": "/compoundobject/collection/BSUCoursCat/id/23132"
+            },
+            {
+              "title": "2011-2012 Ball State University graduate course catalog",
+              "itemLink": "/compoundobject/collection/BSUCoursCat/id/23516"
+            }
+          ]
+        }
+        """,
+        "https://dmr.example.edu/digital/api/search/collection/BSUCoursCat/searchterm/catalog/field/title/maxRecords/250",
+    )
+
+    assert records[0] == {
+        "url": "https://dmr.example.edu/compoundobject/collection/BSUCoursCat/id/23132",
+        "text": "2011-2012 Ball State University course catalog",
+        "evidence_text": "2011-2012 Ball State University course catalog",
+        "evidence_source": "contentdm_api_context",
+    }
+    assert is_relevant_catalog_link(records[0])
+    assert not is_relevant_catalog_link(records[1])
 
 
 def test_select_batch3_excludes_strict_and_batch2_unitids():
@@ -140,6 +227,21 @@ def test_bepress_slideshow_context_builds_download_url_from_preview_title():
         }
     ]
     assert is_relevant_catalog_link(records[0])
+
+
+def test_catalog_archive_page_title_supplies_context_for_year_only_links():
+    result = {
+        "content_type": "text/html",
+        "body": b'<a href="pdf/jsucatalog18-19.pdf">2018-2019</a>',
+        "link_records": [{"url": "https://www.example.edu/catalogarchive/pdf/jsucatalog18-19.pdf", "text": "2018-2019"}],
+    }
+    page = pd.Series({"archive_url": "https://www.example.edu/catalogarchive/", "page_title": "Catalog Archive"})
+
+    records = contextual_link_records(result, page)
+    archive_context = [record for record in records if record["evidence_source"] == "catalog_archive_page_title_context"]
+
+    assert archive_context
+    assert is_relevant_catalog_link(archive_context[0])
 
 
 def test_observed_candidate_bounds_can_come_from_years_outside_target_panel():
