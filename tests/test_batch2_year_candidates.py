@@ -3,6 +3,7 @@ import pandas as pd
 from course_policy.batch2_year_candidates import (
     academic_years_from_range,
     build_year_coverage,
+    is_archive_link,
     is_relevant_catalog_link,
     normalized_year_range,
 )
@@ -29,6 +30,15 @@ def test_relevant_catalog_link_excludes_graduate_and_associate_sources():
     assert not is_relevant_catalog_link(
         {"text": "2014-2015 Associate-Level Undergraduate Catalog", "url": "https://example.edu/2014-2015"},
         "Georgia State University",
+    )
+
+
+def test_metadata_json_links_are_archive_links_for_digital_collections():
+    assert is_archive_link(
+        {
+            "text": "Metadata JSON",
+            "url": "https://www.lib.example.edu/digital/coursecatalogs/assets/data/metadata.json",
+        }
     )
 
 

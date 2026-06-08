@@ -135,6 +135,55 @@ SUPPLEMENTAL_CATALOG_CANDIDATES: tuple[SupplementalCatalogCandidate, ...] = (
         "CSU Stanislaus Catalog 2007-2008",
         "Reviewed official catalog.csustan.edu media PDF pattern for pre-Acalog catalog years.",
     ),
+    SupplementalCatalogCandidate(
+        145600,
+        2015,
+        "https://catalog.uic.edu/ucat/archive-links/2015-17-UIC-undergraduate-catalog.pdf",
+        "2015-17 UIC Undergraduate Catalog",
+        "Reviewed UIC official archive PDF; root extraction saw the PDF but did not preserve both AY years.",
+    ),
+    SupplementalCatalogCandidate(
+        145600,
+        2016,
+        "https://catalog.uic.edu/ucat/archive-links/2015-17-UIC-undergraduate-catalog.pdf",
+        "2015-17 UIC Undergraduate Catalog",
+        "Reviewed UIC official archive PDF; root extraction saw the PDF but did not preserve both AY years.",
+    ),
+    SupplementalCatalogCandidate(
+        141981,
+        2013,
+        "https://westoahu.hawaii.edu/wp-content/uploads/docs/catalog/UHWO_Catalog_2013-2014.pdf",
+        "2013-2014 UH West Oahu General Catalog",
+        "Verified official UH West Oahu catalog PDF URL from the general catalog page/media path.",
+    ),
+    SupplementalCatalogCandidate(
+        141981,
+        2014,
+        "https://westoahu.hawaii.edu/wp-content/uploads/docs/catalog/UHWO_Catalog_2014-2015.pdf",
+        "2014-2015 UH West Oahu General Catalog",
+        "Verified official UH West Oahu catalog PDF URL from the general catalog page/media path.",
+    ),
+    SupplementalCatalogCandidate(
+        141981,
+        2016,
+        "https://westoahu.hawaii.edu/wp-content/uploads/docs/catalog/UHWO_Catalog_2016-2017.pdf",
+        "2016-2017 UH West Oahu General Catalog",
+        "Verified official UH West Oahu catalog PDF URL from the general catalog page/media path.",
+    ),
+    SupplementalCatalogCandidate(
+        141981,
+        2017,
+        "https://westoahu.hawaii.edu/wp-content/uploads/docs/catalog/UHWO_Catalog_2017-2018.pdf",
+        "2017-2018 UH West Oahu General Catalog",
+        "Verified official UH West Oahu catalog PDF URL from the general catalog page/media path.",
+    ),
+    SupplementalCatalogCandidate(
+        159382,
+        2007,
+        "https://www.lsua.edu/content/documents/general-catalog-(2007)_Original_283a4dc8-1f11-4bd9-aa88-b8bd591ef948.pdf",
+        "LSUA General Catalog 2007",
+        "Verified official LSUA catalog PDF listed on the Registrar catalog page with generic Open PDF link text.",
+    ),
 )
 
 
@@ -197,5 +246,73 @@ ACCEPTED_SOURCE_GAPS: tuple[AcceptedSourceGap, ...] = tuple(
             "UNCO early-year Digital UNC source is institution-specific but WAF/challenge-blocked from the pipeline environment; keep as access-recovery queue.",
         )
         for year in [2001, 2003, 2004, 2005, 2006, 2007, 2009, 2010]
+    ]
+    + [
+        AcceptedSourceGap(
+            131399,
+            2011,
+            "verified_source_gap",
+            "defer_verified_source_gap",
+            "UDC official catalog page jumps from the 2008-2011 catalog span to 2012-2013; by the AY start-year rule, AY 2011 is not covered by the 2008-2011 catalog.",
+        )
+    ]
+    + [
+        AcceptedSourceGap(
+            161244,
+            2009,
+            "verified_source_gap",
+            "defer_verified_source_gap",
+            "UMaine Machias official catalog page jumps from 2007-2009 to 2010-2012; by the AY start-year rule, AY 2009 is not covered by the 2007-2009 catalog.",
+        )
+    ]
+    + [
+        AcceptedSourceGap(
+            131399,
+            year,
+            "verified_source_gap",
+            "defer_verified_source_gap",
+            "UDC official catalog page has a visible catalog-span jump at this AY under the start-year coverage rule.",
+        )
+        for year in [2013, 2016, 2019]
+    ]
+    + [
+        AcceptedSourceGap(
+            163286,
+            year,
+            "verified_source_gap",
+            "defer_verified_source_gap",
+            "UMD official legacy PDF archive runs through 2017-2018; this AY falls in the transition to the newer current catalog site and no stable archived catalog URL was found in this pass.",
+        )
+        for year in [2018, 2019]
+    ]
+    + [
+        AcceptedSourceGap(
+            133951,
+            year,
+            "secondary_archive_access_blocked",
+            "retrieval_recovery_or_browser_access",
+            "FIU Digital Commons catalog collection root returned a 202/empty index from the pipeline environment; keep the institution in access-recovery rather than treating these rows as unexplained failures.",
+        )
+        for year in [
+            2001,
+            2002,
+            2003,
+            2004,
+            2005,
+            2006,
+            2007,
+            2008,
+            2010,
+            2011,
+            2012,
+            2013,
+            2014,
+            2015,
+            2016,
+            2017,
+            2018,
+            2019,
+            2020,
+        ]
     ]
 )

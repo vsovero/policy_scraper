@@ -4,8 +4,8 @@ from course_policy.manual_catalog_search_audit import MANUAL_FINDINGS
 def test_manual_catalog_search_audit_covers_current_test_set():
     unitids = {row["unitid"] for row in MANUAL_FINDINGS}
 
-    assert len(MANUAL_FINDINGS) == 45
-    assert len(unitids) == 45
+    assert len(MANUAL_FINDINGS) == 65
+    assert len(unitids) == 65
 
 
 def test_manual_catalog_search_audit_records_digital_archive_recoveries():

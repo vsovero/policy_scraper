@@ -150,7 +150,7 @@ def audit_institution(group: pd.DataFrame) -> dict[str, object]:
             for year in range(min(legacy_years), max(legacy_years) + 1)
             if TARGET_START_YEAR <= year <= TARGET_END_YEAR
         }
-        missing_between_legacy = interior_legacy_years - best_years - accepted_gap_years
+        missing_between_legacy = interior_legacy_years - best_years - accepted_gap_years - accepted_bound_years
         if missing_between_legacy and not accepted_stops:
             pipeline_issues.append("missing_years_between_legacy_url_years")
     else:

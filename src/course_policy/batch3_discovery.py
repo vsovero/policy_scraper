@@ -403,7 +403,11 @@ def is_relevant_catalog_link(record: dict[str, str]) -> bool:
     lowered = evidence_text.lower()
     scope_blob = f"{evidence_text} {url_text} {source_context}".lower()
     link_scope_blob = f"{link_text} {url_text}".lower()
-    if not normalized_year_range(evidence_text):
+    evidence_year_range = normalized_year_range(evidence_text)
+    url_year_range = normalized_year_range(url_text)
+    if not evidence_year_range and not url_year_range:
+        return False
+    if url_year_range and not evidence_year_range and "catalog" not in url_text.lower() and "bulletin" not in url_text.lower():
         return False
     if any(term in scope_blob for term in NON_SCOPE_EXCLUDE_TERMS):
         return False
@@ -454,7 +458,7 @@ def build_year_candidates(archive_pages: pd.DataFrame, result_by_url: dict[str, 
             if not is_relevant_catalog_link(record):
                 continue
             evidence_text = clean_text(record.get("evidence_text", record.get("text", "")))
-            year_range = normalized_year_range(evidence_text)
+            year_range = normalized_year_range(evidence_text) or normalized_year_range(clean_text(record.get("url", "")))
             if not year_range:
                 continue
             url_year_range = normalized_year_range(clean_text(record.get("url", "")))
@@ -509,6 +513,7 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
     content_type = clean_text(result.get("content_type", ""))
     if isinstance(body, bytes) and ("json" in content_type.lower() or body.lstrip().startswith(b"{")):
         records.extend(contentdm_api_context_records(body, clean_text(result.get("final_url", "")) or clean_text(page["archive_url"])))
+        records.extend(collectionbuilder_metadata_context_records(body, clean_text(result.get("final_url", "")) or clean_text(page["archive_url"])))
     if isinstance(body, bytes) and "html" in content_type.lower():
         text = body.decode("utf-8", errors="replace")
         records.extend(table_row_context_records(text, clean_text(page["archive_url"])))
@@ -564,6 +569,41 @@ def contentdm_api_context_records(body: bytes, base_url: str) -> list[dict[str, 
                 "text": title,
                 "evidence_text": title,
                 "evidence_source": "contentdm_api_context",
+            }
+        )
+    return rows
+
+
+def collectionbuilder_metadata_context_records(body: bytes, base_url: str) -> list[dict[str, str]]:
+    try:
+        data = json.loads(body.decode("utf-8", errors="replace"))
+    except json.JSONDecodeError:
+        return []
+    if isinstance(data, dict) and isinstance(data.get("objects"), list):
+        data = data["objects"]
+    if not isinstance(data, list):
+        return []
+    rows = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        title = clean_text(item.get("title", ""))
+        if not title:
+            continue
+        url = ""
+        for key in ["object_location", "object_location_1", "filename", "file", "identifier", "item_link", "link"]:
+            value = clean_text(item.get(key, ""))
+            if value and (value.startswith("http") or value.lower().endswith((".pdf", ".html", ".htm"))):
+                url = value
+                break
+        if not url or (not normalized_year_range(title) and not normalized_year_range(url)):
+            continue
+        rows.append(
+            {
+                "url": urljoin(base_url, url),
+                "text": title,
+                "evidence_text": title,
+                "evidence_source": "collectionbuilder_metadata_context",
             }
         )
     return rows
@@ -702,7 +742,8 @@ def nearby_year_context_records(text: str, base_url: str) -> list[dict[str, str]
     for link_match in re.finditer(r"""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", text, flags=re.IGNORECASE | re.DOTALL):
         href = html.unescape(link_match.group(1)).strip()
         link_text = visible_fragment_text(link_match.group(2))
-        if link_text.lower() not in generic_link_terms:
+        lowered_link = link_text.lower()
+        if lowered_link not in generic_link_terms and not any(term in lowered_link for term in generic_link_terms):
             continue
         prefix = text[: link_match.start()]
         block_breaks = [

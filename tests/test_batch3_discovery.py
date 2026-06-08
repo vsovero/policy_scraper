@@ -12,6 +12,7 @@ from course_policy.batch3_discovery import (
     build_year_candidates,
     contextual_link_records,
     build_stage_status,
+    collectionbuilder_metadata_context_records,
     contentdm_api_context_records,
     build_year_coverage,
     heading_section_context_records,
@@ -154,6 +155,42 @@ def test_contentdm_api_context_records_builds_item_links_from_titles():
     }
     assert is_relevant_catalog_link(records[0])
     assert not is_relevant_catalog_link(records[1])
+
+
+def test_collectionbuilder_metadata_context_records_uses_object_location_year_range():
+    records = collectionbuilder_metadata_context_records(
+        b"""
+        {
+          "objects": [
+            {
+              "title": "University of Idaho Catalog 2001",
+              "object_location": "https://objects.example.edu/coursecatalogs/uicat_2001-2002.pdf"
+            }
+          ]
+        }
+        """,
+        "https://www.lib.example.edu/digital/coursecatalogs/assets/data/metadata.json",
+    )
+
+    assert records == [
+        {
+            "url": "https://objects.example.edu/coursecatalogs/uicat_2001-2002.pdf",
+            "text": "University of Idaho Catalog 2001",
+            "evidence_text": "University of Idaho Catalog 2001",
+            "evidence_source": "collectionbuilder_metadata_context",
+        }
+    ]
+    assert is_relevant_catalog_link(records[0])
+
+
+def test_relevant_catalog_link_accepts_year_range_in_catalog_pdf_url():
+    assert is_relevant_catalog_link(
+        {
+            "url": "https://example.edu/content/documents/catalog(2007-2008).pdf",
+            "text": "Open PDF",
+            "evidence_text": "Open PDF",
+        }
+    )
 
 
 def test_select_batch3_excludes_strict_and_batch2_unitids():

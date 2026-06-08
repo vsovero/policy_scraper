@@ -94,7 +94,11 @@ def link_text_blob(record: dict[str, str]) -> str:
 
 def is_archive_link(record: dict[str, str]) -> bool:
     blob = link_text_blob(record).lower()
-    return any(term in blob for term in ARCHIVE_TERMS)
+    return (
+        any(term in blob for term in ARCHIVE_TERMS)
+        or "metadata.json" in blob
+        or "metadata.csv" in blob
+    )
 
 
 def is_relevant_catalog_link(record: dict[str, str], institution_name: str) -> bool:
