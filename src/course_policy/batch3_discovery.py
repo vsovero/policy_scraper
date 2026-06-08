@@ -78,6 +78,29 @@ EXCLUDE_TERMS = (
     "policy catalog",
     "competencies",
 )
+
+ROOT_CANDIDATE_TYPE_PRIORITY = {
+    "legacy_derived_repository_collection": 0,
+    "legacy_derived_archive_root": 1,
+    "legacy_parent_url": 2,
+    "generated_catalog_subdomain": 3,
+    "generated_catalogs_subdomain": 4,
+    "generated_catalog_path": 5,
+    "generated_catalogs_path": 6,
+    "generated_registrar_catalogs_path": 7,
+    "generated_academics_catalog_path": 8,
+    "legacy_url": 9,
+}
+
+
+def prioritized_root_candidates(candidates: list[dict[str, str]]) -> list[dict[str, str]]:
+    return sorted(
+        candidates,
+        key=lambda candidate: (
+            ROOT_CANDIDATE_TYPE_PRIORITY.get(candidate.get("candidate_source_type", ""), 99),
+            candidate.get("candidate_url", ""),
+        ),
+    )
 GRADUATE_ONLY_TERMS = ("graduate", "grad")
 NON_SCOPE_EXCLUDE_TERMS = tuple(term for term in EXCLUDE_TERMS if term not in GRADUATE_ONLY_TERMS)
 
@@ -225,10 +248,14 @@ def build_root_candidates(
     tasks: pd.DataFrame,
     *,
     timeout_seconds: int,
+    max_candidates_per_institution: int | None = None,
 ) -> pd.DataFrame:
     rows = []
     for _, task in tasks.sort_values(["batch3_rank", "unitid"]).iterrows():
-        for idx, candidate in enumerate(candidate_urls_for_task(task, legacy_leads), 1):
+        candidates = prioritized_root_candidates(candidate_urls_for_task(task, legacy_leads))
+        if max_candidates_per_institution is not None:
+            candidates = candidates[:max_candidates_per_institution]
+        for idx, candidate in enumerate(candidates, 1):
             result = retrieve_url(
                 candidate["candidate_url"],
                 timeout_seconds=timeout_seconds,
@@ -315,6 +342,7 @@ def build_archive_pages(
     decisions: pd.DataFrame,
     *,
     timeout_seconds: int,
+    max_archive_pages_per_institution: int | None = None,
 ) -> tuple[pd.DataFrame, dict[str, dict[str, object]]]:
     rows = []
     result_by_url: dict[str, dict[str, object]] = {}
@@ -323,7 +351,10 @@ def build_archive_pages(
         root_url = clean_text(decision["preferred_source_root_url"])
         root_result = retrieve_url(root_url, timeout_seconds=timeout_seconds, max_bytes=ROOT_RETRIEVAL_BYTES)
         result_by_url[root_url] = root_result
-        for idx, archive in enumerate(candidate_archive_urls(root_result, root_url), 1):
+        archive_candidates = candidate_archive_urls(root_result, root_url)
+        if max_archive_pages_per_institution is not None:
+            archive_candidates = archive_candidates[:max_archive_pages_per_institution]
+        for idx, archive in enumerate(archive_candidates, 1):
             archive_url = archive["archive_url"]
             result = result_by_url.get(archive_url)
             if result is None:

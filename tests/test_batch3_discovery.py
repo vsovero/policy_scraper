@@ -19,6 +19,7 @@ from course_policy.batch3_discovery import (
     is_policy_page_lead,
     nearby_year_context_records,
     normalize_candidate_url,
+    prioritized_root_candidates,
     select_batch3_institutions,
     select_option_context_records,
     stage_for_row,
@@ -108,6 +109,22 @@ def test_candidate_urls_include_catalogarchive_and_legacy_archive_parent():
         "candidate_url": "http://www.jsu.edu/catalogarchive/",
         "candidate_source_type": "legacy_derived_archive_root",
     } in urls
+
+
+def test_prioritized_root_candidates_checks_legacy_archive_leads_first():
+    ordered = prioritized_root_candidates(
+        [
+            {"candidate_url": "https://catalog.example.edu/", "candidate_source_type": "generated_catalog_subdomain"},
+            {"candidate_url": "https://archive.example.edu/catalogs/", "candidate_source_type": "legacy_derived_repository_collection"},
+            {"candidate_url": "https://www.example.edu/catalogs/", "candidate_source_type": "legacy_parent_url"},
+        ]
+    )
+
+    assert [row["candidate_source_type"] for row in ordered] == [
+        "legacy_derived_repository_collection",
+        "legacy_parent_url",
+        "generated_catalog_subdomain",
+    ]
 
 
 def test_contentdm_api_context_records_builds_item_links_from_titles():

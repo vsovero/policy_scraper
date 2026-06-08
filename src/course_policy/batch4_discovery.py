@@ -245,15 +245,29 @@ def run_batch4_discovery(
     *,
     batch_size: int = BATCH_SIZE,
     timeout_seconds: int = 12,
+    skip_source_retrieval: bool = False,
+    max_root_candidates_per_institution: int | None = None,
+    max_archive_pages_per_institution: int | None = None,
 ) -> Batch4Outputs:
     repo_root = repo_root.resolve()
     universe, links, targets, strict, batch2, batch3 = read_inputs(repo_root)
     batch = select_batch4_institutions(universe, links, strict, batch2, batch3, batch_size=batch_size)
     legacy_leads = build_legacy_leads(batch, links)
     tasks = source_root_tasks(batch, legacy_leads)
-    root_candidates = build_root_candidates(repo_root, legacy_leads, tasks, timeout_seconds=timeout_seconds)
+    root_candidates = build_root_candidates(
+        repo_root,
+        legacy_leads,
+        tasks,
+        timeout_seconds=timeout_seconds,
+        max_candidates_per_institution=max_root_candidates_per_institution,
+    )
     decisions = build_source_root_decisions(root_candidates, tasks)
-    archive_pages, result_by_url = build_archive_pages(repo_root, decisions, timeout_seconds=timeout_seconds)
+    archive_pages, result_by_url = build_archive_pages(
+        repo_root,
+        decisions,
+        timeout_seconds=timeout_seconds,
+        max_archive_pages_per_institution=max_archive_pages_per_institution,
+    )
     secondary_archive_seeds = reviewed_secondary_archive_seeds(batch)
     archive_pages, result_by_url = append_secondary_archive_pages(
         repo_root,
@@ -268,8 +282,16 @@ def run_batch4_discovery(
     legacy_gap_candidates = build_legacy_gap_candidates(year_coverage, legacy_leads)
     year_coverage = add_legacy_gap_status(year_coverage, legacy_gap_candidates)
     inventory = build_inventory(year_coverage, legacy_gap_candidates, source_prefix="batch4")
-    retrieval_attempts = build_retrieval_attempts(repo_root, inventory, timeout_seconds=timeout_seconds) if not inventory.empty else pd.DataFrame()
-    retrieval_coverage = build_coverage(inventory, retrieval_attempts) if not inventory.empty else pd.DataFrame()
+    retrieval_attempts = (
+        pd.DataFrame()
+        if skip_source_retrieval or inventory.empty
+        else build_retrieval_attempts(repo_root, inventory, timeout_seconds=timeout_seconds)
+    )
+    retrieval_coverage = (
+        pd.DataFrame()
+        if skip_source_retrieval or inventory.empty
+        else build_coverage(inventory, retrieval_attempts)
+    )
     if not retrieval_coverage.empty:
         retrieval_coverage = retrieval_coverage.merge(
             inventory[["source_id", "candidate_source_method", "candidate_link_text", "archive_url"]],
@@ -309,17 +331,39 @@ def run_batch4_discovery(
     retrieval_attempts.to_csv(outputs.retrieval_attempts, index=False)
     retrieval_coverage.to_csv(outputs.retrieval_coverage, index=False)
     stage_status.to_csv(outputs.stage_status, index=False)
-    write_summary(outputs.summary_report, stage_status, outputs)
+    write_summary(
+        outputs.summary_report,
+        stage_status,
+        outputs,
+        skip_source_retrieval=skip_source_retrieval,
+        max_root_candidates_per_institution=max_root_candidates_per_institution,
+        max_archive_pages_per_institution=max_archive_pages_per_institution,
+    )
     return outputs
 
 
-def write_summary(path: Path, stage_status: pd.DataFrame, outputs: Batch4Outputs) -> None:
+def write_summary(
+    path: Path,
+    stage_status: pd.DataFrame,
+    outputs: Batch4Outputs,
+    *,
+    skip_source_retrieval: bool = False,
+    max_root_candidates_per_institution: int | None = None,
+    max_archive_pages_per_institution: int | None = None,
+) -> None:
     lines = [
         "# Phase 3 Batch 4 Catalog Discovery",
         "",
         f"Generated at: {utc_now()}",
         "",
-        "Scope: next 10 public institutions selected from the full institution universe by public legacy URL availability.",
+        (
+            "Scope: "
+            f"{stage_status['unitid'].nunique() if 'unitid' in stage_status.columns else 0} public institutions "
+            "selected from the full institution universe by public legacy URL availability."
+        ),
+        f"Source body retrieval skipped: {skip_source_retrieval}",
+        f"Max root candidates per institution: {max_root_candidates_per_institution or 'uncapped'}",
+        f"Max archive pages per institution: {max_archive_pages_per_institution or 'uncapped'}",
         "",
         "## Pipeline Stages",
         "",
@@ -346,13 +390,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, default=None)
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     parser.add_argument("--timeout-seconds", type=int, default=12)
+    parser.add_argument(
+        "--skip-source-retrieval",
+        action="store_true",
+        help="Stop after root/archive/year-candidate discovery and queue source body retrieval for a later stage.",
+    )
+    parser.add_argument("--max-root-candidates-per-institution", type=int, default=None)
+    parser.add_argument("--max-archive-pages-per-institution", type=int, default=None)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = args.root.resolve() if args.root else repo_root_from_cwd()
-    outputs = run_batch4_discovery(root, batch_size=args.batch_size, timeout_seconds=args.timeout_seconds)
+    outputs = run_batch4_discovery(
+        root,
+        batch_size=args.batch_size,
+        timeout_seconds=args.timeout_seconds,
+        skip_source_retrieval=args.skip_source_retrieval,
+        max_root_candidates_per_institution=args.max_root_candidates_per_institution,
+        max_archive_pages_per_institution=args.max_archive_pages_per_institution,
+    )
     for label, output_path in outputs.__dict__.items():
         print(f"{label}: {output_path}")
     return 0

@@ -191,7 +191,59 @@ def build_source_roots(manual: pd.DataFrame, audit: pd.DataFrame, spotcheck: pd.
         names = unitid_name_map(spotcheck, audit, manual)
         blank = roots["institution_name"].fillna("").astype(str).str.strip().eq("")
         roots.loc[blank, "institution_name"] = roots.loc[blank, "unitid"].map(lambda value: names.get(int(value), ""))
+    existing_unitids = set(roots["unitid"].dropna().astype(int)) if "unitid" in roots.columns else set()
+    if not spotcheck.empty:
+        automated = spotcheck.loc[~spotcheck["unitid"].astype(int).isin(existing_unitids)].copy()
+        if not automated.empty:
+            rows = []
+            for (unitid, institution_name), group in automated.groupby(["unitid", "institution_name"], dropna=False):
+                root_url = first_nonempty_column(group, "preferred_source_root_url") or first_nonempty_column(
+                    group, "archive_url"
+                )
+                rows.append(
+                    {
+                        "unitid": int(unitid),
+                        "institution_name": clean_text(institution_name),
+                        "manual_status": "automated_batch_root_discovery",
+                        "manual_best_root_url": root_url,
+                        "manual_root_type": "automated_preferred_or_archive_root" if root_url else "",
+                        "manual_coverage_start_year": "",
+                        "manual_coverage_end_year": "",
+                        "legacy_url_count": int(group["legacy_url"].fillna("").astype(str).str.strip().ne("").sum())
+                        if "legacy_url" in group.columns
+                        else 0,
+                        "legacy_urls_sample": joined_unique_column(group, "legacy_url"),
+                        "manual_search_evidence": joined_unique_column(group, "comments", limit=2),
+                        "programmatic_fix_needed": "",
+                        "next_pipeline_action": joined_unique_column(group, "next_batch_action", limit=4),
+                    }
+                )
+            roots = pd.concat([roots, pd.DataFrame(rows)], ignore_index=True, sort=False)
+    for column in SOURCE_ROOT_COLUMNS:
+        if column not in roots.columns:
+            roots[column] = ""
     return roots.sort_values(["institution_name", "unitid"])
+
+
+def first_nonempty_column(frame: pd.DataFrame, column: str) -> str:
+    if column not in frame.columns:
+        return ""
+    for value in frame[column]:
+        text = clean_text(value)
+        if text:
+            return text
+    return ""
+
+
+def joined_unique_column(frame: pd.DataFrame, column: str, *, limit: int = 3) -> str:
+    if column not in frame.columns:
+        return ""
+    values = []
+    for value in frame[column]:
+        text = clean_text(value)
+        if text and text not in values:
+            values.append(text)
+    return "; ".join(values[:limit])
 
 
 def write_summary(repo_root: Path, packet_path: Path, audit: pd.DataFrame, spotcheck: pd.DataFrame) -> Path:

@@ -65,3 +65,32 @@ def test_build_source_roots_fills_missing_names_from_audit():
     roots = build_source_roots(manual, audit, spotcheck)
 
     assert roots.loc[0, "institution_name"] == "Example University"
+
+
+def test_build_source_roots_appends_automated_batch_roots():
+    manual = pd.DataFrame(
+        columns=[
+            "unitid",
+            "institution_name",
+            "manual_status",
+            "manual_best_root_url",
+        ]
+    )
+    audit = pd.DataFrame([{"unitid": 2, "institution_name": "Automated State"}])
+    spotcheck = pd.DataFrame(
+        [
+            {
+                "unitid": 2,
+                "institution_name": "Automated State",
+                "preferred_source_root_url": "https://catalog.automated.edu/",
+                "legacy_url": "https://catalog.automated.edu/2000",
+                "comments": "Root identified by batch discovery.",
+                "next_batch_action": "source_root_discovery",
+            }
+        ]
+    )
+
+    roots = build_source_roots(manual, audit, spotcheck)
+
+    assert roots.loc[0, "manual_status"] == "automated_batch_root_discovery"
+    assert roots.loc[0, "manual_best_root_url"] == "https://catalog.automated.edu/"
