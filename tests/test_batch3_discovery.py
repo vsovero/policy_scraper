@@ -2,18 +2,23 @@ import pandas as pd
 
 from course_policy.batch2_root_check import candidate_urls_for_task, legacy_derived_collection_roots
 from course_policy.batch2_year_candidates import candidate_archive_urls
+from course_policy.batch2_year_candidates import normalized_year_range
 from course_policy.batch3_discovery import (
     add_legacy_gap_status,
     bepress_gallery_context_records,
     build_inventory,
     build_legacy_gap_candidates,
     build_observed_candidate_bounds,
+    build_year_candidates,
     contextual_link_records,
     build_stage_status,
     contentdm_api_context_records,
     build_year_coverage,
+    heading_section_context_records,
     is_relevant_catalog_link,
     is_policy_page_lead,
+    nearby_year_context_records,
+    normalize_candidate_url,
     select_batch3_institutions,
     select_option_context_records,
     stage_for_row,
@@ -48,6 +53,36 @@ def test_contentdm_collection_root_adds_api_archive_url():
         "archive_url": "https://dmr.example.edu/digital/api/search/collection/BSUCoursCat/searchterm/catalog/field/title/maxRecords/250",
         "archive_source": "contentdm_collection_api",
         "archive_link_text": "CONTENTdm collection API catalog title search",
+    } in archives
+
+
+def test_catalog_subdomain_root_adds_common_resource_archive_paths():
+    archives = candidate_archive_urls({}, "https://catalog.example.edu/")
+
+    assert {
+        "archive_url": "https://catalog.example.edu/resources/catalog-archives/",
+        "archive_source": "generated_catalog_resource_archive_path",
+        "archive_link_text": "resources/catalog-archives/",
+    } in archives
+
+
+def test_candidate_archive_urls_follows_repository_pagination_links():
+    archives = candidate_archive_urls(
+        {
+            "link_records": [
+                {
+                    "url": "https://scholarworks.example.edu/catalogs/index.2.html",
+                    "text": "Next",
+                }
+            ]
+        },
+        "https://scholarworks.example.edu/catalogs/",
+    )
+
+    assert {
+        "archive_url": "https://scholarworks.example.edu/catalogs/index.2.html",
+        "archive_source": "archive_pagination_link",
+        "archive_link_text": "Next",
     } in archives
 
 
@@ -143,6 +178,27 @@ def test_batch3_relevant_catalog_link_is_generic_and_undergraduate_first():
     assert not is_relevant_catalog_link(
         {"text": "PDF", "url": "https://example.edu/2015-2016Undergraduate.pdf"}
     )
+    assert not is_relevant_catalog_link(
+        {"text": "2015-2017", "url": "https://example.edu/archive/GR15-17/15-17GradCatalog.pdf"}
+    )
+
+
+def test_wcsu_ugrad_archive_menu_links_are_undergraduate_context():
+    assert is_relevant_catalog_link(
+        {
+            "text": "2018-2019",
+            "url": "https://catalogs.wcsu.edu/ugrad21221920/",
+            "evidence_text": "2018-2019 WCSU Undergraduate Catalog 2021-2022",
+        }
+    )
+    assert normalize_candidate_url(
+        "https://catalogs.wcsu.edu/ugrad21221920/",
+        "2018-2019 WCSU Undergraduate Catalog 2021-2022",
+    ) == "https://catalogs.wcsu.edu/ugrad1819/"
+
+
+def test_obvious_22xx_catalog_year_typo_is_normalized():
+    assert normalized_year_range("2208-2009 Southern Illinois University Undergraduate Catalog") == (2008, 2009)
 
 
 def test_table_row_context_uses_visible_row_year_without_url_year_inference():
@@ -229,6 +285,110 @@ def test_bepress_slideshow_context_builds_download_url_from_preview_title():
     assert is_relevant_catalog_link(records[0])
 
 
+def test_bepress_slideshow_context_uses_collection_context_from_url():
+    records = bepress_gallery_context_records(
+        """
+        <div class="gallery-tools">
+          <a href="https://scholarworks.example.edu/csusb-catalog/1004/preview.jpg"
+             class="floatbox"
+             title="Course Catalog 2000-2001"></a>
+        </div>
+        """,
+        "https://scholarworks.example.edu/csusb-catalog/",
+    )
+
+    assert records == [
+        {
+            "url": "https://scholarworks.example.edu/cgi/viewcontent.cgi?article=1004&context=csusb-catalog",
+            "text": "Course Catalog 2000-2001",
+            "evidence_text": "Course Catalog 2000-2001",
+            "evidence_source": "bepress_slideshow_context",
+        }
+    ]
+    assert is_relevant_catalog_link(records[0])
+
+
+def test_nearby_year_context_uses_visible_year_before_generic_archive_links():
+    records = nearby_year_context_records(
+        """
+        <p>2019-2020:
+          <a href="/archive/2019/index.html">Website</a> |
+          <a href="/wp-content/uploads/2019-2020_Catalog.epub">ePub</a>
+        </p>
+        <p>2008-2010:
+          <a href="https://cso.collegesource.com/example">CollegeSource</a>
+        </p>
+        """,
+        "https://catalog.example.edu/resources/catalog-archives/",
+    )
+
+    assert {
+        "url": "https://catalog.example.edu/archive/2019/index.html",
+        "text": "Website",
+        "evidence_text": "2019-2020: Website",
+        "source_context": "https://catalog.example.edu/resources/catalog-archives/",
+        "evidence_source": "nearby_year_context",
+    } in records
+    assert {
+        "url": "https://cso.collegesource.com/example",
+        "text": "CollegeSource",
+        "evidence_text": "2008-2010: CollegeSource",
+        "source_context": "https://catalog.example.edu/resources/catalog-archives/",
+        "evidence_source": "nearby_year_context",
+    } in records
+
+
+def test_heading_section_context_keeps_undergraduate_and_graduate_year_links_separate():
+    records = heading_section_context_records(
+        """
+        <h4>Graduate Edition</h4>
+        <a href="/grad-2007-2009.pdf">2007-2009</a>
+        <h4>Undergraduate Edition</h4>
+        <a href="/ug-2007-2008.pdf">2007-2008</a>
+        """,
+        "https://registrar.example.edu/archive",
+        "Archive",
+    )
+
+    graduate = [record for record in records if "Graduate Edition" in record["evidence_text"]][0]
+    undergraduate = [record for record in records if "Undergraduate Edition" in record["evidence_text"]][0]
+    assert not is_relevant_catalog_link(graduate)
+    assert is_relevant_catalog_link(undergraduate)
+
+
+def test_table_row_context_uses_link_year_when_row_has_multiple_year_links():
+    records = table_row_context_records(
+        """
+        <tr>
+          <td><a href="/2009.pdf">2009-2010</a></td>
+          <td><a href="/2008.pdf">2008-2009</a></td>
+          <td><a href="/2007.pdf">2007-2008</a></td>
+        </tr>
+        """,
+        "https://registrar.example.edu/archive",
+    )
+
+    hit = [record for record in records if record["url"].endswith("/2007.pdf")][0]
+    assert hit["evidence_text"] == "2007-2008"
+
+
+def test_normalize_candidate_url_repairs_wcsu_archived_catalog_relative_paths():
+    assert (
+        normalize_candidate_url("http://catalogs.wcsu.edu/ugrad21221012/files/catalog.pdf")
+        == "http://catalogs.wcsu.edu/ugrad1012/files/catalog.pdf"
+    )
+
+
+def test_normalize_candidate_url_repairs_asu_general_catalog_graduate_suffix():
+    assert (
+        normalize_candidate_url(
+            "https://catalog.asu.edu/archive/academic-catalog-archive-2005-2006-graduate",
+            "2005-2006 General Catalog PDF",
+        )
+        == "https://catalog.asu.edu/archive/academic-catalog-archive-2005-2006"
+    )
+
+
 def test_catalog_archive_page_title_supplies_context_for_year_only_links():
     result = {
         "content_type": "text/html",
@@ -242,6 +402,38 @@ def test_catalog_archive_page_title_supplies_context_for_year_only_links():
 
     assert archive_context
     assert is_relevant_catalog_link(archive_context[0])
+
+
+def test_graduate_link_is_rejected_even_on_undergraduate_archive_page():
+    assert not is_relevant_catalog_link(
+        {
+            "text": "1999-2001",
+            "url": "http://www.utsa.edu/ucat/archive/GR99-01/1999-2001GradCatalog.pdf",
+            "evidence_text": "1999-2001 Graduate Catalog Previous Catalogs Undergraduate Catalog",
+        }
+    )
+
+
+def test_general_and_graduate_catalog_is_treated_as_university_wide_catalog():
+    assert is_relevant_catalog_link(
+        {
+            "url": "https://catalog.example.edu/archives/2020-2021/general_and_graduate",
+            "text": "PDF",
+            "evidence_text": "2020-2021 General and Graduate Catalog PDF",
+            "evidence_source": "table_row_context",
+        }
+    )
+
+
+def test_graduate_only_catalog_is_still_rejected():
+    assert not is_relevant_catalog_link(
+        {
+            "url": "https://catalog.example.edu/archives/2020-2021/graduate",
+            "text": "2020-2021 Graduate Catalog",
+            "evidence_text": "2020-2021 Graduate Catalog",
+            "evidence_source": "visible_link_text",
+        }
+    )
 
 
 def test_observed_candidate_bounds_can_come_from_years_outside_target_panel():
@@ -397,6 +589,47 @@ def test_build_year_coverage_flags_single_missing_year_inside_archive_span():
 
     assert gap["interior_archive_gap_inferred"]
     assert not gap["archive_bound_inferred"]
+
+
+def test_nearby_context_uses_url_year_when_context_contains_many_years():
+    archive_pages = pd.DataFrame(
+        [
+            {
+                "batch3_rank": 1,
+                "unitid": 1,
+                "institution_name": "Example University",
+                "archive_url": "https://catalog.example.edu/archive",
+                "retrieval_status": "retrieved",
+                "page_title": "Catalog Archive",
+            }
+        ]
+    )
+    result_by_url = {
+        "https://catalog.example.edu/archive": {
+            "content_type": "text/html",
+            "body": b"""
+                <p>2017-2018 General Catalog PDF
+                2016-2017 General Catalog PDF
+                2008-2009 General Catalog
+                <a href="/archives/2008-2009/general_and_graduate">PDF</a></p>
+            """,
+            "link_records": [
+                {
+                    "url": "https://catalog.example.edu/archives/2008-2009/general_and_graduate",
+                    "text": "PDF",
+                },
+                {
+                    "url": "https://catalog.example.edu/archives/2008-2009/special-school",
+                    "text": "PDF",
+                }
+            ],
+        }
+    }
+
+    candidates = build_year_candidates(archive_pages, result_by_url)
+
+    assert set(candidates["target_year"]) == {2008}
+    assert candidates.sort_values("candidate_priority")["candidate_url"].iloc[0].endswith("/general_and_graduate")
 
 
 def test_legacy_gap_candidates_only_fill_uncovered_years():

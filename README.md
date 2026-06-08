@@ -16,6 +16,7 @@ Existing raw workbooks and Stata/R analysis files should remain untouched unless
 
 ## Documentation
 
+- [Start Here](docs/00_START_HERE.md): current review entry point, output map, and what to open first.
 - [Project Plan](docs/01_project_plan.md): overall workflow, scope, and operating principles.
 - [Data Protocol](docs/02_data_protocol.md): coding definitions, source rules, and review rules.
 - [Data Schema](docs/03_data_schema.md): planned tables and fields.

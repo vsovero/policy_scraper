@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import pandas as pd
 
@@ -76,6 +76,7 @@ EXCLUDE_TERMS = (
     "class schedule",
     "senate policy",
     "policy catalog",
+    "competencies",
 )
 GRADUATE_ONLY_TERMS = ("graduate", "grad")
 NON_SCOPE_EXCLUDE_TERMS = tuple(term for term in EXCLUDE_TERMS if term not in GRADUATE_ONLY_TERMS)
@@ -366,22 +367,47 @@ def build_archive_pages(
 def is_relevant_catalog_link(record: dict[str, str]) -> bool:
     link_text = clean_text(record.get("text", ""))
     evidence_text = clean_text(record.get("evidence_text", link_text))
+    url_text = clean_text(record.get("url", ""))
+    source_context = clean_text(record.get("source_context", ""))
     lowered = evidence_text.lower()
+    scope_blob = f"{evidence_text} {url_text} {source_context}".lower()
+    link_scope_blob = f"{link_text} {url_text}".lower()
     if not normalized_year_range(evidence_text):
         return False
-    if any(term in lowered for term in NON_SCOPE_EXCLUDE_TERMS):
+    if any(term in scope_blob for term in NON_SCOPE_EXCLUDE_TERMS):
         return False
 
-    has_undergraduate = "undergraduate" in lowered or re.search(r"\bundergrad\b", lowered) is not None
-    has_graduate = (
-        "graduate" in lowered.replace("undergraduate", "")
-        or re.search(r"\bgrad\b", lowered.replace("undergrad", "")) is not None
+    has_undergraduate = "undergraduate" in scope_blob or re.search(r"\bundergrad\b|\bugrad\b|\bug\b", scope_blob) is not None
+    has_link_undergraduate = "undergraduate" in link_scope_blob or re.search(r"\bundergrad\b|\bugrad\b|\bug\b", link_scope_blob) is not None
+    has_general_catalog = (
+        "general catalog" in scope_blob
+        or "general and graduate catalog" in scope_blob
+        or "general_and_graduate" in scope_blob
     )
+    has_graduate = (
+        "graduate" in scope_blob.replace("undergraduate", "")
+        or re.search(r"\bgrad\b", scope_blob.replace("undergrad", "")) is not None
+    )
+    if is_wrong_scope_catalog_url(link_scope_blob) and not has_link_undergraduate and not has_general_catalog:
+        return False
     if has_undergraduate:
+        return True
+    if has_general_catalog:
         return True
     if has_graduate:
         return False
-    if "catalog" in lowered or "bulletin" in lowered:
+    if "catalog" in scope_blob or "bulletin" in scope_blob:
+        return True
+    return False
+
+
+def is_wrong_scope_catalog_url(text: str) -> bool:
+    """Reject graduate/professional catalog URLs before candidate ranking."""
+    lowered = clean_text(text).lower()
+    without_undergrad = lowered.replace("undergraduate", "").replace("undergrad", "").replace("ugrad", "")
+    if re.search(r"(?<!under)grad(?:uate)?(?:catalog|cat|bulletin)?", without_undergrad):
+        return True
+    if re.search(r"(?:graduate|grad)[_-]?(?:catalog|cat|bulletin)", without_undergrad):
         return True
     return False
 
@@ -396,9 +422,13 @@ def build_year_candidates(archive_pages: pd.DataFrame, result_by_url: dict[str, 
         for link_index, record in enumerate(records, 1):
             if not is_relevant_catalog_link(record):
                 continue
-            year_range = normalized_year_range(clean_text(record.get("evidence_text", record.get("text", ""))))
+            evidence_text = clean_text(record.get("evidence_text", record.get("text", "")))
+            year_range = normalized_year_range(evidence_text)
             if not year_range:
                 continue
+            url_year_range = normalized_year_range(clean_text(record.get("url", "")))
+            if url_year_range and record.get("evidence_source") == "nearby_year_context":
+                year_range = url_year_range
             start, end = year_range
             for target_year in academic_years_from_range(start, end):
                 rows.append(
@@ -410,7 +440,7 @@ def build_year_candidates(archive_pages: pd.DataFrame, result_by_url: dict[str, 
                         "catalog_year_start": start,
                         "catalog_year_end": end,
                         "academic_year_rule": "AY is the catalog start year; multi-year catalogs cover each start year through end-1.",
-                        "candidate_url": record["url"],
+                        "candidate_url": normalize_candidate_url(record["url"], record.get("evidence_text", record["text"])),
                         "candidate_link_text": record["text"],
                         "candidate_evidence_text": record.get("evidence_text", record["text"]),
                         "candidate_evidence_source": record.get("evidence_source", "visible_link_text"),
@@ -424,7 +454,14 @@ def build_year_candidates(archive_pages: pd.DataFrame, result_by_url: dict[str, 
     if not rows:
         return pd.DataFrame()
     out = pd.DataFrame(rows)
-    out["candidate_priority"] = (out["candidate_link_text"] + " " + out["candidate_url"]).str.lower().map(candidate_priority)
+    priority_text = (
+        out["candidate_link_text"].fillna("")
+        + " "
+        + out["candidate_url"].fillna("")
+        + " "
+        + out["candidate_evidence_text"].fillna("")
+    )
+    out["candidate_priority"] = priority_text.str.lower().map(candidate_priority)
     return out.sort_values(["batch3_rank", "unitid", "target_year", "candidate_priority", "candidate_url"])
 
 
@@ -446,8 +483,13 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
         records.extend(table_row_context_records(text, clean_text(page["archive_url"])))
         records.extend(select_option_context_records(text, clean_text(page["archive_url"])))
         records.extend(bepress_gallery_context_records(text, clean_text(page["archive_url"])))
+        records.extend(nearby_year_context_records(text, clean_text(page["archive_url"])))
+        records.extend(heading_section_context_records(text, clean_text(page["archive_url"]), clean_text(page.get("page_title", ""))))
+        has_undergrad_and_grad_sections = "undergraduate edition" in text.lower() and "graduate edition" in text.lower()
+    else:
+        has_undergrad_and_grad_sections = False
     title_context = clean_text(page.get("page_title", "")).lower()
-    if "undergraduate" in title_context and "catalog" in title_context:
+    if not has_undergrad_and_grad_sections and "undergraduate" in title_context and "catalog" in title_context:
         for record in result.get("link_records", []):
             link_text = clean_text(record.get("text", ""))
             if normalized_year_range(link_text):
@@ -459,7 +501,7 @@ def contextual_link_records(result: dict[str, object], page: pd.Series) -> list[
                         "evidence_source": "archive_page_title_context",
                     }
                 )
-    if "catalog" in title_context and "archive" in title_context:
+    if not has_undergrad_and_grad_sections and "catalog" in title_context and "archive" in title_context:
         for record in result.get("link_records", []):
             link_text = clean_text(record.get("text", ""))
             if normalized_year_range(link_text):
@@ -507,7 +549,7 @@ def table_row_context_records(text: str, base_url: str) -> list[dict[str, str]]:
             href = html.unescape(link_match.group(1)).strip()
             link_text = visible_fragment_text(link_match.group(2))
             url = urljoin(base_url, href)
-            context = f"{row_text} {href}"
+            context = link_text if normalized_year_range(link_text) else f"{row_text} {href}"
             rows.append(
                 {
                     "url": url,
@@ -539,19 +581,23 @@ def select_option_context_records(text: str, base_url: str) -> list[dict[str, st
 
 def bepress_gallery_context_records(text: str, base_url: str) -> list[dict[str, str]]:
     rows = []
+    parsed = urlparse(base_url)
     parsed_base = urljoin(base_url, "/")
+    context_match = re.match(r"^/([^/]+)/?", parsed.path)
+    context = context_match.group(1) if context_match else "catalogs"
     for preview_match in re.finditer(
-        r"""<a\b[^>]*href=["'][^"']*/catalogs/(\d+)/(?:thumbnail|preview)\.jpg["'][^>]*\btitle=["']([^"']+)["'][^>]*>""",
+        r"""<a\b[^>]*href=["'][^"']*/([^/"']+)/(\d+)/(?:thumbnail|preview)\.jpg["'][^>]*\btitle=["']([^"']+)["'][^>]*>""",
         text,
         flags=re.IGNORECASE | re.DOTALL,
     ):
-        article_id = preview_match.group(1)
-        title = clean_text(html.unescape(preview_match.group(2)))
+        context = preview_match.group(1)
+        article_id = preview_match.group(2)
+        title = clean_text(html.unescape(preview_match.group(3)))
         if not normalized_year_range(title):
             continue
         rows.append(
             {
-                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context=catalogs"),
+                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context={context}"),
                 "text": title,
                 "evidence_text": title,
                 "evidence_source": "bepress_slideshow_context",
@@ -573,13 +619,107 @@ def bepress_gallery_context_records(text: str, base_url: str) -> list[dict[str, 
         article_id = asset_match.group(1)
         rows.append(
             {
-                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context=catalogs"),
+                "url": urljoin(parsed_base, f"/cgi/viewcontent.cgi?article={article_id}&context={context}"),
                 "text": title,
                 "evidence_text": title,
                 "evidence_source": "bepress_gallery_context",
             }
         )
     return rows
+
+
+def heading_section_context_records(text: str, base_url: str, page_title: str = "") -> list[dict[str, str]]:
+    rows = []
+    heading_matches = list(
+        re.finditer(
+            r"<h[1-6]\b[^>]*>(.*?)</h[1-6]>",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    )
+    for idx, heading_match in enumerate(heading_matches):
+        heading = visible_fragment_text(heading_match.group(1))
+        heading_lower = heading.lower()
+        if "undergraduate" not in heading_lower and "graduate" not in heading_lower:
+            continue
+        section_start = heading_match.end()
+        section_end = heading_matches[idx + 1].start() if idx + 1 < len(heading_matches) else len(text)
+        section_html = text[section_start:section_end]
+        for link_match in re.finditer(r"""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", section_html, flags=re.IGNORECASE | re.DOTALL):
+            href = html.unescape(link_match.group(1)).strip()
+            link_text = visible_fragment_text(link_match.group(2))
+            if not normalized_year_range(link_text):
+                continue
+            rows.append(
+                {
+                    "url": urljoin(base_url, href),
+                    "text": link_text,
+                    "evidence_text": f"{link_text} {heading} {page_title}",
+                    "source_context": base_url,
+                    "evidence_source": "heading_section_context",
+                }
+            )
+    return rows
+
+
+def nearby_year_context_records(text: str, base_url: str) -> list[dict[str, str]]:
+    rows = []
+    archive_context = "catalog" in base_url.lower() or "bulletin" in base_url.lower() or "archive" in base_url.lower()
+    if not archive_context:
+        return rows
+    generic_link_terms = {"pdf", "html", "website", "epub", "view", "download", "collegesource"}
+    for link_match in re.finditer(r"""<a\b[^>]*href=["']([^"']+)["'][^>]*>(.*?)</a>""", text, flags=re.IGNORECASE | re.DOTALL):
+        href = html.unescape(link_match.group(1)).strip()
+        link_text = visible_fragment_text(link_match.group(2))
+        if link_text.lower() not in generic_link_terms:
+            continue
+        prefix = text[: link_match.start()]
+        block_breaks = [
+            prefix.rfind("</p>"),
+            prefix.rfind("<p"),
+            prefix.rfind("<br"),
+            prefix.rfind("<li"),
+            prefix.rfind("</li>"),
+        ]
+        nearest_break = max(block_breaks)
+        if nearest_break >= 0:
+            marker_end = prefix.find(">", nearest_break)
+            context_start = marker_end + 1 if marker_end >= 0 else nearest_break
+        else:
+            context_start = max(0, link_match.start() - 160)
+        context_html = text[context_start : link_match.end()]
+        context = visible_fragment_text(context_html)
+        if not normalized_year_range(context):
+            continue
+        rows.append(
+            {
+                "url": urljoin(base_url, href),
+                "text": link_text or context,
+                "evidence_text": context,
+                "source_context": base_url,
+                "evidence_source": "nearby_year_context",
+            }
+        )
+    return rows
+
+
+def normalize_candidate_url(url: str, evidence_text: str = "") -> str:
+    if "catalogs.wcsu.edu/ugrad" in url:
+        year_range = normalized_year_range(clean_text(evidence_text))
+        if year_range:
+            start, end = year_range
+            suffix = f"{start % 100:02d}{end % 100:02d}"
+            return re.sub(r"(catalogs\.wcsu\.edu/ugrad)\d{8}(/)", rf"\g<1>{suffix}\2", url)
+        return re.sub(r"(catalogs\.wcsu\.edu/ugrad)\d{4}(\d{4})(/)", r"\1\2\3", url)
+    if "web.archive.org/web/" in url:
+        return re.sub(r"(web\.archive\.org/web/[^/]+/https?):/", r"\1://", url)
+    if (
+        "catalog.asu.edu/archive/academic-catalog-archive-" in url
+        and url.endswith("-graduate")
+        and "general catalog" in clean_text(evidence_text).lower()
+    ):
+        return url.removesuffix("-graduate")
+    return url
 
 
 def visible_fragment_text(fragment: str) -> str:

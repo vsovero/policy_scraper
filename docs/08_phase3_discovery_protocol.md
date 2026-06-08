@@ -64,39 +64,54 @@ Use this checklist for each institution in the next pilot batch.
 
    If another root is useful, assign it a role such as `legacy_prior`, `fallback_official`, `secondary_institutional_digital_archive`, `fallback_external_archive`, or `rejected_wrong_scope`. Do not silently mix roots.
 
-3. Promote bounded secondary roots when justified.
+3. Run a bounded source-root correction pass before declaring holes.
+
+   If the preferred root is empty, starts late, or contradicts legacy evidence, do not stop at the generated root URL. Check the actual page context and perform bounded searches for: current-catalog resource/archive pages; previous-catalog pages; registrar bulletin/archive pages; institution repository collections; and institution-specific digital archive catalog collections. This is not an open-ended search across every digital archive. It is a short correction pass to recover obvious source roots that the deterministic root guess missed.
+
+4. Promote bounded secondary roots when justified.
 
    Do not make university-wide digital archives the default main-root search target. Promote one only when the preferred catalog root is missing, dead, or visibly bounded, or when legacy/official context points to a university-wide institutional digital archive or repository collection that covers years outside the preferred root's observed archive span. Inspect the parent/collection context first. If it is catalog-specific, institution-wide, and bounded, promote it to `secondary_institutional_digital_archive` for those gap years only.
 
-4. Extract source candidates from the preferred root.
+5. Extract source candidates from the preferred root.
 
    For each catalog candidate, record title, URL, source-root URL, catalog-year start, catalog-year end, evidence type, and whether the source appears institution-wide and undergraduate. Policy-page leads can be logged as later extraction leads, but they should not drive the Phase 3 catalog panel.
 
-5. Apply academic-year expansion.
+6. Apply academic-year expansion.
 
    Expand ranges as `[start, end)`: `2013-2014` covers AY 2013, and `2004-2006` covers AY 2004 and AY 2005.
 
-6. Retrieve easy candidates first.
+7. Retrieve easy candidates first.
 
    Attempt direct retrieval and simple recovery only. Save retrieved source bodies. Do not conduct open-ended web search during the first pass.
 
-7. Verify source-year evidence.
+8. Verify source-year evidence.
 
    Count catalog coverage only when catalog-year evidence appears in source title/heading, metadata, extracted text, OCR, or visual review. URL or filename year patterns alone are review leads.
 
-8. Assign every institution-year a stage status.
+9. Assign every institution-year a stage status.
 
    Record `pipeline_stage`, `stop_reason`, and `next_batch_action`. The row should either advance to the next stage or land in a defined queue.
 
    A missing year inside an otherwise observed archive span is not a routine `no_candidate_found` row. Because archives rarely omit a single year within a continuous run, classify it as `interior_archive_gap` and send it to `targeted_archive_gap_search`. First check for missed pagination, hidden slideshow/gallery entries, alternate title patterns, search facets within the same archive, and adjacent sibling records. Only downgrade after those bounded checks fail.
 
-9. Move unresolved years to the next batch action.
+10. Move unresolved years to the next batch action.
 
    Escalate by type, not by institution story: retrieval recovery, OCR, secondary archive expansion, archive-bound deferral, wrong-scope deferral, policy dating, or text/policy extraction.
 
-10. Stop the first pass.
+11. Stop the first pass.
 
    The first pass is complete when every institution-year is either strict-covered or assigned a defensible status. Do not chase every gap before moving to the next institution.
+
+12. Run the all-institution audit gate.
+
+   Before reporting the mockup workbook as ready for review, run the catalog spot-check audit across every institution in the workbook. The audit must check for the same problems a reviewer would otherwise find by spot checking: missing years inside a reviewed archive span, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, roots that begin after the sample period despite legacy evidence, OCR candidates being counted as ready, and unexplained mixed-source coverage.
+
+   The required outputs are:
+
+   - `data_policy_pipeline/review/catalog_url_spotcheck_audit.csv`;
+   - `data_policy_pipeline/logs/catalog_url_spotcheck_audit_summary.md`.
+
+   Do not describe the workbook as ready unless this audit has been performed. If the audit returns `needs_pipeline_fix`, fix the parser/source-root logic or explicitly document why the issue is a true accepted stop. OCR and retrieval recovery are pipeline queues, not row-by-row manual troubleshooting requests.
 
 ## Reverse-Engineered Current Process
 
@@ -152,11 +167,12 @@ Use this order unless an institution-specific note documents a reason to change 
 
 1. Coherent official institution-wide undergraduate catalog archive.
 2. Coherent institution repository or library collection for institution-wide catalogs.
-3. Legacy workbook URLs, treated as prior evidence and fallback leads.
-4. Bounded secondary institutional digital archive collection promoted from legacy or official context for years outside the preferred root span, or after the normal catalog-root search fails.
-5. Internet Archive recovery of official URLs.
-6. Coherent state/library digital archive collection with institution catalog records, only when it appears organically from legacy links or official-site search.
-7. AI-assisted discovery for remaining hard cases.
+3. Current-catalog resource/archive/previous-catalog pages, registrar bulletin archive pages, and sibling archive pages linked from or adjacent to the official root.
+4. Legacy workbook URLs, treated as prior evidence and fallback leads.
+5. Bounded secondary institutional digital archive collection promoted from legacy or official context for years outside the preferred root span, or after the normal catalog-root search fails.
+6. Internet Archive recovery of official URLs.
+7. Coherent state/library digital archive collection with institution catalog records, only when it appears organically from legacy links or official-site search.
+8. AI-assisted discovery for remaining hard cases.
 
 Legacy URLs should be inspected early as discovery leads, but they should not override a better coherent source root. When a legacy URL points to a broader official archive, repository collection, or stable catalog root, record the broader root as the preferred first-pass source and keep the legacy URL as prior or corroborating evidence.
 
@@ -166,9 +182,46 @@ If a legacy URL is a current or archived policy page rather than a catalog, bull
 
 If an official catalog root is JavaScript-rendered and points users to a library or institutional repository archive, record that archive as a reviewed secondary archive seed. Batch 4 example: UAH's Kuali catalog page points to the LOUIS Course Catalogs collection, which is a BePress gallery with visible catalog-year titles and downloadable `viewcontent.cgi` PDF sources.
 
-Do not run broad searches across general state or library digital archives as a standard first-pass step. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
+Do not run broad searches across general state or library digital archives as a standard first-pass step. Do run institution-specific digital archive searches as a bounded correction when the official catalog/archive root is missing, visibly bounded, or inconsistent with legacy evidence. If such an archive appears organically, use it only after checking whether its years fall outside the observed coverage of the official archive/root. For years where the official archive and the external archive overlap, prefer the official archive.
 
 The selected root should be stable enough that a reviewer can understand why years were covered or not covered.
+
+## Manual Root-Correction Findings
+
+The current 30-institution test set showed that several automated holes were not real source dead ends. The manual audit is recorded in:
+
+- `data_policy_pipeline/review/manual_catalog_search_audit.csv`;
+- `data_policy_pipeline/logs/manual_catalog_search_audit_summary.md`.
+
+The audit found these reusable failure modes:
+
+- current catalog roots can hide the archive under `resources/catalog-archives`, `previous catalogs`, or similar resource pages;
+- registrar sites often call catalogs `bulletins`, especially for older years;
+- BePress/Digital Commons collections often require pagination before older years appear;
+- CONTENTdm and institutional digital archive collections can be the best source when the official archive starts late or is missing;
+- legacy URLs often point to direct PDFs or parent directories that imply an archive path even when the generated root search misses it;
+- a single missing year inside a continuous repository span should be treated as a likely missed item until pagination, sibling records, and internal search are checked.
+- current catalog pages can expose archive menus where year-only links inherit scope from the page title; a parser should use page context and visible link text instead of requiring every link text to repeat `catalog` or `undergraduate`.
+
+## All-Institution Audit Gate
+
+Every review workbook must be audited institution-by-institution before it is described as ready. This audit is separate from tests: tests prove specific parser behavior, while the audit asks whether the generated workbook makes sense for every university in the current sample.
+
+The audit classifies each institution into one of these statuses:
+
+- `pass_basic_checks`: no obvious panel, legacy, scope, URL-shape, or reviewed-span issue was found.
+- `needs_pipeline_fix`: the workbook likely missed something mechanically, such as a catalog archive menu, repository pagination, digital-archive sibling records, legacy URL pattern expansion, or a wrong-scope URL rejection.
+- `needs_ocr_or_visual_review`: candidate URLs exist but scanned or fragile PDFs cannot yet be treated as source-confirmed coverage.
+- `accepted_dead_end_or_archive_bound`: missing years are explained by a documented catalog/scope dead end or visible archive bounds.
+
+This gate exists because the pilot is too small for silent misses to be acceptable. If a user can find an archive page from a legacy URL or simple page context in less than a minute, the pipeline should either find it or flag the institution as `needs_pipeline_fix` before the workbook is handed over.
+
+For the pilot review workbook, two additional row-level concepts are allowed when they are explicitly documented:
+
+- `reviewed_supplemental_candidate`: a catalog source found during the audit from a bounded, institution-specific root that the current parser does not yet generalize. These candidates must include source notes in the workbook and should be converted into general parser rules before scale-up when the pattern repeats.
+- accepted row-level source gaps such as `verified_source_gap`, `direct_pdf_pattern_unresolved`, and `secondary_archive_access_blocked`: blank best-URL rows that were checked and are not current parser failures. These remain visible gaps in the workbook and should be routed to retrieval recovery, browser access, direct-PDF follow-up, or deferred archive-bound handling as appropriate.
+
+These labels should be used sparingly. They are review-readiness labels for the pilot, not a substitute for source discovery at scale.
 
 ## Secondary Institutional Digital Archive Rule
 
@@ -244,7 +297,7 @@ Batch 3 converts two reusable page-context patterns into code:
 
 - table rows where the year appears in a neighboring cell and the link text is generic, such as `PDF` or `HTML`;
 - catalog dropdowns where archived catalog years appear in visible `<option>` text.
-- BePress gallery cards where the visible title contains the catalog year and the item asset id maps to a downloadable `viewcontent.cgi` source.
+- BePress gallery cards where the visible title contains the catalog year and the item asset id maps to a downloadable `viewcontent.cgi` source. The collection path must be read from the repository URL, not assumed to be `/catalogs/`; examples include `/catalogs/`, `/csusb-catalog/`, and similar institution-specific paths.
 
 The year still must appear in visible page context. URL or filename years may help identify the linked source or undergraduate scope, but they should not be the sole year evidence.
 
@@ -300,6 +353,30 @@ Rule: If the preferred root starts later than the target panel and legacy URLs p
 Reusable lesson: School-specific catalog leads can look plausible but be wrong-scope, while official policy pages can create an immediate historical-dating detour.
 
 Rule: If fresh discovery finds only school-specific catalogs and no usable university-wide catalog root, mark the institution as a catalog dead end for this pilot. Preserve institution-wide policy pages as deferred extraction leads, but do not keep spending Phase 3 effort on the institution.
+
+### Batch 5 Expansion Rules
+
+Reusable lesson: A current official catalog page can be only a bridge. Cal State Fullerton's official catalog page points to the current catalog subdomain for newer Acalog archives and to an older official archive for earlier PDFs.
+
+Rule: When an official catalog page points to a current catalog subdomain and an older archive page, follow both as part of the same reviewed official source family. Do not mark later dynamic/dropdown years missing just because the static pointer page only shows older PDF links.
+
+Reusable lesson: BePress/Digital Commons collections are common university digital archives, but their collection paths vary. CSUSB uses `/csusb-catalog/`, while Boise and Cal Poly use other repository paths.
+
+Rule: Parse BePress gallery titles and asset ids using the actual collection path from the source URL. The visible gallery title remains the catalog-year evidence; the derived `viewcontent.cgi` URL is the downloadable source.
+
+Reusable lesson: Some pre-Acalog years are available through official direct-PDF patterns after the reviewed archive root is found. CSU Stanislaus exposes early catalog PDFs on `catalog.csustan.edu` media URLs while the Acalog dropdown covers later years.
+
+Rule: Direct-PDF pattern candidates are allowed only after a reviewed official host or legacy source establishes the pattern. Record them as `reviewed_supplemental_candidate` until the repeated pattern is promoted into a general parser.
+
+### Batch 10 Expansion Rules
+
+Reusable lesson: University-wide archives may use labels such as `General and Graduate Catalog`. ASU showed that rejecting every URL or title containing `graduate` is too strict when the source is a general institutional catalog.
+
+Rule: Treat `General Catalog`, `General and Graduate Catalog`, and `general_and_graduate` archive paths as university-wide catalog candidates. Continue to reject graduate-only catalogs when the URL/title is explicitly graduate-only and does not carry general-catalog context.
+
+Reusable lesson: Nearby-context parsing can over-assign the first visible year in a long archive block to every generic `PDF` link that follows. ASU exposed this as a wrong-year candidate risk.
+
+Rule: When a nearby-context candidate URL contains its own year range, use the URL's year range to assign target AY. Use the surrounding text to establish catalog/archive context, but do not let an earlier neighboring year override the linked source's own year.
 
 ## Required First-Pass Outputs
 

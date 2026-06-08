@@ -70,6 +70,7 @@ def clean_text(value: object) -> str:
 
 
 def normalized_year_range(text: str) -> tuple[int, int] | None:
+    text = re.sub(r"\b22(\d{2})\s*[-–—_/]\s*(20\d{2})\b", lambda m: f"20{m.group(1)}-{m.group(2)}", text)
     match = re.search(r"((?:19|20)\d{2})\s*[-–—_/]\s*((?:19|20)?\d{2})", text)
     if not match:
         return None
@@ -127,13 +128,23 @@ def candidate_archive_urls(root_result: dict[str, object], preferred_root_url: s
     path_parts = [part for part in parsed_root.path.split("/") if part]
     if len(path_parts) >= 3 and path_parts[0] == "digital" and path_parts[1] == "collection":
         alias = path_parts[2]
-        rows.append(
-            {
-                "archive_url": f"{parsed_root.scheme}://{parsed_root.netloc}/digital/api/search/collection/{alias}/searchterm/catalog/field/title/maxRecords/250",
-                "archive_source": "contentdm_collection_api",
-                "archive_link_text": "CONTENTdm collection API catalog title search",
-            }
-        )
+        for term in ["catalog", "bulletin"]:
+            rows.append(
+                {
+                    "archive_url": f"{parsed_root.scheme}://{parsed_root.netloc}/digital/api/search/collection/{alias}/searchterm/{term}/field/title/maxRecords/250",
+                    "archive_source": "contentdm_collection_api",
+                    "archive_link_text": f"CONTENTdm collection API {term} title search",
+                }
+            )
+    if parsed_root.netloc.lower().startswith(("catalog.", "catalogs.")):
+        for path in ["resources/catalog-archives/", "resources/archives/", "archives/"]:
+            rows.append(
+                {
+                    "archive_url": f"{parsed_root.scheme}://{parsed_root.netloc}/{path}",
+                    "archive_source": "generated_catalog_resource_archive_path",
+                    "archive_link_text": path,
+                }
+            )
     for record in root_result.get("link_records", []):
         if is_archive_link(record):
             rows.append(
@@ -141,6 +152,15 @@ def candidate_archive_urls(root_result: dict[str, object], preferred_root_url: s
                     "archive_url": record["url"],
                     "archive_source": "root_archive_link",
                     "archive_link_text": record["text"],
+                }
+            )
+        parsed_link = urlparse(record["url"])
+        if re.search(r"/index\.\d+\.html$", parsed_link.path):
+            rows.append(
+                {
+                    "archive_url": record["url"],
+                    "archive_source": "archive_pagination_link",
+                    "archive_link_text": record["text"] or parsed_link.path.rsplit("/", 1)[-1],
                 }
             )
     seen = set()
@@ -248,6 +268,8 @@ def candidate_priority(text: str) -> int:
         return 5
     if "undergraduate" in text:
         return 10
+    if "general catalog" in text or "general_and_graduate" in text:
+        return 15
     if "bulletin" in text:
         return 20
     if "catalog" in text:

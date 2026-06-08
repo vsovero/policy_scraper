@@ -156,3 +156,35 @@ Why it matters: API results need to be reproducible, bounded, and auditable.
 Current handling: API access is configured, smoke-tested, and used only in controlled comparison workflows so far. Deterministic discovery is attempted first.
 
 Follow-up: Add AI-assisted candidate generation only after source-root, archive-bound, and retrieval guardrails are in place.
+
+## Review Workbook Audit Gate
+
+Issue: The review workbook can look useful while still containing obvious source-discovery failures for individual institutions. Examples uncovered in the pilot include official/archive roots that started after the sample period despite legacy evidence, missing years inside a reviewed archive span, and WCSU archive-menu links that were visible on the page but missed because the parser mishandled `ugrad` and year-only link text.
+
+Why it matters: The user should not have to spot check every institution to find basic source-root misses. For a 25- or 30-institution pilot, every institution should be mechanically checked before the workbook is described as ready.
+
+Current handling: A new audit gate classifies every institution in `catalog_url_spotcheck_mockup.xlsx` as `pass_basic_checks`, `needs_pipeline_fix`, `needs_ocr_or_visual_review`, or `accepted_dead_end_or_archive_bound`. It flags missing years inside manual/reviewed spans, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, and roots that begin after the panel despite legacy evidence.
+
+Follow-up: Treat `needs_pipeline_fix` as a blocker before expanding the pilot or moving to policy extraction. Treat OCR and retrieval recovery as pipeline queues, not as manual row troubleshooting.
+
+Pilot update: The review-ready workbook may include `reviewed_supplemental_candidate` rows and accepted row-level source gaps. These are visible, documented audit outputs. They should not be allowed to become hidden hard-coding: repeated supplemental patterns should be promoted into generalized source parsers before scale-up.
+
+## Batch Expansion Findings
+
+Issue: The next 5-institution expansion surfaced source families that were not fully handled by the earlier pilot rules.
+
+Why it matters: These are not one-off institutional quirks. They represent common catalog-discovery patterns: official pages that bridge to both current catalog subdomains and older archive pages, BePress repository collections whose path is not `/catalogs/`, and official direct-PDF patterns for pre-Acalog years.
+
+Current handling: The BePress parser now uses the actual collection path from the repository URL when deriving `viewcontent.cgi` links from visible gallery titles. The reviewed-root process follows official catalog roots that point to newer Acalog dropdowns and older official archive pages. CSU Stanislaus early PDF rows are visible `reviewed_supplemental_candidate` records, not hidden overrides.
+
+Follow-up: Promote repeated direct-PDF pattern fills into a general parser before scaling beyond the pilot. Keep the audit gate active: expansion is acceptable only when `needs_pipeline_fix` is zero and all remaining blanks are archive bounds, verified source gaps, wrong-scope/catalog dead ends, or OCR queues.
+
+## General Catalog Scope And Noisy Year Context
+
+Issue: Some university-wide archives include `graduate` in a legitimate general catalog label, while some archive pages place many year rows close together with generic `PDF` links.
+
+Why it matters: A simple graduate-word rejection can discard valid university-wide catalogs, but a loose nearby-context parser can assign the wrong year to a generic link. ASU exposed both risks in the 10-institution expansion.
+
+Current handling: The parser now allows `General Catalog`, `General and Graduate Catalog`, and `general_and_graduate` as university-wide catalog candidates. Graduate-only catalog URLs remain rejected. For nearby-context records, if the candidate URL contains its own year range, the URL's year range controls the target AY assignment.
+
+Follow-up: Watch for other institutions where general-catalog wording differs. If a repeated variant appears, add it to the general-catalog scope rule with a regression test.
