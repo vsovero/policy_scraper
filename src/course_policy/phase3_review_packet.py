@@ -10,9 +10,7 @@ import pandas as pd
 
 from .ai_config import repo_root_from_cwd
 from .catalog_nonpass_explanations import (
-    RECENT_EXPANSION_UNITIDS,
     build_nonpass_table,
-    build_recent_summary,
     clean_text,
     explanation_for,
 )
@@ -59,6 +57,16 @@ SOURCE_ROOT_COLUMNS = [
     "programmatic_fix_needed",
     "next_pipeline_action",
 ]
+
+
+def expected_review_packet_sheets() -> list[str]:
+    return [
+        "START_HERE",
+        "institution_summary",
+        "nonpass_explanations",
+        "year_panel_review",
+        "source_roots",
+    ]
 
 
 def utc_now() -> str:
@@ -151,7 +159,7 @@ def build_start_here(audit: pd.DataFrame, spotcheck: pd.DataFrame) -> pd.DataFra
         {
             "section": "How To Review",
             "item": "2",
-            "detail": "Use nonpass_explanations for the plain-language reasons some panels are partial.",
+            "detail": "Use nonpass_explanations for the plain-language reasons some panels are partial or bounded.",
         },
         {
             "section": "How To Review",
@@ -161,7 +169,7 @@ def build_start_here(audit: pd.DataFrame, spotcheck: pd.DataFrame) -> pd.DataFra
         {
             "section": "How To Review",
             "item": "4",
-            "detail": "Use raw_full_mockup only as an audit/detail sheet; it is not the primary review interface.",
+            "detail": "Use source_roots to see the reviewed source root or archive page used for each institution.",
         },
     ]
     return pd.DataFrame(rows)
@@ -275,7 +283,7 @@ def write_summary(repo_root: Path, packet_path: Path, audit: pd.DataFrame, spotc
             "- `institution_summary`: one row per institution.",
             "- `nonpass_explanations`: plain-language reasons for partial/non-pass cases.",
             "- `year_panel_review`: compact year-by-year URL panel.",
-            "- `raw_full_mockup`: original detailed review sheet retained for auditability.",
+            "- `source_roots`: source root/archive provenance by institution.",
         ]
     )
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -289,8 +297,6 @@ def run(repo_root: Path) -> tuple[Path, Path]:
     packet_path.parent.mkdir(parents=True, exist_ok=True)
 
     institution_summary = build_institution_summary(audit, spotcheck)
-    recent_summary = build_recent_summary(audit)
-    recent_rows = spotcheck.loc[spotcheck["unitid"].isin(RECENT_EXPANSION_UNITIDS)].copy()
     nonpass = build_nonpass_table(audit, spotcheck)
     year_panel = build_year_panel_review(spotcheck)
     source_roots = build_source_roots(manual, audit, spotcheck)
@@ -298,13 +304,9 @@ def run(repo_root: Path) -> tuple[Path, Path]:
     with pd.ExcelWriter(packet_path, engine="openpyxl") as writer:
         build_start_here(audit, spotcheck).to_excel(writer, sheet_name="START_HERE", index=False)
         institution_summary.to_excel(writer, sheet_name="institution_summary", index=False)
-        recent_summary.to_excel(writer, sheet_name="recent_additions_summary", index=False)
-        recent_rows.to_excel(writer, sheet_name="recent_additions", index=False)
         nonpass.to_excel(writer, sheet_name="nonpass_explanations", index=False)
         year_panel.to_excel(writer, sheet_name="year_panel_review", index=False)
         source_roots.to_excel(writer, sheet_name="source_roots", index=False)
-        audit.to_excel(writer, sheet_name="audit_details", index=False)
-        spotcheck.to_excel(writer, sheet_name="raw_full_mockup", index=False)
 
     format_workbook(packet_path)
     summary_path = write_summary(repo_root, packet_path, audit, spotcheck)

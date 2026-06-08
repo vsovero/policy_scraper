@@ -1,6 +1,21 @@
 import pandas as pd
 
-from course_policy.phase3_review_packet import build_source_roots, build_start_here, build_year_panel_review
+from course_policy.phase3_review_packet import (
+    build_source_roots,
+    build_start_here,
+    build_year_panel_review,
+    expected_review_packet_sheets,
+)
+
+
+def test_expected_review_packet_sheets_are_review_focused():
+    assert expected_review_packet_sheets() == [
+        "START_HERE",
+        "institution_summary",
+        "nonpass_explanations",
+        "year_panel_review",
+        "source_roots",
+    ]
 
 
 def test_build_start_here_records_audit_gate_counts():
