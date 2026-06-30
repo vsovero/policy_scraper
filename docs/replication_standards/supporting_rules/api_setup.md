@@ -7,7 +7,7 @@ This project uses OpenAI API calls only in controlled, auditable stages. API acc
 Create a local config file from the committed template:
 
 ```bash
-cd policy_pipeline
+cd policy_scraper
 cp config/openai.example.toml config/openai.local.toml
 ```
 
@@ -65,7 +65,7 @@ In `live` mode, it makes one tiny Responses API request and validates that the m
 
 ## Audit Expectations
 
-Every future live API call should write metadata under `../data_policy_pipeline/logs/ai`, including:
+Every future live API call should write metadata under `artifacts/policy_data_internal/logs/ai`, including:
 
 - task type;
 - institution and target year identifiers;

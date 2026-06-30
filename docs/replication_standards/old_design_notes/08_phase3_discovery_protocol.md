@@ -102,16 +102,16 @@ Use this checklist for each institution in the next pilot batch.
 
    The first pass is complete when every institution-year is either strict-covered or assigned a defensible status. Do not chase every gap before moving to the next institution.
 
-12. Run the all-institution audit gate.
+12. Run the all-institution quality-control check.
 
-   Before reporting the mockup workbook as ready for review, run the catalog spot-check audit across every institution in the workbook. The audit must check for the same problems a reviewer would otherwise find by spot checking: missing years inside a reviewed archive span, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, roots that begin after the sample period despite legacy evidence, OCR candidates being counted as ready, and unexplained mixed-source coverage.
+   Before reporting the mockup workbook as ready for review, run the catalog quality-control check across every institution in the workbook. The check is programmatic, not human page-by-page review. It must check for the same problems a reviewer would otherwise find by spot checking: missing years inside a reviewed archive span, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, roots that begin after the sample period despite legacy evidence, OCR candidates being counted as ready, and unexplained mixed-source coverage.
 
    The required outputs are:
 
-   - `data_policy_pipeline/review/catalog_url_spotcheck_audit.csv`;
-   - `data_policy_pipeline/logs/catalog_url_spotcheck_audit_summary.md`.
+   - `policy_scraper/artifacts/policy_data_internal/review/catalog_url_spotcheck_audit.csv`;
+   - `policy_scraper/artifacts/policy_data_internal/logs/catalog_url_spotcheck_audit_summary.md`.
 
-   Do not describe the workbook as ready unless this audit has been performed. If the audit returns `needs_pipeline_fix`, fix the parser/source-root logic or explicitly document why the issue is a true accepted stop. OCR and retrieval recovery are pipeline queues, not row-by-row manual troubleshooting requests.
+   Do not describe the workbook as ready unless this quality-control check has been performed. If the check returns `needs_pipeline_fix`, fix the parser/source-root logic or explicitly document why the issue is a true accepted stop. OCR and retrieval recovery are pipeline queues, not row-by-row manual troubleshooting requests.
 
 ## Reverse-Engineered Current Process
 
@@ -135,11 +135,11 @@ The current process is:
 
 This reverse-engineered process is recorded in:
 
-- `data_policy_pipeline/interim/catalog_current_process_source_trace_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_current_process_year_trace_strict_pilot.csv`;
-- `data_policy_pipeline/logs/phase3_current_process_trace_summary.md`.
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_current_process_source_trace_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_current_process_year_trace_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/logs/phase3_current_process_trace_summary.md`.
 
-These outputs explain how the current strict-pilot files were produced. They should be used to audit the current results and to decide which parts of the workflow should be generalized for the next pilot batch.
+These outputs explain how the current strict-pilot files were produced. They should be used to quality-check the current results and to decide which parts of the workflow should be generalized for the next pilot batch.
 
 ## Source-Root Strategy
 
@@ -178,6 +178,21 @@ Legacy URLs should be inspected early as discovery leads, but they should not ov
 
 When the preferred root does not produce a year-level candidate, legacy URLs may be used as bounded gap-fill candidates. Record these as `legacy_prior_gap_fill`, not as preferred-root coverage. This preserves the student-discovered source while keeping the root-first audit trail clear.
 
+## Private New-Legacy URL Addendum
+
+The private workflow should follow this same public source-root process. The planned additional stream is `private_new_legacy_url`, which uses automated or LLM-suggested URL leads from the private workbook workflow before ordinary private fresh discovery:
+
+1. Load URLs from the private workbook's `(Automated, 0121) Missing priva` sheet.
+2. Convert them into year-level candidates with `candidate_source_method = private_new_legacy_url_lead`.
+3. Preserve `Parent_URL`, `Page_Number`, `Score`, workbook row, and excerpt metadata for review.
+4. Mark every private new-legacy candidate as unverified and review-required.
+5. Let human-coded private sheet URLs outrank private new-legacy suggestions for the same institution-year.
+6. Continue through the same public-style root discovery, archive expansion, retrieval, text extraction, policy excerpt search, classification, validation, and review queues.
+
+Private new-legacy candidates may move rows forward to retrieval and policy search, but they are not final source evidence until source scope, source type, and catalog-year coverage are verified.
+
+The production stream map for this planned path is documented in `docs/11_production_streams.md` and encoded in `src/course_policy/production_streams.py`.
+
 If a legacy URL is a current or archived policy page rather than a catalog, bulletin, or catalog PDF, preserve it as `legacy_policy_page_deferred` and route the institution-year to `policy_dating_workflow`. Do not retrieve it as catalog-source coverage.
 
 If an official catalog root is JavaScript-rendered and points users to a library or institutional repository archive, record that archive as a reviewed secondary archive seed. Batch 4 example: UAH's Kuali catalog page points to the LOUIS Course Catalogs collection, which is a BePress gallery with visible catalog-year titles and downloadable `viewcontent.cgi` PDF sources.
@@ -190,10 +205,10 @@ The selected root should be stable enough that a reviewer can understand why yea
 
 The current 30-institution test set showed that several automated holes were not real source dead ends. The manual audit is recorded in:
 
-- `data_policy_pipeline/review/manual_catalog_search_audit.csv`;
-- `data_policy_pipeline/logs/manual_catalog_search_audit_summary.md`.
+- `policy_scraper/artifacts/policy_data_internal/review/manual_catalog_search_audit.csv`;
+- `policy_scraper/artifacts/policy_data_internal/logs/manual_catalog_search_audit_summary.md`.
 
-The audit found these reusable failure modes:
+The manual source-root correction pass found these reusable failure modes:
 
 - current catalog roots can hide the archive under `resources/catalog-archives`, `previous catalogs`, or similar resource pages;
 - registrar sites often call catalogs `bulletins`, especially for older years;
@@ -203,11 +218,11 @@ The audit found these reusable failure modes:
 - a single missing year inside a continuous repository span should be treated as a likely missed item until pagination, sibling records, and internal search are checked.
 - current catalog pages can expose archive menus where year-only links inherit scope from the page title; a parser should use page context and visible link text instead of requiring every link text to repeat `catalog` or `undergraduate`.
 
-## All-Institution Audit Gate
+## All-Institution Quality-Control Check
 
-Every review workbook must be audited institution-by-institution before it is described as ready. This audit is separate from tests: tests prove specific parser behavior, while the audit asks whether the generated workbook makes sense for every university in the current sample.
+Every review workbook must pass a programmatic institution-level quality-control check before it is described as ready. This check is separate from tests: tests prove specific parser behavior, while the quality-control check asks whether the generated workbook makes sense for every university in the current sample.
 
-The audit classifies each institution into one of these statuses:
+The quality-control check classifies each institution into one of these statuses:
 
 - `pass_basic_checks`: no obvious panel, legacy, scope, URL-shape, or reviewed-span issue was found.
 - `needs_pipeline_fix`: the workbook likely missed something mechanically, such as a catalog archive menu, repository pagination, digital-archive sibling records, legacy URL pattern expansion, or a wrong-scope URL rejection.
@@ -399,3 +414,22 @@ Do not expand from the strict 5-institution pilot to a larger pilot until:
 - scanned/OCR cases are routed without being counted as strict coverage;
 - wrong-scope sources are rejected consistently;
 - review workbook outputs make it easy to inspect why each year is covered, deferred, or unresolved.
+
+## Default Expansion Loop
+
+After the add-20 test, the default Phase 3 expansion process is no longer a purely deterministic catalog search. The default loop is:
+
+1. Run deterministic discovery on a bounded rank slice, usually 20 institutions.
+2. Build the spotcheck and quality-control outputs for that slice.
+3. Treat `pass_basic_checks` as ready for retrieval/extraction.
+4. Treat `accepted_dead_end_or_archive_bound` as documented partial coverage unless a later project decision reopens archive-bound years.
+5. Treat `needs_ocr_or_visual_review` as an OCR queue, not a source-root discovery failure.
+6. For `needs_pipeline_fix`, run API web triage with the configured request cap.
+7. Verify API evidence URLs and store raw/parsed API responses.
+8. Feed verified API roots back into deterministic year-candidate expansion.
+9. Write a before/after comparison showing fully rescued, partially rescued, and still-unresolved institutions.
+10. Continue to the next bounded slice unless the failure pattern shows a new general parser or policy decision is needed.
+
+The add-20 test showed why this loop is now the default. Code-only discovery left 8 institutions in `needs_pipeline_fix`. API web triage produced actionable official/source-root leads for all 8, and deterministic expansion of those roots added 91 catalog-year candidates. Three institutions moved to full 21-year coverage, four became partial panels with substantial gains, and one remained unresolved.
+
+The API is therefore a source-root recovery stage, not a replacement for retrieval or policy coding. AI-suggested roots must be verified by retrieval and expanded by deterministic code before they count as catalog-year coverage.

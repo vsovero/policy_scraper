@@ -180,7 +180,7 @@ Deterministic validation should flag:
 
 ## Prompt Versioning
 
-Prompt templates should live in `policy_pipeline/prompts/`.
+Prompt templates should live in `policy_scraper/prompts/`.
 
 Each prompt should have:
 

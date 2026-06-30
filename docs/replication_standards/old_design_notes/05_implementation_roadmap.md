@@ -6,7 +6,7 @@ Status: completed.
 
 Tasks:
 
-- create `policy_pipeline/` and `data_policy_pipeline/`;
+- create `policy_scraper/` and `policy_data/`;
 - document workflow, protocol, schema, AI touchpoints, and roadmap;
 - keep current Excel/Stata/R files unchanged.
 
@@ -35,17 +35,17 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/interim/legacy_public_audit.csv`;
-- `data_policy_pipeline/interim/legacy_private_audit.csv`;
-- `data_policy_pipeline/review/legacy_audit_review.xlsx`;
-- summary report in `data_policy_pipeline/logs/`.
+- `policy_scraper/artifacts/policy_data_internal/interim/legacy_public_audit.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/legacy_private_audit.csv`;
+- `policy_scraper/artifacts/policy_data_internal/review/legacy_audit_review.xlsx`;
+- summary report in `policy_scraper/artifacts/policy_data_internal/logs/`.
 
 Completed outputs:
 
-- `data_policy_pipeline/interim/legacy_public_audit.csv`;
-- `data_policy_pipeline/interim/legacy_private_audit.csv`;
-- `data_policy_pipeline/review/legacy_audit_review.xlsx`;
-- `data_policy_pipeline/logs/legacy_workbook_audit_summary.md`.
+- `policy_scraper/artifacts/policy_data_internal/interim/legacy_public_audit.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/legacy_private_audit.csv`;
+- `policy_scraper/artifacts/policy_data_internal/review/legacy_audit_review.xlsx`;
+- `policy_scraper/artifacts/policy_data_internal/logs/legacy_workbook_audit_summary.md`.
 
 Key findings:
 
@@ -78,15 +78,17 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/interim/institution_universe.csv`;
-- `data_policy_pipeline/interim/institution_year_targets.csv`;
-- optional `data_policy_pipeline/interim/legacy_evidence_links.csv` if legacy rows are kept in a separate bridge table.
+- `policy_scraper/artifacts/policy_data_internal/interim/institution_universe.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/institution_year_targets.csv`;
+- optional `policy_scraper/artifacts/policy_data_internal/interim/legacy_evidence_links.csv` if legacy rows are kept in a separate bridge table.
 
 ## Phase 3: Catalog Discovery Pilot
 
 Status: in progress.
 
 Purpose: test source discovery on a small but representative set.
+
+Current production-output note: Phase 3 outputs are now organized by public/private stream namespaces. The current public production entry point is `policy_scraper/artifacts/policy_data_internal/review/public/current/public_catalog_rollup.xlsx`, with the manifest at `policy_scraper/artifacts/policy_data_internal/review/public/current/public_run_manifest.csv`. Superseded pilot, scale-test, holdout, and intermediate public-legacy outputs have been moved into `interim/archive/`, `review/archive/`, and `logs/archive/` under `pre_namespace_run_20260609_production_namespace`.
 
 Recommended pilot:
 
@@ -111,48 +113,48 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/interim/catalog_inventory_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_pilot_institutions.csv`;
-- `data_policy_pipeline/interim/catalog_retrieval_attempts_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_retrieval_coverage_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_year_coverage_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_pilot_institutions_strict.csv`;
-- `data_policy_pipeline/interim/catalog_inventory_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_retrieval_attempts_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_retrieval_coverage_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_year_coverage_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_candidates_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_year_status_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_source_root_plan_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_first_pass_escalation_queue_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_current_process_source_trace_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_current_process_year_trace_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_ocr_visual_confirmation_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_fresh_discovery_ohsu_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_pilot_status_summary_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_ready_inventory_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_panel_year_coverage_retrieved_strict_pilot.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_institutions.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_legacy_leads.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_source_root_tasks.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_root_candidates.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_source_root_decisions.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_archive_pages.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_year_candidates.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_year_coverage.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_combined_inventory.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_retrieval_attempts.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_retrieval_coverage.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_runthrough_year_summary.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_secondary_archive_candidates.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_secondary_archive_year_summary.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_stage_status.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_year_status.csv`;
-- `data_policy_pipeline/interim/catalog_batch2_status_summary.csv`;
-- `data_policy_pipeline/review/strict_catalog_pilot_review.xlsx`;
-- saved sources in `data_policy_pipeline/catalog_sources/`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_inventory_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_pilot_institutions.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_retrieval_attempts_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_retrieval_coverage_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_year_coverage_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_pilot_institutions_strict.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_inventory_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_retrieval_attempts_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_retrieval_coverage_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_year_coverage_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_candidates_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_year_status_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_source_root_plan_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_first_pass_escalation_queue_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_current_process_source_trace_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_current_process_year_trace_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_ocr_visual_confirmation_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_fresh_discovery_ohsu_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_pilot_status_summary_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_ready_inventory_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_retrieval_attempts_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_retrieval_coverage_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_panel_year_coverage_retrieved_strict_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_institutions.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_legacy_leads.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_source_root_tasks.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_root_candidates.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_source_root_decisions.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_archive_pages.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_year_candidates.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_year_coverage.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_combined_inventory.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_retrieval_attempts.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_retrieval_coverage.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_runthrough_year_summary.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_secondary_archive_candidates.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_secondary_archive_year_summary.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_stage_status.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_year_status.csv`;
+- `policy_scraper/artifacts/policy_data_internal/interim/catalog_batch2_status_summary.csv`;
+- `policy_scraper/artifacts/policy_data_internal/review/strict_catalog_pilot_review.xlsx`;
+- saved sources in `policy_scraper/artifacts/policy_data_internal/catalog_sources/`;
 - discovery validation report.
 
 Initial implementation note:
@@ -198,8 +200,8 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/extracted_text/` files;
-- `data_policy_pipeline/interim/candidate_excerpts_pilot.csv`;
+- `policy_scraper/artifacts/policy_data_internal/extracted_text/` files;
+- `policy_scraper/artifacts/policy_data_internal/interim/candidate_excerpts_pilot.csv`;
 - extraction failure report.
 
 ## Phase 5: AI Classification Pilot
@@ -216,9 +218,9 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/interim/ai_classifications_pilot.csv`;
-- raw API logs in `data_policy_pipeline/logs/`;
-- `data_policy_pipeline/review/pilot_review.xlsx`;
+- `policy_scraper/artifacts/policy_data_internal/interim/ai_classifications_pilot.csv`;
+- raw API logs in `policy_scraper/artifacts/policy_data_internal/logs/`;
+- `policy_scraper/artifacts/policy_data_internal/review/pilot_review.xlsx`;
 - pilot accuracy and disagreement report.
 
 ## Phase 6: Human Review Workflow
@@ -234,8 +236,8 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/review/policy_review_queue.xlsx`;
-- `data_policy_pipeline/review/policy_review_resolved.csv`.
+- `policy_scraper/artifacts/policy_data_internal/review/policy_review_queue.xlsx`;
+- `policy_scraper/artifacts/policy_data_internal/review/policy_review_resolved.csv`.
 
 ## Phase 7: Scale Public Institutions
 
@@ -265,6 +267,7 @@ Tasks:
 
 - ingest `gfprivatelist.xlsx` as legacy evidence;
 - apply explicit private sheet/source precedence rules before selecting prior evidence;
+- run a private-only Step 0 that adds LLM-suggested URLs from the automated missing-private sheet as unverified source candidates with review-required flags;
 - reuse private examples and training set only as training/evaluation material or low-priority legacy context unless separately reviewed;
 - run missing private institution-years through the same discovery/extraction/classification workflow;
 - produce combined public/private panel.
@@ -289,8 +292,8 @@ Tasks:
 
 Deliverables:
 
-- `data_policy_pipeline/processed/policy_panel_2000_2020.csv`;
-- `data_policy_pipeline/processed/policy_panel_2000_2020.xlsx`;
+- `policy_scraper/artifacts/policy_data_internal/processed/policy_panel_2000_2020.csv`;
+- `policy_scraper/artifacts/policy_data_internal/processed/policy_panel_2000_2020.xlsx`;
 - Stata-ready import file;
 - comparison report.
 

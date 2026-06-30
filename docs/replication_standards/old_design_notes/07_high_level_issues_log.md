@@ -2,6 +2,32 @@
 
 This is a running log of methodological and workflow issues uncovered while building the policy pipeline. It is meant to preserve decisions, concerns, and unresolved questions at a higher level than the code or interim CSV outputs.
 
+## Recovery Versus Clean Benchmark
+
+Issue: Legacy-assisted recovery and clean no-legacy validation were being
+reported too close together. This made it possible to use human legacy URLs to
+rebuild rows and then treat that as evidence that the independent discovery
+pipeline worked.
+
+Why it matters: These are different claims. Rebuilding the existing dataset can
+legitimately use human legacy URLs, corrected URLs, archived versions, and
+legacy excerpts. The clean no-legacy benchmark cannot use those inputs; it must
+start without human URL evidence and independently find, retrieve, extract, and
+classify the source.
+
+Current handling: `docs/12_benchmark_protocol.md` now defines three lanes:
+`legacy_assisted_rebuild`, `known_url_execution_diagnostic`, and
+`clean_no_legacy_benchmark`. The code-level labels live in
+`benchmark_protocol.py`, and the harmonized catalog URL database carries
+`benchmark_protocol` and `counts_as_clean_no_legacy_benchmark`.
+
+Follow-up: Rebuild reports may use human legacy evidence but must be labeled as
+legacy-assisted. Clean no-legacy reports must run on a withheld/manual
+validation sample and must exclude rows with `legacy_url`, `legacy_excerpt`,
+human legacy source labels, or other legacy-derived source hints. The target for
+the clean benchmark is 90 percent among rows where the source exists and is
+reasonably discoverable.
+
 ## Source Root Consistency
 
 Issue: For a given institution, candidate catalog coverage can come from multiple source roots: legacy workbook links, official institutional archive pages, repository collections, state/library digital archives, Internet Archive, or page-level search results.
@@ -157,13 +183,13 @@ Current handling: API access is configured, smoke-tested, and used only in contr
 
 Follow-up: Add AI-assisted candidate generation only after source-root, archive-bound, and retrieval guardrails are in place.
 
-## Review Workbook Audit Gate
+## Review Workbook Quality-Control Gate
 
 Issue: The review workbook can look useful while still containing obvious source-discovery failures for individual institutions. Examples uncovered in the pilot include official/archive roots that started after the sample period despite legacy evidence, missing years inside a reviewed archive span, and WCSU archive-menu links that were visible on the page but missed because the parser mishandled `ugrad` and year-only link text.
 
 Why it matters: The user should not have to spot check every institution to find basic source-root misses. For a 25- or 30-institution pilot, every institution should be mechanically checked before the workbook is described as ready.
 
-Current handling: A new audit gate classifies every institution in `catalog_url_spotcheck_mockup.xlsx` as `pass_basic_checks`, `needs_pipeline_fix`, `needs_ocr_or_visual_review`, or `accepted_dead_end_or_archive_bound`. It flags missing years inside manual/reviewed spans, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, and roots that begin after the panel despite legacy evidence.
+Current handling: A new programmatic quality-control gate classifies every institution in `catalog_url_spotcheck_mockup.xlsx` as `pass_basic_checks`, `needs_pipeline_fix`, `needs_ocr_or_visual_review`, or `accepted_dead_end_or_archive_bound`. It flags missing years inside manual/reviewed spans, missing years between legacy URL years, wrong-scope best URLs, malformed Wayback URLs, and roots that begin after the panel despite legacy evidence.
 
 Follow-up: Treat `needs_pipeline_fix` as a blocker before expanding the pilot or moving to policy extraction. Treat OCR and retrieval recovery as pipeline queues, not as manual row troubleshooting.
 
@@ -177,7 +203,7 @@ Why it matters: These are not one-off institutional quirks. They represent commo
 
 Current handling: The BePress parser now uses the actual collection path from the repository URL when deriving `viewcontent.cgi` links from visible gallery titles. The reviewed-root process follows official catalog roots that point to newer Acalog dropdowns and older official archive pages. CSU Stanislaus early PDF rows are visible `reviewed_supplemental_candidate` records, not hidden overrides.
 
-Follow-up: Promote repeated direct-PDF pattern fills into a general parser before scaling beyond the pilot. Keep the audit gate active: expansion is acceptable only when `needs_pipeline_fix` is zero and all remaining blanks are archive bounds, verified source gaps, wrong-scope/catalog dead ends, or OCR queues.
+Follow-up: Promote repeated direct-PDF pattern fills into a general parser before scaling beyond the pilot. Keep the quality-control gate active: expansion is acceptable only when `needs_pipeline_fix` is zero and all remaining blanks are archive bounds, verified source gaps, wrong-scope/catalog dead ends, or OCR queues.
 
 ## General Catalog Scope And Noisy Year Context
 

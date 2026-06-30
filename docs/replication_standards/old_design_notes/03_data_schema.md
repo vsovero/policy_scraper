@@ -75,8 +75,15 @@ legacy_workbook
 legacy_sheet_name
 legacy_excel_row
 legacy_source_priority
+legacy_source_role
+source_can_be_prior_evidence
 legacy_url
 legacy_excerpt
+comments
+student
+page_number
+parent_url
+score
 legacy_policy_class
 legacy_grade_averaging
 legacy_grade_avg_threshold
@@ -89,6 +96,8 @@ created_at
 ```
 
 This table should preserve duplicate or conflicting legacy rows rather than collapsing them prematurely. Phase 2 may produce this bridge directly or include equivalent fields in `institution_year_targets.csv`.
+
+Private automated missing-sheet rows should use `legacy_source_role = private_step0_llm_suggested_url`, `source_can_be_prior_evidence = false`, and `legacy_needs_review = true` until a reviewer or verification step confirms source scope and catalog-year coverage.
 
 ## Table 2: Catalog Inventory
 

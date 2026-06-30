@@ -51,6 +51,15 @@ For the private workbook, sheet-level precedence must be explicit before rows ar
 
 Private workbook example/training rows are not public-institution source evidence. They may be useful for training or documentation, but should be excluded from public catalog-discovery pilots unless a later reviewed protocol explicitly says otherwise.
 
+For the private workflow, use the same catalog-first process as the public workflow with one private-only Step 0: URLs from the private workbook's automated missing-private sheet may be inserted as LLM-suggested source candidates before ordinary root/archive expansion. These Step 0 URLs are not human verified. They must be marked as unverified, excluded from automatic prior-evidence selection, and routed to closer review until official institution-wide undergraduate scope and catalog-year coverage are confirmed.
+
+Private workbook sheet roles:
+
+- `private`: main human-coded private legacy evidence and discovery leads.
+- `(Automated, 0121) Missing priva`: Step 0 LLM-suggested URL leads only; review required.
+- `LLM Training Set`: training/evaluation context only; exclude from prior-evidence selection.
+- `example`: documentation/examples only; exclude from prior-evidence selection.
+
 ## Source Preservation
 
 For each source used, the pipeline should store:
