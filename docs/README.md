@@ -9,14 +9,15 @@ policy_scraper/artifacts/PIPELINE_OUTPUTS/
 
 ## Open First
 
-Current work is a Step 1 URL-discovery pilot. Open these first:
+Current work is the transition from Step 1 URL-discovery pilots to Step 1
+production source-ledger construction. Open these first:
 
 ```text
 replication_standards/README.md
-replication_standards/codex_goals/step_1_pilot_goal_template.md
+replication_standards/codex_goals/step_1_url_discovery_run_contract.md
 ```
 
-The pilot outputs live in:
+Historical pilot/regression outputs live in:
 
 ```text
 policy_scraper/artifacts/PIPELINE_OUTPUTS/01_url_discovery/
@@ -75,12 +76,17 @@ replication_standards/url_source_review_standard.md
 ```text
 replication_standards/
   Publication, replication-package, and LLM/AI-use requirements. The current
-  Step 1 pilot goal, supporting rules, and old design notes live inside this
+  Step 1 run contract, supporting rules, and old design notes live inside this
   folder so there is one standard.
 ```
 
 ## Current Rule
 
-The active pilot process should be documented stage-by-stage in
+The active Step 1 process should be documented stage-by-stage in
 `policy_scraper/artifacts/PIPELINE_OUTPUTS/`. This docs folder defines the
 standards and goals; it should not become a second output folder.
+
+New production work should be labeled `production_chunk_*`, not
+`pilot_batch_*`. A production chunk is complete only when every target
+institution-year is represented in the source ledger or in an unresolved-row
+table with an explicit reason.

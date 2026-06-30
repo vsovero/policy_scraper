@@ -60,7 +60,7 @@ building the reviewed URL panel that will later feed text extraction.
   - Required audit output: reviewed decision row for every accepted
     LLM-suggested URL.
   - Current project hook: archived suggestion ledgers are retained under
-    `policy_scraper/artifacts/OLD_OUTPUT_ARCHIVES/`; current Step 1 pilot and
+    `policy_scraper/artifacts/OLD_OUTPUT_ARCHIVES/`; current Step 1 run and
     strict source-review outputs exclude LLM/Claude suggestion files as
     production URL evidence.
 
@@ -188,10 +188,17 @@ building the reviewed URL panel that will later feed text extraction.
   - Required audit output: loss bucket or validation-score failure table.
 
 - [ ] Decide whether the URL stage is ready to hand off.
-  - Done when: The URL stage either meets the pre-specified coverage target or
-    has a written explanation of remaining gaps and why they are acceptable.
-  - Suggested internal target: At least 90 percent recovery on active held-out
-    legacy URL rows, by sector and combined.
+  - Done when: The production source ledger has closure for the target rows:
+    each row has an accepted reviewed source, valid prior evidence recovered
+    and reviewed, a newly discovered reviewed source, or an explicit
+    unresolved/unrecoverable status.
+  - Benchmark target: At least 90 percent recovery on active held-out legacy
+    URL rows, by sector and combined, when the goal is clean no-legacy
+    benchmarking.
+  - Production target: 100 percent ledger closure. Prior valid programmatic
+    discoveries may be used as visible recovery evidence or examples for
+    general code/rule repairs, but they must be reviewed and recorded as source
+    ledger provenance rather than hidden in code.
 
 ### 6. URL-Stage Release Artifacts
 
@@ -201,7 +208,7 @@ building the reviewed URL panel that will later feed text extraction.
   - Required audit output: code path and run command.
   - Current project hook:
     `policy_scraper/src/course_policy/step1_pilot_url_discovery.py` for the
-    current pilot and
+    historical pilot/development command path and
     `policy_scraper/artifacts/AUDIT_TRAILS/url_discovery_step1_full_audit/code/run_step1_url_discovery.py`
     for the full-audit snapshot.
 

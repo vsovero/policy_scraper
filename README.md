@@ -3,9 +3,10 @@
 This folder contains the code, documentation, prompts, tests, and local
 artifacts for rebuilding the course repetition policy database.
 
-The current work is a Step 1 URL-discovery pilot. The pilot is clarifying the
-URL-stage process before any final production handoff, text extraction, policy
-classification, or journal replication package is treated as complete.
+The current work is shifting from Step 1 URL-discovery pilots to Step 1
+production source-ledger construction. Existing `pilot_batch_*` folders are
+historical process/regression evidence; new dataset-construction work should
+use `production_chunk_*` outputs rather than new pilot labels.
 
 Current reproducibility strategy: Codex may assist code development, debugging,
 and source-review triage, but the required replication package should not
@@ -17,7 +18,7 @@ cached model outputs where applicable.
 
 ## Open First
 
-For current pilot outputs:
+For current Step 1 outputs and status:
 
 ```text
 artifacts/PIPELINE_OUTPUTS/START_HERE.md
@@ -39,7 +40,7 @@ For replication standards and Codex goals:
 ```text
 docs/README.md
 docs/replication_standards/README.md
-docs/replication_standards/codex_goals/step_1_pilot_goal_template.md
+docs/replication_standards/codex_goals/step_1_url_discovery_run_contract.md
 docs/replication_standards/requirements_checklist.md
 docs/replication_standards/url_source_review_standard.md
 ```
@@ -64,22 +65,30 @@ The active plan for a self-contained computer-versus-human validation rebuild is
 artifacts/PIPELINE_OUTPUTS/CLEAN_REBUILD_VALIDATION_PLAN.md
 ```
 
-The current Step 1 pilot output folder is:
+The Step 1 URL-discovery output folder is:
 
 ```text
 artifacts/PIPELINE_OUTPUTS/01_url_discovery/
 ```
 
-The current human-written URL-discovery pilot process review is:
+The human-written URL-discovery process review is:
 
 ```text
 artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/url_discovery_pilot_batches_review.md
 ```
 
-The pilot output is not a final production URL-stage release. It is a process
-test: one fixed batch, one visible output CSV, status/reason fields for every
-row, generated provenance documentation, generated benchmark/attrition
-documentation, and detailed audit evidence kept outside the normal view.
+Historical pilot/regression outputs are not final production URL-stage
+releases. They are process evidence: bounded batches, visible output CSVs,
+status/reason fields for every row, generated provenance documentation,
+generated benchmark/attrition documentation, and detailed audit evidence kept
+outside the normal view.
+
+The next dataset-construction unit should be `production_chunk_001`. Its goal
+is not to prove blind URL discovery again. Its goal is to close a bounded set of
+institution-years into the source ledger: each row gets an accepted reviewed
+source URL or an explicit unresolved/unrecoverable reason, with provenance for
+human legacy, prior programmatic, new programmatic, manual review, or
+API-assisted evidence.
 
 Detailed logs, candidate ledgers, source-review logs, validation audits, cached
 artifacts, and manifests live under:
@@ -111,10 +120,10 @@ call OpenAI/API classification
 assemble the final journal replication package
 ```
 
-The current Step 1 pilot goal is defined in:
+The stable Step 1 URL-discovery run contract is defined in:
 
 ```text
-docs/replication_standards/codex_goals/step_1_pilot_goal_template.md
+docs/replication_standards/codex_goals/step_1_url_discovery_run_contract.md
 ```
 
 The URL/source review standard is:
@@ -144,9 +153,9 @@ policy_scraper/
 ## Design Principle
 
 The final policy data should be generated from code and traceable to source
-evidence. The pilot should make ambiguity visible instead of hiding it: candidate
-URLs are not production evidence until the source-review gate is documented and
-passed.
+evidence. The production source ledger should make ambiguity visible instead of
+hiding it: candidate URLs are not production evidence until the source-review
+gate is documented and passed.
 
 Do not hard-code Codex-assisted source findings into scraper logic. If a finding
 is general, turn it into a general rule or code path. If it is row-specific,

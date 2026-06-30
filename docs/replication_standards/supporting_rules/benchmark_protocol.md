@@ -14,6 +14,10 @@ The final journal replication path is different. It should rebuild the final
 dataset from a frozen source ledger, archived/cached source artifacts,
 extraction/classification code, and cached model outputs where applicable. It
 should not require live Codex, live code repair, or live web rediscovery.
+Its URL-stage completion target is ledger closure, not 90 percent recall:
+every target institution-year must have an accepted reviewed source, a valid
+prior source recovered and reviewed, a newly discovered reviewed source, or an
+explicit unresolved/unrecoverable status.
 
 Codex may be used during development as a coding assistant, debugging assistant,
 and source-review triage aid. That use belongs in AI-use disclosure and, when it
@@ -21,6 +25,11 @@ affects source construction, the construction audit trail. Codex findings should
 not be hidden in scraper conditionals. Generalizable fixes become general code
 or source-family rules; row-specific accepted sources become transparent source
 ledger rows.
+
+For production construction, Codex and the developer may inspect prior valid
+human or programmatic answers while writing general source-family rules. That
+invalidates the chunk as a clean out-of-sample discovery benchmark, but it is
+allowed for exhaustive source-ledger construction.
 
 ## 1. Rebuild The Existing Dataset
 
@@ -31,15 +40,18 @@ Allowed evidence:
 - human legacy URLs;
 - corrected legacy URLs;
 - archived versions of legacy URLs;
+- previous valid programmatic discoveries;
 - legacy excerpts and classifications as debugging aids;
 - manual leads;
 - API or browser rescue;
 - Codex-assisted coding/debugging or source-review triage, if disclosed and
   traceable.
 
-This output should be labeled `legacy_assisted_rebuild`. It can be useful and
+This output should be labeled `legacy_assisted_rebuild` or
+`source_ledger_replication_build`, depending on whether it is an intermediate
+recovery task or the final deterministic rebuild. It can be useful and
 necessary, but it is not a clean test of whether the pipeline can work when no
-human URL exists.
+human or prior programmatic answer exists.
 
 ## 2. Prove The No-Legacy Pipeline Works
 
@@ -57,7 +69,8 @@ and ordinary institutional metadata only. It must independently:
 6. match a manually validated answer.
 
 The target for this clean benchmark is 90 percent on a manually validated sample
-where the source exists and is reasonably discoverable.
+where the source exists and is reasonably discoverable. This target is a
+benchmark of unaided discovery, not the production completion standard.
 
 ## 3. Reproduce The Final Dataset
 
@@ -67,6 +80,8 @@ Allowed evidence:
 
 - frozen source ledger;
 - cached or archived source artifacts;
+- valid prior human/programmatic source evidence that has been reviewed and
+  promoted into the ledger;
 - retrieval/extraction outputs where redistribution is permitted;
 - prompt templates and cached model/API outputs where applicable;
 - source-review and adjudication logs;
@@ -84,7 +99,7 @@ rebuild should run from frozen artifacts.
 | `legacy_assisted_rebuild` | yes | no | no | maximize recovered usable panel |
 | `known_url_execution_diagnostic` | yes | no | no | 90-100 percent among valid URLs |
 | `clean_no_legacy_benchmark` | no | yes | no | 90 percent diagnostic target |
-| `source_ledger_replication_build` | yes, if frozen in ledger | no | yes | regenerate final dataset from frozen artifacts |
+| `source_ledger_replication_build` | yes, if frozen in ledger | no | yes | 100 percent ledger closure, then regenerate final dataset |
 
 ## Known-URL Diagnostic
 
