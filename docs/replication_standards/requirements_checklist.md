@@ -191,14 +191,25 @@ building the reviewed URL panel that will later feed text extraction.
   - Done when: The production source ledger has closure for the target rows:
     each row has an accepted reviewed source, valid prior evidence recovered
     and reviewed, a newly discovered reviewed source, or an explicit
-    unresolved/unrecoverable status.
+    unresolved/unrecoverable status. For production chunks with prior
+    benchmark evidence, every valid human legacy benchmark row must also be
+    recovered, promoted into the ledger with human-legacy provenance, or
+    row-invalidated. Prior-programmatic benchmark rows must be recovered by the
+    current run or row-invalidated; old programmatic evidence cannot promote a
+    row into the source ledger by itself.
   - Benchmark target: At least 90 percent recovery on active held-out legacy
     URL rows, by sector and combined, when the goal is clean no-legacy
     benchmarking.
   - Production target: 100 percent ledger closure. Prior valid programmatic
     discoveries may be used as visible recovery evidence or examples for
-    general code/rule repairs, but they must be reviewed and recorded as source
-    ledger provenance rather than hidden in code.
+    general code/rule repairs, but they must not become automatic source-ledger
+    promotions unless recovered and reviewed by the current run.
+  - Required production audit output: `BENCHMARK_RECOVERY.csv` and
+    `BENCHMARK_MISSES.csv`. A production chunk does not pass the
+    prior-programmatic benchmark check if `BENCHMARK_MISSES.csv` contains
+    current-run prior-programmatic misses. The file must distinguish misses
+    already source-ledger-resolved by valid human legacy evidence from misses
+    that still lack a production source.
 
 ### 6. URL-Stage Release Artifacts
 

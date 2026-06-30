@@ -19,6 +19,18 @@ every target institution-year must have an accepted reviewed source, a valid
 prior source recovered and reviewed, a newly discovered reviewed source, or an
 explicit unresolved/unrecoverable status.
 
+For production chunks that use earlier pilot or audit evidence, ledger closure
+is not enough by itself. Every valid human legacy row in the chunk must be
+shown in `BENCHMARK_RECOVERY.csv` as recovered by the current chunk, promoted
+into the source ledger with visible human-legacy provenance, or row-invalidated
+with a documented reason. Every prior-programmatic row must be recovered by the
+current run or row-invalidated; old programmatic evidence must not promote a row
+into the source ledger by itself. `BENCHMARK_MISSES.csv` must be empty for the
+chunk to pass.
+When it is not empty, the miss file must label whether each current-run
+benchmark miss is already source-ledger-resolved by valid human legacy evidence
+or is still a programmatic-only source hole.
+
 Codex may be used during development as a coding assistant, debugging assistant,
 and source-review triage aid. That use belongs in AI-use disclosure and, when it
 affects source construction, the construction audit trail. Codex findings should
@@ -40,7 +52,8 @@ Allowed evidence:
 - human legacy URLs;
 - corrected legacy URLs;
 - archived versions of legacy URLs;
-- previous valid programmatic discoveries;
+- previous valid programmatic discoveries as diagnostics or rule-development
+  aids, not as automatic source-ledger promotions;
 - legacy excerpts and classifications as debugging aids;
 - manual leads;
 - API or browser rescue;
