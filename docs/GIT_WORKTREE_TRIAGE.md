@@ -49,6 +49,12 @@ active or recently active stream work.
 
 For active streams, use the baseline guard:
 
+Start new streams from the copy/paste templates in:
+
+```text
+docs/replication_standards/codex_goals/stream_prompt_templates.md
+```
+
 ```text
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope testing --baseline /private/tmp/codex_scope_testing.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope testing --baseline /private/tmp/codex_scope_testing.json

@@ -259,6 +259,12 @@ manifest.
 Every stream should create a scope baseline before it starts editing and check
 against that baseline before reporting done:
 
+Use the copy/paste prompts in:
+
+```text
+docs/replication_standards/codex_goals/stream_prompt_templates.md
+```
+
 ```text
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope testing --baseline /private/tmp/codex_scope_testing.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope testing --baseline /private/tmp/codex_scope_testing.json

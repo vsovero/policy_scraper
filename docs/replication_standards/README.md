@@ -21,6 +21,7 @@ Authority order:
 | Binding router | Tells Codex what to read and how to resolve conflicts | `README.md` |
 | Binding checklist | Journal-stage pass/fail requirements | `requirements_checklist.md` |
 | Binding run contract | Stable requirements for a named production or benchmark process | `codex_goals/step_1_url_discovery_run_contract.md` |
+| Binding prompt template | Required stream prompt structure and guard commands | `codex_goals/stream_prompt_templates.md` |
 | Binding stage rule | Detailed rules for one stage or claim type | `url_source_review_standard.md`, `supporting_rules/data_protocol.md`, `supporting_rules/benchmark_protocol.md`, `supporting_rules/policy_classification_rules.md`, `supporting_rules/api_setup.md` |
 | Citation/example support | External standards and examples; useful for rationale but not a project checklist | `supporting_rules/sources_reviewed.md` |
 | Submission prose | Draft wording for a paper, appendix, or data-editor response; not a standard | `supporting_rules/journal_replication_submission_draft_current.md` |
@@ -167,6 +168,9 @@ then expand the allowed integration slice explicitly.
 Each stream should create a baseline at the start of its work and check against
 that same baseline before reporting done. This makes the guard usable in a dirty
 shared worktree because it checks only what changed after the stream started.
+Use the copy/paste prompts in
+`codex_goals/stream_prompt_templates.md`; do not hand-write stream prompts from
+memory.
 
 ```text
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope testing --baseline /private/tmp/codex_scope_testing.json

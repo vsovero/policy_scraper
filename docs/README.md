@@ -132,6 +132,13 @@ Use the scopes this way:
 Each stream should create a baseline at the start of its work and check against
 that same baseline before reporting done. This makes the guard usable in a dirty
 shared worktree because it checks only what changed after the stream started.
+Use the copy/paste templates in:
+
+```text
+replication_standards/codex_goals/stream_prompt_templates.md
+```
+
+Do not hand-write stream prompts from memory; start from the matching template.
 
 Testing streams should run:
 
