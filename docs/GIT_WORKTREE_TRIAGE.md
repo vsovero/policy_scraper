@@ -11,6 +11,8 @@ Committed:
 
 ```text
 9bbf38d Add Step 1 process guardrails
+1fe4efd Document remaining worktree triage
+26c8af6 Update replication standards and API config
 ```
 
 That commit anchored:
@@ -22,15 +24,17 @@ That commit anchored:
   `src/course_policy/codex_scope_guard.py`;
 - write-scope and front-door pass-claim tests;
 - Step 1 stream-role documentation.
+- replication-standard authority labels and journal-release checklist updates;
+- safe OpenAI config defaults under ignored `artifacts/policy_data_internal/`.
 
 ## Current Dirty State
 
 Post-guardrail-commit snapshot:
 
 - Branch: `main`
-- Modified tracked files: 55
-- Untracked files: 120
-- Tracked diff size: 4,020 insertions and 244 deletions
+- Modified tracked files: 41
+- Untracked files: 119
+- Tracked diff size: 3,821 insertions and 222 deletions
 - Staged files: none
 
 Important: `artifacts/` remains ignored by default. Only the small protected
@@ -58,29 +62,7 @@ For active streams, use the baseline guard:
 
 ## Proposed Remaining Commit Groups
 
-### 1. Standards and AI/API Documentation
-
-Candidate files:
-
-- `.gitignore`
-- `README.md`
-- `config/openai.example.toml`
-- `docs/replication_standards/requirements_checklist.md`
-- `docs/replication_standards/url_source_review_standard.md`
-- `docs/replication_standards/supporting_rules/api_setup.md`
-- `docs/replication_standards/supporting_rules/benchmark_protocol.md`
-- `docs/replication_standards/supporting_rules/data_protocol.md`
-- `docs/replication_standards/supporting_rules/journal_replication_submission_draft_current.md`
-- `docs/replication_standards/supporting_rules/policy_classification_rules.md`
-- `docs/replication_standards/supporting_rules/sources_reviewed.md`
-- `pyproject.toml`
-- `src/course_policy/ai_config.py`
-- `tests/test_ai_config.py`
-
-Commit only after checking that no private keys, local paths, or live API
-credentials are present.
-
-### 2. Tracked URL Discovery and Catalog Pipeline Changes
+### 1. Tracked URL Discovery and Catalog Pipeline Changes
 
 Candidate tracked files:
 
@@ -108,7 +90,7 @@ Candidate tracked files:
 Commit only after running the relevant test subset. This group is too broad to
 commit blindly.
 
-### 3. New Production-Runner and Step 1 Modules
+### 2. New Production-Runner and Step 1 Modules
 
 Candidate untracked files include:
 
@@ -125,7 +107,7 @@ Candidate untracked files include:
 These look important, but they should be reviewed as a coherent production-runner
 slice before staging.
 
-### 4. Historical Inventory, Benchmark, and Validation Modules
+### 3. Historical Inventory, Benchmark, and Validation Modules
 
 Candidate untracked files include:
 
@@ -139,7 +121,7 @@ Candidate untracked files include:
 Commit only after confirming these are durable planning/benchmark tools rather
 than one-off exploratory scripts.
 
-### 5. Policy Classification and API-Use Modules
+### 4. Policy Classification and API-Use Modules
 
 Candidate untracked files include:
 
@@ -153,7 +135,7 @@ Candidate untracked files include:
 Commit separately from URL discovery. This group has API/cost/reproducibility
 implications and should be reviewed under the AI/API documentation standards.
 
-### 6. Public/Private Discovery Add-on Streams
+### 5. Public/Private Discovery Add-on Streams
 
 Candidate untracked files include:
 
@@ -170,6 +152,5 @@ superseded experiments.
 ## Recommended Next Move
 
 Do not make another broad commit yet. The next safest cleanup action is to review
-the standards/config group, because it is smaller and lower-risk than the
-production-runner and discovery-code groups. After that, handle production-runner
-code as its own reviewed slice.
+the production-runner/Step 1 module group as its own slice, then separately
+review the tracked URL discovery/catalog pipeline changes.
