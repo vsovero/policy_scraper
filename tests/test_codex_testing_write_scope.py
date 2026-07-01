@@ -76,6 +76,18 @@ REVIEW_DOC_PATTERNS = [
     "artifacts/PIPELINE_OUTPUTS/**/process_reviews/**",
 ]
 
+INTEGRATION_CODE_PATTERNS = [
+    "src/course_policy/step1_production_runner.py",
+    "src/course_policy/step1_production_input_builder.py",
+    "src/course_policy/step1_proof_to_scale_url_production.py",
+    "src/course_policy/production_release_url_stage.py",
+    "src/course_policy/production_quality_gate.py",
+    "src/course_policy/production_namespace.py",
+    "src/course_policy/production_streams.py",
+    "tests/test_step1_*.py",
+    "tests/test_production_*.py",
+]
+
 PROJECT_MANAGEMENT_DOC_PATTERNS = [
     "README.md",
     "docs/**",
@@ -222,6 +234,18 @@ def test_write_scope_patterns_protect_status_and_allow_run_local_reports() -> No
         "artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/review.md",
         PROJECT_MANAGEMENT_ARTIFACT_DOC_PATTERNS,
     )
+    assert _matches_any(
+        "src/course_policy/step1_production_runner.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "tests/test_production_release_url_stage.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert not _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md",
+        INTEGRATION_CODE_PATTERNS,
+    )
 
 
 def test_protected_ignored_artifact_docs_match_manifest() -> None:
@@ -242,7 +266,7 @@ def test_codex_stream_scope_limits_changed_files() -> None:
     scope = os.environ.get("CODEX_STREAM_SCOPE")
     if scope is None:
         pytest.skip(
-            "Set CODEX_STREAM_SCOPE=testing, review, or project_management "
+            "Set CODEX_STREAM_SCOPE=testing, review, integration, or project_management "
             "to enforce stream write scope."
         )
 
@@ -264,6 +288,16 @@ def test_codex_stream_scope_limits_changed_files() -> None:
             "the manifest row for that review file. They may not update current "
             "status, front-door docs, standards, or generated test output."
         )
+    elif scope == "integration":
+        violations = _scope_path_violations(INTEGRATION_CODE_PATTERNS)
+        violations.extend(_protected_artifact_doc_mismatches())
+        violations.extend(_manifest_row_violations([]))
+        message = (
+            "Integration streams may edit only the Step 1 production-runner/"
+            "release-packager source files and matching tests. They may not "
+            "edit status, reviews, standards, generated output, or unrelated "
+            "discovery/classification modules."
+        )
     elif scope == "project_management":
         allowed = [*PROJECT_MANAGEMENT_DOC_PATTERNS, MANIFEST_REL_PATH]
         violations = _scope_path_violations(allowed)
@@ -277,7 +311,7 @@ def test_codex_stream_scope_limits_changed_files() -> None:
         )
     else:
         raise AssertionError(
-            "CODEX_STREAM_SCOPE must be testing, review, or project_management; "
+            "CODEX_STREAM_SCOPE must be testing, review, integration, or project_management; "
             f"got {scope!r}."
         )
 

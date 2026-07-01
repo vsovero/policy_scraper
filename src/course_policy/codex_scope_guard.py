@@ -55,6 +55,18 @@ REVIEW_DOC_PATTERNS = [
     "artifacts/PIPELINE_OUTPUTS/**/process_reviews/**",
 ]
 
+INTEGRATION_CODE_PATTERNS = [
+    "src/course_policy/step1_production_runner.py",
+    "src/course_policy/step1_production_input_builder.py",
+    "src/course_policy/step1_proof_to_scale_url_production.py",
+    "src/course_policy/production_release_url_stage.py",
+    "src/course_policy/production_quality_gate.py",
+    "src/course_policy/production_namespace.py",
+    "src/course_policy/production_streams.py",
+    "tests/test_step1_*.py",
+    "tests/test_production_*.py",
+]
+
 PROJECT_MANAGEMENT_DOC_PATTERNS = [
     "README.md",
     "docs/**",
@@ -167,6 +179,8 @@ def _allowed_for_scope(scope: str, path: str) -> bool:
         return _matches_any(path, ALLOWED_TEST_OUTPUT_PATTERNS)
     if scope == "review":
         return path == MANIFEST_REL_PATH or _matches_any(path, REVIEW_DOC_PATTERNS)
+    if scope == "integration":
+        return _matches_any(path, INTEGRATION_CODE_PATTERNS)
     if scope == "project_management":
         return path == MANIFEST_REL_PATH or _matches_any(
             path, PROJECT_MANAGEMENT_DOC_PATTERNS
@@ -179,6 +193,8 @@ def _allowed_manifest_row_for_scope(scope: str, path: str) -> bool:
         return False
     if scope == "review":
         return _matches_any(path, REVIEW_DOC_PATTERNS)
+    if scope == "integration":
+        return False
     if scope == "project_management":
         return _matches_any(path, PROJECT_MANAGEMENT_ARTIFACT_DOC_PATTERNS)
     raise ValueError(f"Unknown scope: {scope}")
@@ -195,6 +211,13 @@ def _scope_message(scope: str) -> str:
         return (
             "Review streams may edit only the relevant process-review file and "
             "the manifest row for that review file."
+        )
+    if scope == "integration":
+        return (
+            "Integration streams may edit only the Step 1 production-runner/"
+            "release-packager source files and matching tests. They must not "
+            "edit status, reviews, standards docs, generated outputs, or "
+            "unrelated discovery/classification modules."
         )
     if scope == "project_management":
         return (
@@ -269,7 +292,11 @@ def check_baseline(scope: str, baseline_path: Path) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["init", "check"])
-    parser.add_argument("--scope", choices=["testing", "review", "project_management"], required=True)
+    parser.add_argument(
+        "--scope",
+        choices=["testing", "review", "integration", "project_management"],
+        required=True,
+    )
     parser.add_argument("--baseline", required=True, type=Path)
     args = parser.parse_args(argv)
 

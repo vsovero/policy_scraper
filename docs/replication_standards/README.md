@@ -109,20 +109,26 @@ This rule is enforced by:
 
 ## Codex Stream Write-Scope Rule
 
-Use a three-stream handoff:
+Use a four-scope workflow:
 
 ```text
-testing output -> process review -> project-management current status
+project-management task definition
+-> integration source/test edits
+-> testing output
+-> process review
+-> project-management current status
 ```
 
-Testing or drill streams may edit only run-local generated output. Review
-streams may edit only the relevant process-review file. Project-management
-streams publish the front-door status after the review decision.
+Project-management streams define the work slice and publish front-door status.
+Integration streams edit only the approved source/test slice. Testing or drill
+streams may edit only run-local generated output. Review streams may edit only
+the relevant process-review file.
 
 | Stream scope | May edit | Must not edit |
 |---|---|---|
 | `testing` | Run-local generated output such as `CHUNK_REPORT.md`, `RUN_REPORT.md`, `TEST_REPORT.md`, `REQUIREMENTS_STATUS.csv`, manifests, ledgers, and caches | Process reviews, standards, current status, front-door README/START_HERE docs |
 | `review` | The relevant process-review file and its protected-doc manifest hash | Test output, current status, front-door docs, standards |
+| `integration` | Step 1 production-runner/release-packager source files and matching tests only | Current status, process reviews, standards docs, generated output, unrelated discovery/classification/public/private modules |
 | `project_management` | `CURRENT_STATUS_AND_NEXT_STEPS.md`, front-door README/START_HERE docs, standards when approved, and their manifest hashes | Test output and process-review files |
 
 Allowed testing-stream output locations include:
@@ -154,6 +160,9 @@ stop changing documents there. A review stream may decide and record the review
 outcome in the process-review file. The project-management stream updates
 `CURRENT_STATUS_AND_NEXT_STEPS.md` or other front-door status docs only after the
 review file supports that status claim or the user directly instructs it.
+If an integration stream discovers that its allowed source/test slice is too
+narrow, it should stop and report the extra files needed; project management can
+then expand the allowed integration slice explicitly.
 
 Each stream should create a baseline at the start of its work and check against
 that same baseline before reporting done. This makes the guard usable in a dirty
@@ -165,6 +174,9 @@ shared worktree because it checks only what changed after the stream started.
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope review --baseline /private/tmp/codex_scope_review.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
+
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope project_management --baseline /private/tmp/codex_scope_project_management.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope project_management --baseline /private/tmp/codex_scope_project_management.json
@@ -181,10 +193,11 @@ as front-door status or process-review records are additionally locked in:
 docs/replication_standards/protected_artifact_docs_manifest.csv
 ```
 
-Testing streams must not update those files or the manifest. A review stream may
-update only process-review rows in the manifest. A project-management stream may
-update only front-door/status rows in the manifest. This keeps the review file
-as the judgment record and the current-status file as the published summary.
+Testing and integration streams must not update those files or the manifest. A
+review stream may update only process-review rows in the manifest. A
+project-management stream may update only front-door/status rows in the manifest.
+This keeps the review file as the judgment record and the current-status file as
+the published summary.
 
 ## Historical Inventory Runtime Gate
 

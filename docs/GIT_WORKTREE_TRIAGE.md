@@ -56,6 +56,9 @@ For active streams, use the baseline guard:
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope review --baseline /private/tmp/codex_scope_review.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
 
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json
+
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope project_management --baseline /private/tmp/codex_scope_project_management.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope project_management --baseline /private/tmp/codex_scope_project_management.json
 ```
@@ -105,7 +108,8 @@ Candidate untracked files include:
   `tests/test_production_release_url_stage.py`
 
 These look important, but they should be reviewed as a coherent production-runner
-slice before staging.
+slice before staging. This is the intended use of
+`CODEX_STREAM_SCOPE=integration`.
 
 ### 3. Historical Inventory, Benchmark, and Validation Modules
 

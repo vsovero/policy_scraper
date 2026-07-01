@@ -189,20 +189,26 @@ replication package are complete.
 
 ### Stream Write Scope
 
-Step 1 uses a three-stream handoff:
+Step 1 uses a four-scope workflow:
 
 ```text
-testing output -> process review -> project-management current status
+project-management task definition
+-> integration source/test edits
+-> testing output
+-> process review
+-> project-management current status
 ```
 
-Testing, drill, smoke, or mini-batch streams write only run-local generated
-output. Review streams write only the process-review file. Project-management
-streams publish current status after the review decision.
+Project-management streams define the work slice and publish front-door status.
+Integration streams edit only the approved source/test slice. Testing, drill,
+smoke, or mini-batch streams write only run-local generated output. Review
+streams write only the process-review file.
 
 | Stream scope | May edit | Must not edit |
 |---|---|---|
 | `testing` | Run-local generated output such as `CHUNK_REPORT.md`, `RUN_REPORT.md`, `TEST_REPORT.md`, `REQUIREMENTS_STATUS.csv`, manifests, ledgers, and caches | Process reviews, standards, current status, front-door README/START_HERE docs |
 | `review` | The relevant process-review file and its protected-doc manifest hash | Test output, current status, front-door docs, standards |
+| `integration` | Step 1 production-runner/release-packager source files and matching tests only | Current status, process reviews, standards docs, generated output, unrelated discovery/classification/public/private modules |
 | `project_management` | `CURRENT_STATUS_AND_NEXT_STEPS.md`, front-door README/START_HERE docs, standards when approved, and their manifest hashes | Test output and process-review files |
 
 Allowed testing outputs include run-local files such as:
@@ -234,6 +240,9 @@ stream should record that finding in its own run-local report. The review stream
 may record the review decision in the process-review file. The
 project-management stream updates `CURRENT_STATUS_AND_NEXT_STEPS.md` only after
 the review file supports the status claim or the user directly instructs it.
+If an integration stream discovers that its allowed source/test slice is too
+narrow, it should stop and report the extra files needed; project management can
+then expand the allowed integration slice explicitly.
 
 Persistent protected docs inside ignored `artifacts/` are hash-locked by:
 
@@ -242,7 +251,8 @@ docs/replication_standards/protected_artifact_docs_manifest.csv
 ```
 
 Testing streams must not update those protected artifact docs or the manifest.
-Review streams may update only process-review rows in the manifest.
+Integration streams also must not update those protected artifact docs or the
+manifest. Review streams may update only process-review rows in the manifest.
 Project-management streams may update only front-door/status rows in the
 manifest.
 
@@ -255,6 +265,9 @@ against that baseline before reporting done:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope review --baseline /private/tmp/codex_scope_review.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
+
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope project_management --baseline /private/tmp/codex_scope_project_management.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope project_management --baseline /private/tmp/codex_scope_project_management.json

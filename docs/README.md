@@ -110,10 +110,14 @@ Before editing front-door status claims, run:
 ../.venv/bin/python -m pytest tests/test_front_door_status_claim_gate.py
 ```
 
-Stream write scope follows this chain:
+Stream write scope follows this workflow:
 
 ```text
-testing output -> process review -> project-management current status
+project-management task definition
+-> integration source/test edits
+-> testing output
+-> process review
+-> project-management current status
 ```
 
 Use the scopes this way:
@@ -122,6 +126,7 @@ Use the scopes this way:
 |---|---|---|
 | `testing` | Run-local generated output such as `CHUNK_REPORT.md`, `RUN_REPORT.md`, `TEST_REPORT.md`, `REQUIREMENTS_STATUS.csv`, manifests, ledgers, and caches | Process reviews, standards, current status, front-door README/START_HERE docs |
 | `review` | The relevant process-review file and its protected-doc manifest hash | Test output, current status, front-door docs, standards |
+| `integration` | Step 1 production-runner/release-packager source files and matching tests only | Current status, process reviews, standards docs, generated output, unrelated discovery/classification/public/private modules |
 | `project_management` | `CURRENT_STATUS_AND_NEXT_STEPS.md`, front-door README/START_HERE docs, standards when approved, and their manifest hashes | Test output and process-review files |
 
 Each stream should create a baseline at the start of its work and check against
@@ -142,6 +147,13 @@ Review streams should run:
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
 ```
 
+Integration streams should run:
+
+```text
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json
+```
+
 Project-management streams should run:
 
 ```text
@@ -150,10 +162,10 @@ Project-management streams should run:
 ```
 
 Persistent status/review docs under ignored `artifacts/` are also hash-locked
-in `replication_standards/protected_artifact_docs_manifest.csv`. Testing streams
-may not update those files or the manifest. A review stream may update only
-process-review rows in the manifest. A project-management stream may update only
-front-door/status rows in the manifest.
+in `replication_standards/protected_artifact_docs_manifest.csv`. Testing and
+integration streams may not update those files or the manifest. A review stream
+may update only process-review rows in the manifest. A project-management stream
+may update only front-door/status rows in the manifest.
 
 Historical URL-discovery inventory is allowed for batch-priority planning and
 benchmark preservation, not as production-runner input. The coding gate is:
