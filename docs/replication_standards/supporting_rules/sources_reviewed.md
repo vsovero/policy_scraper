@@ -2,6 +2,10 @@
 
 Reviewed on 2026-06-23.
 
+Authority: CITATION/EXAMPLE SUPPORT. This file documents external standards and
+example packages. It is useful for rationale and citations, but it is not a
+project checklist and does not override binding standards.
+
 ## Economics Data And Code Standards
 
 1. American Economic Association, "Data and Code Availability Policy"

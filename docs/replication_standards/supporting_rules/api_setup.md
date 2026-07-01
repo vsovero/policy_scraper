@@ -1,5 +1,9 @@
 # API Setup and Workflow
 
+Authority: BINDING STAGE RULE. This file governs API configuration, live/off
+modes, and API audit metadata. It does not make live API calls part of the
+required journal rebuild path.
+
 This project uses OpenAI API calls only in controlled, auditable stages. API access should be configured before any code path is allowed to make live requests.
 
 ## Local Secret Setup

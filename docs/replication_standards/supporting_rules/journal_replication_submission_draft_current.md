@@ -2,6 +2,10 @@
 
 Created: 2026-06-23
 
+Authority: SUBMISSION PROSE. This file is draft language for a paper, appendix,
+or data-editor response. It is not a binding standard and does not override the
+requirements checklist or stage rules.
+
 This is the current reusable draft for the journal replication package, data
 appendix, or data editor response. It intentionally excludes pilot-specific
 language. Pilot outputs are tests of this reporting structure; they are not

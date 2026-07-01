@@ -25,7 +25,7 @@ artifacts/PIPELINE_OUTPUTS/START_HERE.md
 artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md
 artifacts/PIPELINE_OUTPUTS/CLEAN_REBUILD_VALIDATION_PLAN.md
 artifacts/PIPELINE_OUTPUTS/01_url_discovery/
-artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/url_discovery_pilot_batches_review.md
+artifacts/PILOTS/url_discovery/
 ```
 
 For detailed evidence and audit trails:
@@ -97,6 +97,12 @@ artifacts, and manifests live under:
 artifacts/AUDIT_TRAILS/
 ```
 
+Historical pilot, development, and regression runs live under:
+
+```text
+artifacts/PILOTS/url_discovery/
+```
+
 Superseded layouts and old delivery packets live under:
 
 ```text
@@ -140,6 +146,7 @@ policy_scraper/
   pyproject.toml
   artifacts/
     PIPELINE_OUTPUTS/      # small human-facing stage outputs
+    PILOTS/                # historical pilot/development/regression runs
     AUDIT_TRAILS/          # detailed evidence and reproducibility files
     OLD_OUTPUT_ARCHIVES/   # superseded output layouts and historical packets
     FOLDER_MAP.csv         # map from old locations to current locations

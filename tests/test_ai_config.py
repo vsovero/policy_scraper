@@ -22,9 +22,9 @@ max_retries = 2
 mode = "dry_run"
 max_requests_per_run = 0
 monthly_budget_usd = 0.0
-log_dir = "../data_policy_pipeline/logs/ai"
-raw_response_dir = "../data_policy_pipeline/logs/ai/raw_responses"
-parsed_response_dir = "../data_policy_pipeline/logs/ai/parsed_responses"
+log_dir = "artifacts/policy_data_internal/logs/ai"
+raw_response_dir = "artifacts/policy_data_internal/logs/ai/raw_responses"
+parsed_response_dir = "artifacts/policy_data_internal/logs/ai/parsed_responses"
 
 [prompts]
 discovery_prompt_version = "catalog_discovery_v0"

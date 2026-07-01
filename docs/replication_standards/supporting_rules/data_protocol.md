@@ -1,5 +1,9 @@
 # Data Protocol
 
+Authority: BINDING STAGE RULE. This file governs core data scope, source
+hierarchy, panel keys, and legacy-evidence treatment unless a higher-authority
+checklist item is stricter.
+
 ## Scope
 
 The target sample is U.S. public and private 4-year institutions from 2000 through 2020. The primary policy object is the undergraduate course repetition policy in effect for each institution-year.

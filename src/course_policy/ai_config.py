@@ -115,14 +115,14 @@ def load_ai_config(
         mode=str(workflow_data.get("mode", "off")).strip(),
         max_requests_per_run=int(workflow_data.get("max_requests_per_run", 0)),
         monthly_budget_usd=float(workflow_data.get("monthly_budget_usd", 0)),
-        log_dir=_config_path(repo_root, workflow_data.get("log_dir", "../data_policy_pipeline/logs/ai")),
+        log_dir=_config_path(repo_root, workflow_data.get("log_dir", "artifacts/policy_data_internal/logs/ai")),
         raw_response_dir=_config_path(
             repo_root,
-            workflow_data.get("raw_response_dir", "../data_policy_pipeline/logs/ai/raw_responses"),
+            workflow_data.get("raw_response_dir", "artifacts/policy_data_internal/logs/ai/raw_responses"),
         ),
         parsed_response_dir=_config_path(
             repo_root,
-            workflow_data.get("parsed_response_dir", "../data_policy_pipeline/logs/ai/parsed_responses"),
+            workflow_data.get("parsed_response_dir", "artifacts/policy_data_internal/logs/ai/parsed_responses"),
         ),
     )
     prompts = PromptSettings(

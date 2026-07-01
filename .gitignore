@@ -33,3 +33,4 @@ config/local*
 *.log
 tmp/
 scratch/
+artifacts/

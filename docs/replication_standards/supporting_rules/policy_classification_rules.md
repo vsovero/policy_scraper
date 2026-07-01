@@ -1,5 +1,9 @@
 # Policy Classification Rules
 
+Authority: BINDING STAGE RULE. This file governs policy excerpt classification
+after source text has been retrieved. It cannot be weakened by model output,
+submission prose, or process reviews.
+
 This document defines the working rules for classifying course repetition policy excerpts after catalog URLs have been found and source text has been extracted.
 
 These rules are intentionally separate from catalog discovery. A source URL can be valid for catalog coverage while still failing policy classification if the relevant excerpt is missing, graduate-only, program-specific, or ambiguous.

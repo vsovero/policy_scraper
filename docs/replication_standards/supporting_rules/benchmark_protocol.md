@@ -1,5 +1,9 @@
 # Benchmark Protocol
 
+Authority: BINDING STAGE RULE. This file governs benchmark labels, benchmark
+claims, and the difference between construction evidence and clean validation.
+It cannot be weakened by run reports or submission prose.
+
 ## Benchmark Lanes And Replication Path
 
 The project has benchmark lanes and a final replication path. They must be
@@ -43,6 +47,11 @@ human or programmatic answers while writing general source-family rules. That
 invalidates the chunk as a clean out-of-sample discovery benchmark, but it is
 allowed for exhaustive source-ledger construction.
 
+This permission is about development and review evidence, not the production
+runtime contract. Old pilot outputs can teach the code, supply regression tests,
+and define benchmark answers. They should not be required input files for the
+normal journal-facing production runner.
+
 ## 1. Rebuild The Existing Dataset
 
 This is a production recovery task.
@@ -65,6 +74,11 @@ This output should be labeled `legacy_assisted_rebuild` or
 recovery task or the final deterministic rebuild. It can be useful and
 necessary, but it is not a clean test of whether the pipeline can work when no
 human or prior programmatic answer exists.
+
+If this lane reads `pilot_batch_*` outputs or old pilot audit folders at runtime,
+it is a legacy-assisted or migration run. It should not be described as the clean
+Step 1 production runner, even if its outputs are later used to write general
+code/rule fixes.
 
 ## 2. Prove The No-Legacy Pipeline Works
 
@@ -93,8 +107,8 @@ Allowed evidence:
 
 - frozen source ledger;
 - cached or archived source artifacts;
-- valid prior human/programmatic source evidence that has been reviewed and
-  promoted into the ledger;
+- valid prior human/programmatic source evidence only after it has been reviewed
+  under the applicable production rules and stored in the frozen source ledger;
 - retrieval/extraction outputs where redistribution is permitted;
 - prompt templates and cached model/API outputs where applicable;
 - source-review and adjudication logs;
@@ -103,7 +117,10 @@ Allowed evidence:
 The replication package should not require a live Codex step that fixes code or
 fills remaining holes. It may include Codex-assisted source-review logs as
 provenance, and it may include optional live demonstrations, but the required
-rebuild should run from frozen artifacts.
+rebuild should run from frozen artifacts. It also should not require
+`pilot_batch_*` outputs or old pilot audit folders as normal runtime inputs.
+Those files may be cited as development evidence, benchmark-design context, or
+test fixtures, but not as the runtime spine of a journal release.
 
 ## Required Benchmark Lanes
 

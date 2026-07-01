@@ -2,6 +2,10 @@
 
 Created: 2026-06-23
 
+Authority: BINDING STAGE RULE. This file governs URL/source acceptance and
+rejection. It cannot be weakened by process reviews, generated reports, or
+submission prose.
+
 This defines "manual review" for URL search validation in the policy data
 pipeline. The term is easy to weaken, so this file uses the highest-scrutiny
 standard from the human-replication work.

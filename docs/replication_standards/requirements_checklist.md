@@ -2,9 +2,24 @@
 
 Created: 2026-06-23
 
+Authority: BINDING CHECKLIST. This is the primary pass/fail checklist for
+stage completion and journal-release readiness. Supporting rules can add detail
+but cannot weaken these requirements.
+
 This checklist breaks journal replication and LLM-use requirements into the
 actual stages of the course repetition policy data build. The goal is to make
 each stage auditable before moving to the next one.
+
+Status-claim rule: generated artifacts can supply evidence, but they cannot
+authorize pass/fail language. A run may be described as `pass`, `production
+ready`, `ready to scale`, or `journal standard` only when a human process review
+crosswalks the generated evidence to the relevant binding checklist/run-contract
+criteria and reaches that same decision. If the review is missing, conflicting,
+or partial, front-door status files must use `under review`, `partial pass`, or
+`fail`. Those labels do not complete the active Step 1 URL-stage test-batch
+goal; Codex should continue fixing, rerunning, packaging, and reviewing until
+the required process review passes Gate 1 and Gate 2, unless a precise external
+blocker prevents further progress.
 
 ## Current Stage: URL Discovery And Validation
 
@@ -34,6 +49,22 @@ building the reviewed URL panel that will later feed text extraction.
   - Done when: Rows excluded from discovery have a reason such as out of sector,
     outside year window, missing outcome, already hand-collected, or duplicate.
   - Required audit output: exclusion or stop-log table.
+
+- [ ] Use explicit production inputs for production runs.
+  - Done when: A production Step 1 command starts from production inputs such as
+    `target_panel.csv`, `candidate_url_ledger.csv`, `source_review_log.csv`,
+    source-evidence cache/manifest files where applicable, and an optional
+    benchmark key used only after discovery/review. Future production commands
+    do not require `pilot_batch_*` outputs, `artifacts/PILOTS/`, or old pilot
+    audit folders as runtime inputs.
+  - Required audit output: production input manifest.
+  - Fail condition: A run that requires `--prior-batch-slug`, `pilot_batch_*`, or
+    old pilot output files as the normal production input contract is
+    transitional/migration evidence, not the clean production runner.
+  - Fail condition: A command that mainly wraps, rewrites, or transforms old run
+    folders instead of rebuilding from explicit production inputs is
+    transitional/migration evidence, even if its output folder is named
+    `production_chunk_*`.
 
 ### 2. Record Candidate URL Generation
 
@@ -142,8 +173,8 @@ building the reviewed URL panel that will later feed text extraction.
   - Done when: The reviewed URL panel has one row per target institution-year
     and one `production_best_url` or an explicit no-URL status.
   - Required audit output: `reviewed_url_panel.csv`.
-  - Current project hook:
-    `policy_scraper/artifacts/PIPELINE_OUTPUTS/01_url_discovery/pilot_batch_001/OUTPUT_urls_for_text_extraction.csv`,
+  - Historical project hook, not the clean production input contract:
+    `policy_scraper/artifacts/PILOTS/url_discovery/pipeline_outputs/pilot_batch_001/OUTPUT_urls_for_text_extraction.csv`,
     with detailed panels under
     `policy_scraper/artifacts/AUDIT_TRAILS/url_discovery_step1_full_audit/outputs/reviewed_url_panel.csv`
     and
@@ -200,10 +231,10 @@ building the reviewed URL panel that will later feed text extraction.
   - Benchmark target: At least 90 percent recovery on active held-out legacy
     URL rows, by sector and combined, when the goal is clean no-legacy
     benchmarking.
-  - Production target: 100 percent ledger closure. Prior valid programmatic
-    discoveries may be used as visible recovery evidence or examples for
-    general code/rule repairs, but they must not become automatic source-ledger
-    promotions unless recovered and reviewed by the current run.
+  - Production target: 100 percent ledger closure. Prior programmatic
+    discoveries may be used as diagnostics or examples for general code/rule
+    repairs, but they are not valid source-ledger provenance and must not count
+    as recovery evidence unless recovered and reviewed by the current run.
   - Required production audit output: `BENCHMARK_RECOVERY.csv` and
     `BENCHMARK_MISSES.csv`. A production chunk does not pass the
     prior-programmatic benchmark check if `BENCHMARK_MISSES.csv` contains
@@ -217,11 +248,23 @@ building the reviewed URL panel that will later feed text extraction.
   - Done when: The package identifies the exact script(s) used to build the
     reviewed URL panel and how to rerun them.
   - Required audit output: code path and run command.
-  - Current project hook:
+  - Historical project hook, not the clean production runner:
     `policy_scraper/src/course_policy/step1_pilot_url_discovery.py` for the
     historical pilot/development command path and
     `policy_scraper/artifacts/AUDIT_TRAILS/url_discovery_step1_full_audit/code/run_step1_url_discovery.py`
     for the full-audit snapshot.
+  - Clean-runner requirement: future production release packages should identify
+    the explicit production runner and package-local command, not a pilot-era
+    command path.
+
+- [ ] Prove the URL-stage release does not depend on pilot runtime inputs.
+  - Done when: The release manifest and rebuild command can be run from
+    package-local production inputs and cached evidence, and the required input
+    manifest contains no `artifacts/PILOTS/`, `pilot_batch_*`, or old pilot audit
+    folder paths except under an explicitly labeled migration/test mode.
+  - Required audit output: production input manifest and release manifest.
+  - Fail condition: A journal-facing Step 1 release cannot require old pilot
+    output folders to regenerate the reviewed URL handoff or source ledger.
 
 - [ ] Create a URL-stage file manifest.
   - Done when: Every URL-stage input/output has row counts, column counts,
@@ -333,30 +376,109 @@ as part of the research method.
 
 ## Final Stage: Journal Replication Release
 
-- [ ] Provide one master README and run order.
+- [ ] Name the release as a frozen `production_release_*` package.
+  - Done when: The release has a unique `production_release_*` name, release
+    date, version/commit identifier, and explicit status. Production chunks are
+    working construction units; they are not journal-ready releases by
+    themselves.
+  - Required release output: release README status block.
+
+- [ ] Use precise go/no-go language.
+  - Done when: Reports distinguish `ready for next production chunk`,
+    `source-review/benchmark complete`, `not yet journal release ready`, and
+    `journal release ready after frozen release-package rebuild`. No chunk report
+    says simply "ready" without naming the next permitted use.
+
+- [ ] Freeze code state, not only working-tree status.
+  - Done when: The release identifies the exact code snapshot used to build the
+    data, including commit hash or archived source bundle, and records whether
+    any release code differs from the public repository snapshot. A raw
+    `git_dirty: true` flag is not sufficient.
+  - Required release output: code manifest or archived source bundle manifest.
+
+- [ ] Provide one master README, exact command, and run order.
   - Done when: A replicator can rebuild all release outputs or replay cached
-    restricted/live artifacts without undocumented steps.
+    restricted/live artifacts from the release root without undocumented steps.
+    Commands must use package-local relative paths, not local Dropbox or other
+    machine-specific absolute paths.
+  - Required release output: master README with runnable command block.
+
+- [ ] Record the computational environment.
+  - Done when: Python version, package versions or lock file, operating-system
+    assumptions, and any Stata/R versions used later are recorded. Random seeds,
+    runtime expectations, memory expectations, and optional container details are
+    included where applicable.
+  - Required release output: environment manifest such as `environment.yml`,
+    `requirements.txt`/lock file, `sessionInfo`, or equivalent.
+
+- [ ] Hash all release inputs, outputs, caches, and code artifacts.
+  - Done when: Every package-local input, output, cache, source-evidence file,
+    model-output file, adjudication file, and code archive has file size,
+    modification time, SHA-256 hash, and row/column counts where tabular.
+  - Required release output: release manifest and checksum file.
+
+- [ ] Exclude pilot-era runtime dependencies from the journal release.
+  - Done when: Historical `pilot_batch_*` outputs may appear only as cited
+    development evidence, benchmark-design context, or test fixtures. They are
+    not required inputs for the release rebuild, and they do not appear in the
+    release input manifest as normal runtime files.
+  - Required release output: release input manifest with no pilot runtime paths,
+    or a clearly labeled migration-only exception that is not called journal
+    release ready.
 
 - [ ] Include a Data Availability Statement.
   - Done when: IPEDS, catalog URLs, extracted text, LLM/API outputs, human
     review files, and final derived data are each listed as public, restricted,
     cached, omitted, or regenerable.
 
+- [ ] Make source evidence portable.
+  - Done when: Cached PDFs, HTML/text extracts, source snapshots, source-review
+    records, and source-ledger hashes are included when redistribution is
+    permitted. If source artifacts are omitted for copyright, terms, or access
+    reasons, the Data Availability Statement names the omission and the release
+    provides URLs, retrieval metadata, hashes or stable identifiers where
+    possible, and optional live-retrieval code. Required rebuilds must not depend
+    on live web retrieval unless the omission is explicitly documented as
+    unavoidable and replayed from cached derived evidence.
+  - Required release output: source evidence manifest.
+
 - [ ] Include an AI Use Statement.
   - Done when: The statement names AI tools/models, tasks, dates or versions,
     human oversight, validation procedures, privacy/IP safeguards, and author
     responsibility.
+
+- [ ] Include an AI/model-output manifest for pipeline artifacts.
+  - Done when: Every API/model-assisted row that affects source discovery,
+    extraction, classification, or review links to task type, provider/model,
+    run date/time, prompt version, schema version, parameters, input hash, raw
+    response path, parsed response path, output hash, validation status, and any
+    adjudication record. Live API calls are optional diagnostics, not required
+    rebuild steps.
+  - Required release output: AI/model-output manifest.
 
 - [ ] Freeze the final source ledger.
   - Done when: Accepted institution-year sources are stored as release data
     with hashes/manifests, source-review evidence, and provenance fields. Row-
     specific source decisions are not hidden in scraper code.
 
+- [ ] Freeze stage boundaries and adjudication records.
+  - Done when: The release separates URL/source validation, text retrieval,
+    excerpt search, policy classification, human adjudication, final panel
+    construction, and analysis outputs. Each stage has a handoff file or stop log
+    and downstream stages cannot silently alter upstream decisions.
+
 - [ ] Keep live Codex out of the required rebuild path.
   - Done when: The replication run regenerates the final dataset from frozen
     ledgers, archived/cached source artifacts, code, and cached model outputs
     where applicable. Codex coding/debugging assistance is disclosed as research
     assistance, not required as a runtime dependency.
+
+- [ ] Run a clean release-package rebuild check.
+  - Done when: The release is tested from a clean release directory using the
+    documented command. The check verifies that expected output hashes, row
+    counts, and key summary tables match the frozen release record or reports
+    documented acceptable differences.
+  - Required release output: rebuild check log or verification summary.
 
 - [ ] Deposit in a trusted repository.
   - Done when: The final replication package is in a journal-acceptable archive
