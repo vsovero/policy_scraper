@@ -13,6 +13,10 @@ Committed:
 9bbf38d Add Step 1 process guardrails
 1fe4efd Document remaining worktree triage
 26c8af6 Update replication standards and API config
+8f6e9c7 Refresh worktree triage after standards cleanup
+31b9182 Add Step 1 integration stream scope
+68ec44d Add stream prompt templates
+13f8f79 Add Step 1 production URL release runner
 ```
 
 That commit anchored:
@@ -26,15 +30,19 @@ That commit anchored:
 - Step 1 stream-role documentation.
 - replication-standard authority labels and journal-release checklist updates;
 - safe OpenAI config defaults under ignored `artifacts/policy_data_internal/`.
+- the Step 1 integration stream scope and copy/paste stream prompt templates;
+- the reviewed Step 1 production-runner/release-packager dependency-closure
+  code slice in commit `13f8f79`.
 
 ## Current Dirty State
 
-Post-guardrail-commit snapshot:
+Post-integration-review snapshot, excluding the protected review/status docs
+committed with this update:
 
 - Branch: `main`
-- Modified tracked files: 41
-- Untracked files: 119
-- Tracked diff size: 3,821 insertions and 222 deletions
+- Modified tracked source/test files: 41
+- Untracked files: 91
+- Tracked source/test diff size: 3,821 insertions and 222 deletions
 - Staged files: none
 
 Important: `artifacts/` remains ignored by default. Only the small protected
@@ -99,23 +107,25 @@ Candidate tracked files:
 Commit only after running the relevant test subset. This group is too broad to
 commit blindly.
 
-### 2. New Production-Runner and Step 1 Modules
+### 2. Step 1 Production-Runner Slice
 
-Candidate untracked files include:
+Status: completed and reviewed.
 
-- `src/course_policy/step1_production_runner.py`
-- `src/course_policy/step1_production_input_builder.py`
-- `src/course_policy/step1_proof_to_scale_url_production.py`
-- `src/course_policy/production_release_url_stage.py`
-- `src/course_policy/production_quality_gate.py`
-- `src/course_policy/production_namespace.py`
-- `src/course_policy/production_streams.py`
-- matching `tests/test_step1_*`, `tests/test_production_*`, and
-  `tests/test_production_release_url_stage.py`
+Commit `13f8f79` adds the Step 1 production runner, production input builder,
+release packager, quality gate, production namespace helpers, production stream
+definitions, proof-to-scale harness, justified dependency-closure modules, and
+matching focused tests.
 
-These look important, but they should be reviewed as a coherent production-runner
-slice before staging. This is the intended use of
-`CODEX_STREAM_SCOPE=integration`.
+Review file:
+
+```text
+artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/step1_production_runner_integration_review.md
+```
+
+Review decision: pass for commit
+`13f8f792696a43253ecf6ed66a0ae82e42b103da`. This supports running the next
+larger URL-stage production chunk, but the generated chunk still needs its own
+output/process review before any ready-to-scale claim.
 
 ### 3. Historical Inventory, Benchmark, and Validation Modules
 

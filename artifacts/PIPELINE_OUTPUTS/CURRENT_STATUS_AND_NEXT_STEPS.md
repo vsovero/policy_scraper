@@ -3,6 +3,7 @@
 Reviewed: 2026-07-01
 Consistency checked: 2026-07-01
 Drill 012 process-review decision incorporated: 2026-07-01
+Step 1 production-runner integration review incorporated: 2026-07-01
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
@@ -65,6 +66,20 @@ used as transparent candidate provenance.
 PASS for moving to the next larger URL-stage production chunk under the same
 run contract.
 NOT A FULL JOURNAL RELEASE because downstream stages are outside this URL-stage package.
+```
+
+Production-runner integration status:
+
+```text
+Integration commit: 13f8f792696a43253ecf6ed66a0ae82e42b103da
+Review decision: PASS
+Review file:
+01_url_discovery/process_reviews/step1_production_runner_integration_review.md
+Meaning: the clean Step 1 runner/release-packager dependency-closure code is
+reviewed for reproducing the Drill 012 style URL-stage release and running the
+next larger URL-stage production chunk.
+Limit: each generated production chunk still needs its own output/process
+review before any ready-to-scale or journal-release claim.
 ```
 
 Drill 012 replaces Drill 006 as the current URL-stage proof artifact. It keeps
@@ -398,9 +413,12 @@ no row-specific source answer hidden in scraper logic
 Chunk 001 can now be used as a reference for the benchmark guardrail, source
 review expectations, manifest contents, cached evidence, code snapshot, and
 release packaging. It should not be copied as the future runtime-input pattern,
-because its builder still depends on old pilot evidence. The next Step 1
-production goal is to replace that pilot-derived builder with a clean production
-runner.
+because its builder still depends on old pilot evidence. The clean production
+runner/release-packager code slice has now passed integration review in commit
+`13f8f792696a43253ecf6ed66a0ae82e42b103da`. The next Step 1 production goal is
+to use that reviewed runner on a real next larger target-panel production chunk
+and send the generated outputs through review before making any scale-readiness
+claim.
 
 Required shape for the next goal:
 
