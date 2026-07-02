@@ -4,6 +4,7 @@ Reviewed: 2026-07-01
 Consistency checked: 2026-07-01
 Drill 012 process-review decision incorporated: 2026-07-01
 Step 1 production-runner integration review incorporated: 2026-07-01
+Step 1 clean-runtime import fix review incorporated: 2026-07-02
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
@@ -80,6 +81,22 @@ reviewed for reproducing the Drill 012 style URL-stage release and running the
 next larger URL-stage production chunk.
 Limit: each generated production chunk still needs its own output/process
 review before any ready-to-scale or journal-release claim.
+```
+
+Clean-runtime import status:
+
+```text
+Import-fix commit: c1779aaa0526ee5d6ca1c1c03e2f040f046fc0bc
+Review decision: PASS
+Review file:
+01_url_discovery/process_reviews/step1_clean_runtime_import_fix_review.md
+Clean-runtime import check: PASS with PYTHONPATH=src
+Focused tests: 124 passed with PYTHONPATH=src
+Meaning: the committed Step 1 production path no longer depends on helper
+definitions present only in the dirty original worktree.
+Limit: this fixes the clean-runtime blocker only. It is not a production chunk
+or production release result. The next larger Step 1 production chunk still
+must be rerun from clean main and reviewed before any scale-readiness claim.
 ```
 
 Drill 012 replaces Drill 006 as the current URL-stage proof artifact. It keeps
