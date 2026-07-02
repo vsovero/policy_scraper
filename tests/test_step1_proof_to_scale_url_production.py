@@ -2,11 +2,58 @@ from pathlib import Path
 
 import pandas as pd
 
-from course_policy.step1_proof_to_scale_url_production import build_historical_case_precheck
+from course_policy.step1_proof_to_scale_url_production import (
+    INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT,
+    build_historical_case_precheck,
+    write_discovery_inputs,
+)
 
 
 def test_step1_proof_to_scale_imports_clean_dependency_closure() -> None:
     assert callable(build_historical_case_precheck)
+
+
+def test_write_discovery_inputs_materializes_year_targets_from_target_panel(tmp_path: Path) -> None:
+    year_targets_path = tmp_path / INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT
+    assert not year_targets_path.exists()
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 123,
+                "institution_name": "Example State University",
+                "sector": "public",
+                "state": "EX",
+                "academic_year": 2002,
+                "homepage_url": "https://example.edu",
+            },
+            {
+                "unitid": 123,
+                "institution_name": "Example State University",
+                "sector": "public",
+                "state": "EX",
+                "academic_year": 2003,
+                "homepage_url": "https://example.edu",
+            },
+        ]
+    )
+
+    write_discovery_inputs(tmp_path, target_panel, ["public"])
+
+    year_targets = pd.read_csv(year_targets_path)
+    assert year_targets[["unitid", "institution_name", "year", "webaddr"]].to_dict("records") == [
+        {
+            "unitid": 123,
+            "institution_name": "Example State University",
+            "year": 2002,
+            "webaddr": "https://example.edu",
+        },
+        {
+            "unitid": 123,
+            "institution_name": "Example State University",
+            "year": 2003,
+            "webaddr": "https://example.edu",
+        },
+    ]
 
 
 def test_build_historical_case_precheck_uses_url_free_inventory_counts(tmp_path: Path) -> None:

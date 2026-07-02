@@ -138,6 +138,17 @@ def is_archive_link(record: dict[str, str]) -> bool:
     )
 
 
+def is_archive_pagination_link(record: dict[str, str]) -> bool:
+    text = clean_text(record.get("text")).lower()
+    parsed = urlparse(clean_text(record.get("url")).lower())
+    if re.search(r"/index\.\d+\.html$", parsed.path):
+        return True
+    if text.isdigit() and any(term in parsed.path for term in ["archive", "catalog"]):
+        return True
+    query = parsed.query.lower()
+    return bool(re.search(r"(^|[?&])(pg|page|p)=\d+($|&)", query))
+
+
 def is_relevant_catalog_link(record: dict[str, str], institution_name: str) -> bool:
     blob = link_text_blob(record)
     lowered = blob.lower()
@@ -187,21 +198,21 @@ def candidate_archive_urls(root_result: dict[str, object], preferred_root_url: s
                 }
             )
     for record in root_result.get("link_records", []):
+        if is_archive_pagination_link(record):
+            rows.append(
+                {
+                    "archive_url": record["url"],
+                    "archive_source": "archive_pagination_link",
+                    "archive_link_text": record["text"] or urlparse(record["url"]).path.rsplit("/", 1)[-1],
+                }
+            )
+            continue
         if is_archive_link(record):
             rows.append(
                 {
                     "archive_url": record["url"],
                     "archive_source": "root_archive_link",
                     "archive_link_text": record["text"],
-                }
-            )
-        parsed_link = urlparse(record["url"])
-        if re.search(r"/index\.\d+\.html$", parsed_link.path):
-            rows.append(
-                {
-                    "archive_url": record["url"],
-                    "archive_source": "archive_pagination_link",
-                    "archive_link_text": record["text"] or parsed_link.path.rsplit("/", 1)[-1],
                 }
             )
     seen = set()
@@ -356,7 +367,13 @@ def candidate_document_priority(row: pd.Series | dict[str, object]) -> int:
 
 def candidate_selection_sort_columns(prefix_columns: list[str]) -> list[str]:
     columns = list(prefix_columns)
-    for column in ["candidate_document_priority", "candidate_priority", "candidate_selection_rank", "candidate_url"]:
+    for column in [
+        "candidate_document_priority",
+        "candidate_priority",
+        "candidate_span_width",
+        "candidate_selection_rank",
+        "candidate_url",
+    ]:
         if column not in columns:
             columns.append(column)
     return columns
@@ -379,8 +396,15 @@ def add_candidate_selection_rank_columns(candidates: pd.DataFrame) -> pd.DataFra
         out["candidate_priority"] = computed_priority.astype(int)
 
     out["candidate_document_priority"] = out.apply(candidate_document_priority, axis=1).astype(int)
+    if {"catalog_year_start", "catalog_year_end"}.issubset(out.columns):
+        start = pd.to_numeric(out["catalog_year_start"], errors="coerce")
+        end = pd.to_numeric(out["catalog_year_end"], errors="coerce")
+        width = end - start
+        out["candidate_span_width"] = width.where(width.gt(0), 9999).fillna(9999).astype(int)
+    else:
+        out["candidate_span_width"] = 9999
     grouping_columns = [column for column in ["unitid", "target_year"] if column in out.columns]
-    rank_sort_columns = grouping_columns + ["candidate_document_priority", "candidate_priority"]
+    rank_sort_columns = grouping_columns + ["candidate_document_priority", "candidate_priority", "candidate_span_width"]
     if "candidate_url" in out.columns:
         rank_sort_columns.append("candidate_url")
     ranked = out.sort_values(rank_sort_columns, kind="mergesort").copy()

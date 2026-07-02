@@ -2,6 +2,7 @@ import pandas as pd
 
 from course_policy.public_fresh_discovery import (
     build_archive_pages_concurrent,
+    build_year_panel,
     build_year_candidates,
     classify_institution_status,
     select_public_fresh_institutions,
@@ -155,6 +156,32 @@ def test_institution_status_distinguishes_root_found_from_year_candidates_found(
     assert by_unitid.loc[10, "next_pipeline_action"] == "retrieve_and_validate_candidate_catalogs"
     assert by_unitid.loc[20, "fresh_discovery_status"] == "source_root_found_no_explicit_years"
     assert by_unitid.loc[20, "next_pipeline_action"] == "ai_or_search_expand_root"
+
+
+def test_build_year_panel_uses_explicit_target_panel_without_global_file(tmp_path):
+    institutions = pd.DataFrame(
+        [
+            {
+                "fresh_rank": 1,
+                "unitid": 10,
+                "institution_name": "Catalog U",
+                "state": "AA",
+                "webaddr": "catalog.edu",
+            }
+        ]
+    )
+    target_panel = pd.DataFrame(
+        [
+            {"unitid": 10, "institution_name": "Catalog U", "academic_year": 2002},
+            {"unitid": 10, "institution_name": "Catalog U", "academic_year": 2003},
+        ]
+    )
+
+    panel = build_year_panel(tmp_path, institutions, pd.DataFrame(), target_panel=target_panel)
+
+    assert not (tmp_path / "artifacts/policy_data_internal/interim/institution_year_targets.csv").exists()
+    assert panel["target_year"].tolist() == [2002, 2003]
+    assert panel["best_url"].tolist() == ["", ""]
 
 
 def test_archive_discovery_follows_bounded_nested_archive_links(tmp_path, monkeypatch):

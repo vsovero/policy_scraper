@@ -60,6 +60,7 @@ PRODUCTION_SELECTION_ROOT = URL_DISCOVERY_ROOT / "production_selection"
 HISTORICAL_PRIORITY_BUCKETS = Path("artifacts/AUDIT_TRAILS/url_discovery_historical_inventory/institution_priority_buckets.csv")
 
 INSTITUTION_UNIVERSE = Path("artifacts/policy_data_internal/interim/institution_universe.csv")
+INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT = Path("artifacts/policy_data_internal/interim/institution_year_targets.csv")
 ESTIMATION_START_YEAR = 2002
 ESTIMATION_END_YEAR = 2016
 RETRIEVED_STATUSES = {"retrieved", "retrieved_truncated"}
@@ -614,7 +615,40 @@ def truth_rows_for_sector(target_panel: pd.DataFrame, sector: str) -> pd.DataFra
     return truth.sort_values(["institution_name", "unitid", "target_year"]).reset_index(drop=True)
 
 
+def runtime_year_targets_from_target_panel(target_panel: pd.DataFrame) -> pd.DataFrame:
+    required = {"unitid", "institution_name", "academic_year"}
+    missing = sorted(required - set(target_panel.columns))
+    if missing:
+        raise ValueError(f"target panel missing required year-target columns: {missing}")
+    targets = pd.DataFrame(
+        {
+            "unitid": target_panel["unitid"],
+            "institution_name": target_panel["institution_name"].map(clean_text),
+            "year": target_panel["academic_year"],
+            "state": target_panel.get("state", ""),
+            "webaddr": target_panel.get("homepage_url", ""),
+            "sector": target_panel.get("sector", ""),
+        }
+    )
+    targets["unitid"] = pd.to_numeric(targets["unitid"], errors="coerce").astype("Int64")
+    targets["year"] = pd.to_numeric(targets["year"], errors="coerce").astype("Int64")
+    targets = targets.dropna(subset=["unitid", "year"]).copy()
+    return (
+        targets.drop_duplicates(["unitid", "institution_name", "year"])
+        .sort_values(["institution_name", "unitid", "year"])
+        .reset_index(drop=True)
+    )
+
+
+def write_runtime_year_targets(repo_root: Path, target_panel: pd.DataFrame) -> Path:
+    """Materialize the discovery compatibility target file from Step 1 inputs."""
+    path = repo_root / INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT
+    write_csv(runtime_year_targets_from_target_panel(target_panel), path)
+    return path
+
+
 def write_discovery_inputs(repo_root: Path, target_panel: pd.DataFrame, sectors: list[str]) -> None:
+    write_runtime_year_targets(repo_root, target_panel)
     for sector in sectors:
         outputs = stream_outputs(repo_root, sector)
         for path in outputs.__dict__.values():

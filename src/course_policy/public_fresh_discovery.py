@@ -470,8 +470,36 @@ def build_archive_pages_concurrent(
     return pd.DataFrame(rows).sort_values(["batch3_rank", "unitid", "archive_url"]), result_by_url
 
 
-def build_year_panel(repo_root: Path, institutions: pd.DataFrame, year_candidates: pd.DataFrame) -> pd.DataFrame:
-    targets = pd.read_csv(repo_root / INSTITUTION_YEAR_TARGETS_INPUT, low_memory=False)
+def normalize_institution_year_targets(target_panel: pd.DataFrame) -> pd.DataFrame:
+    targets = target_panel.copy()
+    if "year" not in targets.columns:
+        if "target_year" in targets.columns:
+            targets["year"] = targets["target_year"]
+        elif "academic_year" in targets.columns:
+            targets["year"] = targets["academic_year"]
+    required = {"unitid", "institution_name", "year"}
+    missing = sorted(required - set(targets.columns))
+    if missing:
+        raise ValueError(f"year targets missing required columns: {missing}")
+    targets["unitid"] = pd.to_numeric(targets["unitid"], errors="coerce").astype("Int64")
+    targets["year"] = pd.to_numeric(targets["year"], errors="coerce").astype("Int64")
+    targets = targets.dropna(subset=["unitid", "year"]).copy()
+    targets["institution_name"] = targets["institution_name"].fillna("").map(clean_text)
+    return targets
+
+
+def build_year_panel(
+    repo_root: Path,
+    institutions: pd.DataFrame,
+    year_candidates: pd.DataFrame,
+    *,
+    target_panel: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    targets = (
+        normalize_institution_year_targets(target_panel)
+        if target_panel is not None
+        else normalize_institution_year_targets(pd.read_csv(repo_root / INSTITUTION_YEAR_TARGETS_INPUT, low_memory=False))
+    )
     targets = targets.loc[
         targets["unitid"].isin(set(institutions["unitid"].astype(int)))
         & targets["year"].between(TARGET_START_YEAR, TARGET_END_YEAR)
