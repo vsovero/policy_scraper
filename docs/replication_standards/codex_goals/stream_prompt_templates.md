@@ -139,15 +139,19 @@ Tasks:
 
 PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production; print('import ok')"
 
-2. Run a focused clean-runtime preflight before the production attempt.
-3. Build the requested `production_chunk_*` and matching `production_release_*` from explicit production inputs.
-4. If the production path fails because source/test code needs a fix, make a general fix, add or update regression tests, commit the fix narrowly, and rerun from clean committed code.
-5. Do not hard-code institutions, years, URLs, rows, or benchmark answers into source logic.
-6. Keep a run-local `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` listing each code fix commit, failed command, fix summary, tests, rerun command, and remaining risk.
-7. Stop only when either:
+2. Rebuild or confirm the URL-free historical inventory using the official
+   durable-quarantine `--scan-root` command in
+   `docs/replication_standards/codex_goals/step_1_url_discovery_run_contract.md`.
+   Do not use a salvage-worktree artifact folder as the historical source.
+3. Run a focused clean-runtime preflight before the production attempt.
+4. Build the requested `production_chunk_*` and matching `production_release_*` from explicit production inputs.
+5. If the production path fails because source/test code needs a fix, make a general fix, add or update regression tests, commit the fix narrowly, and rerun from clean committed code.
+6. Do not hard-code institutions, years, URLs, rows, or benchmark answers into source logic.
+7. Keep a run-local `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` listing each code fix commit, failed command, fix summary, tests, rerun command, and remaining risk.
+8. Stop only when either:
    - a coherent chunk/release package exists and is ready for review; or
    - a real blocker remains that cannot be fixed inside the build scope.
-8. Before reporting done, run:
+9. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build_<short_task>.json
 

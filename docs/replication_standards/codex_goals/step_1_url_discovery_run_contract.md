@@ -346,6 +346,29 @@ hide row-specific old URLs inside code or production inputs
 make old output folders part of the normal production runtime contract
 ```
 
+### Historical Inventory Rebuild Command
+
+The official historical-inventory rebuild command must be run from a clean
+`policy_scraper` checkout and must scan the durable quarantined artifact archive,
+not a temporary or tiny salvage-worktree artifact folder:
+
+```bash
+PYTHONPATH=src ../.venv/bin/python -m course_policy.historical_url_inventory \
+  --scan-root "/Users/verosovero/Dropbox/Course repetition IPEDS/_quarantine/policy_scraper_artifacts_20260702/artifacts"
+```
+
+This command writes URL-free planning outputs under:
+
+```text
+artifacts/AUDIT_TRAILS/url_discovery_historical_inventory/
+artifacts/PIPELINE_OUTPUTS/01_url_discovery/historical_inventory/
+```
+
+The production runner may consume only the URL-free precheck generated from
+these outputs. It must not consume historical URL attempts, normalized
+historical discoveries, or `institution_priority_buckets.csv` as source evidence
+or current recovery.
+
 ### Historical Case Precheck Gate
 
 Every Step 1 coding/test batch must consult the historical URL-discovery
