@@ -5,6 +5,7 @@ Consistency checked: 2026-07-01
 Drill 012 process-review decision incorporated: 2026-07-01
 Step 1 production-runner integration review incorporated: 2026-07-01
 Step 1 clean-runtime import fix review incorporated: 2026-07-02
+Step 1 target-panel materialization fix review incorporated: 2026-07-02
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
@@ -97,6 +98,26 @@ definitions present only in the dirty original worktree.
 Limit: this fixes the clean-runtime blocker only. It is not a production chunk
 or production release result. The next larger Step 1 production chunk still
 must be rerun from clean main and reviewed before any scale-readiness claim.
+```
+
+Target-panel materialization status:
+
+```text
+Target-panel fix commit: 7eeff6508e08149c7049fb9bc288ff5c6b6f8d56
+Review decision: PASS
+Review file:
+01_url_discovery/process_reviews/step1_target_panel_materialization_fix_review.md
+Clean-runtime import check: PASS with PYTHONPATH=src
+Focused tests: 49 passed with PYTHONPATH=src
+Touched-helper tests: 7 passed with PYTHONPATH=src
+Meaning: the Step 1 production path now materializes
+artifacts/policy_data_internal/interim/institution_year_targets.csv from the
+explicit Step 1 target_panel before discovery runs, and build_year_panel() can
+also consume an explicit target_panel directly.
+Limit: this clears the missing target-panel runtime-input blocker only. It is
+not a production chunk or production release result. The next larger Step 1
+production chunk still must be rerun from clean main and reviewed before any
+scale-readiness claim.
 ```
 
 Drill 012 replaces Drill 006 as the current URL-stage proof artifact. It keeps
