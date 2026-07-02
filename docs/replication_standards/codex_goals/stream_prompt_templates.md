@@ -29,6 +29,28 @@ other's snapshots:
 If the guard fails, the stream must stop and report the violations. It must not
 broaden its own scope.
 
+## Clean Runtime Rule
+
+For any Step 1 production-runner, integration, review, or testing task that
+imports `course_policy` or runs Step 1 code, the stream must force the package
+source to the clean checkout:
+
+```text
+PYTHONPATH=src ../.venv/bin/python ...
+```
+
+Do not rely on ambient virtualenv imports. If `../.venv/bin/python` works only
+without `PYTHONPATH=src`, the run is contaminated by another worktree and must
+be treated as failed. A clean-runtime import check is required before any
+integration or review stream may report PASS on Step 1 production-runner code:
+
+```text
+PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production"
+```
+
+When reviewing a commit, run this check from a clean checkout/worktree of the
+commit being reviewed, not from a dirty project-management or testing worktree.
+
 ## Testing Stream Template
 
 ```text
@@ -54,14 +76,16 @@ Do not edit:
 
 Tasks:
 1. Run or generate only the requested testing output.
-2. If a status, standards, source-code, or review change appears necessary, write that need into the run-local report and stop.
-3. Do not update current status or process reviews.
-4. Before reporting done, run:
+2. For any command that imports `course_policy` or runs Step 1 code, use `PYTHONPATH=src ../.venv/bin/python ...`.
+3. If the command works only without `PYTHONPATH=src`, stop and report runtime contamination.
+4. If a status, standards, source-code, or review change appears necessary, write that need into the run-local report and stop.
+5. Do not update current status or process reviews.
+6. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope testing --baseline /private/tmp/codex_scope_testing_<short_task>.json
 
 Success condition:
-The requested test output exists, requested checks were run, and the testing guard passes.
+The requested test output exists, requested checks were run with a clean `PYTHONPATH=src` runtime when Step 1 code was imported, and the testing guard passes.
 
 Failure condition:
 If the guard fails or the run cannot complete, report exactly what failed. No guard pass means no done claim.
@@ -91,15 +115,20 @@ Do not edit:
 
 Tasks:
 1. Read the relevant binding standards and the evidence being reviewed.
-2. State PASS / FAIL / NEEDS FIXES with observed values and controlling criteria.
-3. If the review implies a current-status update, include a "Recommended project-management update" section, but do not edit current status.
-4. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
-5. Before reporting done, run:
+2. If reviewing source/test integration or a production-runner commit, independently run the clean-runtime import check from a clean checkout/worktree of the reviewed commit:
+
+PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production"
+
+3. If reviewing Step 1 production-runner code, rerun the focused tests with `PYTHONPATH=src`. A PASS decision is forbidden if clean-runtime import or focused clean-runtime tests fail.
+4. State PASS / FAIL / NEEDS FIXES with observed values and controlling criteria.
+5. If the review implies a current-status update, include a "Recommended project-management update" section, but do not edit current status.
+6. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
+7. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review_<short_task>.json
 
 Success condition:
-The review file contains a clear decision, the manifest row is current if needed, and the review guard passes.
+The review file contains a clear decision, clean-runtime import/tests are reported when reviewing Step 1 production-runner code, the manifest row is current if needed, and the review guard passes.
 
 Failure condition:
 If the guard fails or evidence is insufficient, report exactly what failed. No guard pass means no done claim.
@@ -138,16 +167,22 @@ Do not edit:
 Tasks:
 1. Review the allowed production-runner/release-packager slice.
 2. Confirm whether these files are sufficient to reproduce Drill 012 and run the next larger production chunk.
-3. Fix only issues inside the allowed slice.
-4. Run the focused tests for the allowed slice.
-5. If tests pass, commit only the allowed slice.
-6. If the slice requires files outside the allowed scope, stop and report the exact extra files needed. Do not edit them.
-7. Before reporting done, run:
+3. Reproduce source/test behavior with a clean runtime by using `PYTHONPATH=src` on all Python commands that import `course_policy`.
+4. Run this clean-runtime import check before reporting success:
+
+PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production"
+
+5. If the import check fails because a committed module depends on a missing helper, stale API, or dirty-worktree-only file, fix the dependency generally inside the approved integration scope or stop and report the exact extra files needed.
+6. Fix only issues inside the allowed slice.
+7. Run the focused tests for the allowed slice with `PYTHONPATH=src`.
+8. If tests pass and the clean-runtime import check passes, commit only the allowed slice.
+9. If the slice requires files outside the allowed scope, stop and report the exact extra files needed. Do not edit them.
+10. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration_<short_task>.json
 
 Success condition:
-A narrow commit exists for the Step 1 production-runner/release-packager slice, focused tests pass, and the integration guard passes.
+A narrow commit exists for the Step 1 production-runner/release-packager slice, clean-runtime import passes, focused tests pass with `PYTHONPATH=src`, and the integration guard passes.
 
 Failure condition:
 If the slice cannot pass, report exactly what failed, what remains unresolved, and whether additional files must be added to the integration scope. No guard pass means no done claim.
