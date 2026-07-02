@@ -158,6 +158,94 @@ def test_institution_status_distinguishes_root_found_from_year_candidates_found(
     assert by_unitid.loc[20, "next_pipeline_action"] == "ai_or_search_expand_root"
 
 
+def test_institution_status_handles_nullable_integer_year_metadata():
+    institutions = pd.DataFrame(
+        [
+            {
+                "fresh_rank": 1,
+                "batch3_rank": 1,
+                "unitid": 10,
+                "institution_name": "Catalog U",
+                "state": "AA",
+                "webaddr": "catalog.edu",
+                "public_phase3_coverage_status": "no_public_legacy_url_needs_fresh_discovery",
+            },
+            {
+                "fresh_rank": 2,
+                "batch3_rank": 2,
+                "unitid": 20,
+                "institution_name": "No Candidate U",
+                "state": "BB",
+                "webaddr": "nocandidate.edu",
+                "public_phase3_coverage_status": "no_public_legacy_url_needs_fresh_discovery",
+            },
+        ]
+    )
+    root_candidates = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "retrieval_status": "retrieved",
+                "likely_catalog_root": True,
+                "catalog_link_count": 1,
+                "archive_link_count": 1,
+            }
+        ]
+    )
+    decisions = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "decision_status": "preferred_source_root_identified",
+                "preferred_source_root_url": "https://catalog.edu/catalogs/",
+                "preferred_source_root_type": "generated_catalogs_path",
+                "preferred_source_root_title": "Catalogs",
+            }
+        ]
+    )
+    archive_pages = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "archive_url": "https://catalog.edu/catalogs/",
+                "retrieval_status": "retrieved",
+                "year_hints": "",
+            }
+        ]
+    )
+    year_candidates = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "target_year": pd.NA,
+                "candidate_url": pd.NA,
+            }
+        ]
+    )
+    year_candidates["target_year"] = year_candidates["target_year"].astype("Int64")
+    year_panel = pd.DataFrame(
+        [
+            {"unitid": 10, "target_year": 2002, "best_url": ""},
+            {"unitid": 20, "target_year": 2002, "best_url": ""},
+        ]
+    )
+    year_panel["target_year"] = year_panel["target_year"].astype("Int64")
+
+    status = classify_institution_status(
+        institutions,
+        root_candidates,
+        decisions,
+        archive_pages,
+        year_candidates,
+        year_panel,
+    )
+
+    by_unitid = status.set_index("unitid")
+    assert pd.isna(by_unitid.loc[10, "min_candidate_year"])
+    assert by_unitid.loc[10, "fresh_discovery_status"] == "source_root_found_no_explicit_years"
+    assert by_unitid.loc[20, "fresh_discovery_status"] == "source_root_not_found"
+
+
 def test_build_year_panel_uses_explicit_target_panel_without_global_file(tmp_path):
     institutions = pd.DataFrame(
         [

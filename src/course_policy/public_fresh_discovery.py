@@ -645,6 +645,8 @@ def classify_institution_status(
     ]:
         if column not in status.columns:
             status[column] = ""
+        if pd.api.types.is_numeric_dtype(status[column].dtype):
+            continue
         status[column] = status[column].fillna("")
 
     status["fresh_discovery_status"] = status.apply(fresh_status_for_row, axis=1)
