@@ -147,6 +147,14 @@ construction. That assistance belongs in the AI-use disclosure and audit trail.
 The required replication package must not require a live Codex step to repair
 code or rediscover sources.
 
+Production construction is not a clean out-of-sample validation claim. During
+construction, Codex may observe failures, make general source/test fixes, commit
+those fixes, and rerun the chunk from clean committed code. Those repaired runs
+must be labeled as AI-assisted production construction or development/build
+evidence, not clean benchmark evidence. The final claim is reproducibility of
+the committed code, explicit inputs, source evidence, manifests, and source
+ledger, not autonomous scraper performance on untouched data.
+
 ### Journal-Ready Step 1 Successful Test Batch Goal
 
 The active Step 1 goal is not satisfied by a smoke test, mini batch, generated
@@ -189,25 +197,34 @@ replication package are complete.
 
 ### Stream Write Scope
 
-Step 1 uses a four-scope workflow:
+Step 1 production construction uses this workflow:
 
 ```text
 project-management task definition
--> integration source/test edits
--> testing output
+-> build source/test fixes plus production chunk/release output
 -> process review
 -> project-management current status
 ```
 
 Project-management streams define the work slice and publish front-door status.
-Integration streams edit only the approved source/test slice. Testing, drill,
-smoke, or mini-batch streams write only run-local generated output. Review
-streams write only the process-review file.
+Build streams may edit Step 1 URL-discovery source/tests and run-local
+production output while constructing a chunk. Review streams write only the
+process-review file. Project-management streams update current status only
+after review. Testing, drill, smoke, or mini-batch streams remain output-only
+lanes for clean benchmarks and limited checks, not the default production
+construction lane. Integration streams remain available for narrow source/test
+hotfixes outside a production build loop.
+
+Build streams may fix general production-path bugs and discovery rules. They
+must add or update tests, commit fixes, rerun from clean committed code, and
+write a run-local build log. They must not hard-code row-specific source answers
+into scraper logic.
 
 | Stream scope | May edit | Must not edit |
 |---|---|---|
 | `testing` | Run-local generated output such as `CHUNK_REPORT.md`, `RUN_REPORT.md`, `TEST_REPORT.md`, `REQUIREMENTS_STATUS.csv`, manifests, ledgers, and caches | Process reviews, standards, current status, front-door README/START_HERE docs |
 | `review` | The relevant process-review file and its protected-doc manifest hash | Test output, current status, front-door docs, standards |
+| `build` | Step 1 URL-discovery source/tests plus run-local production chunk/release output and build logs | Current status, process reviews, standards docs, front-door README/START_HERE docs, protected-doc manifest, downstream classification files |
 | `integration` | Step 1 production-runner/release-packager source files and matching tests only | Current status, process reviews, standards docs, generated output, unrelated discovery/classification/public/private modules |
 | `project_management` | `CURRENT_STATUS_AND_NEXT_STEPS.md`, front-door README/START_HERE docs, standards when approved, and their manifest hashes | Test output and process-review files |
 
@@ -236,7 +253,7 @@ artifacts/PILOTS/**/README.md
 ```
 
 If a run reveals that a protected document is wrong or incomplete, the testing
-stream should record that finding in its own run-local report. The review stream
+or build stream should record that finding in its own run-local report. The review stream
 may record the review decision in the process-review file. The
 project-management stream updates `CURRENT_STATUS_AND_NEXT_STEPS.md` only after
 the review file supports the status claim or the user directly instructs it.
@@ -251,10 +268,10 @@ docs/replication_standards/protected_artifact_docs_manifest.csv
 ```
 
 Testing streams must not update those protected artifact docs or the manifest.
-Integration streams also must not update those protected artifact docs or the
-manifest. Review streams may update only process-review rows in the manifest.
-Project-management streams may update only front-door/status rows in the
-manifest.
+Build and integration streams also must not update those protected artifact docs
+or the manifest. Review streams may update only process-review rows in the
+manifest. Project-management streams may update only front-door/status rows in
+the manifest.
 
 Every stream should create a scope baseline before it starts editing and check
 against that baseline before reporting done:
@@ -271,6 +288,9 @@ docs/replication_standards/codex_goals/stream_prompt_templates.md
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope review --baseline /private/tmp/codex_scope_review.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
+
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope build --baseline /private/tmp/codex_scope_build.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build.json
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json

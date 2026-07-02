@@ -110,25 +110,39 @@ This rule is enforced by:
 
 ## Codex Stream Write-Scope Rule
 
-Use a four-scope workflow:
+Use the production construction workflow for Step 1 dataset construction:
 
 ```text
 project-management task definition
--> integration source/test edits
--> testing output
+-> build source/test fixes plus production chunk/release output
 -> process review
 -> project-management current status
 ```
 
 Project-management streams define the work slice and publish front-door status.
-Integration streams edit only the approved source/test slice. Testing or drill
-streams may edit only run-local generated output. Review streams may edit only
-the relevant process-review file.
+Build streams may edit Step 1 URL-discovery source/tests and run-local
+production output while constructing a chunk. Review streams may edit only the
+relevant process-review file. Project-management streams update front-door
+status only after review.
+
+Testing streams still exist for clean benchmarks, smoke tests, and output-only
+drills. They are not the default lane for production construction because code
+changes are expected during AI-assisted dataset construction.
+
+Integration streams remain available for narrow source/test hotfixes or
+specialized code slices outside a production build loop.
+
+The production-construction claim is not that untouched code works out of
+sample. The claim is that AI-assisted general code development produced a final
+source ledger that can be rebuilt from committed code, explicit inputs, cached
+evidence, manifests, and documented decisions without a required live Codex
+repair step.
 
 | Stream scope | May edit | Must not edit |
 |---|---|---|
 | `testing` | Run-local generated output such as `CHUNK_REPORT.md`, `RUN_REPORT.md`, `TEST_REPORT.md`, `REQUIREMENTS_STATUS.csv`, manifests, ledgers, and caches | Process reviews, standards, current status, front-door README/START_HERE docs |
 | `review` | The relevant process-review file and its protected-doc manifest hash | Test output, current status, front-door docs, standards |
+| `build` | Step 1 URL-discovery source/tests plus run-local production chunk/release output and build logs | Current status, process reviews, standards docs, front-door README/START_HERE docs, protected-doc manifest, downstream classification files |
 | `integration` | Step 1 production-runner/release-packager source files and matching tests only | Current status, process reviews, standards docs, generated output, unrelated discovery/classification/public/private modules |
 | `project_management` | `CURRENT_STATUS_AND_NEXT_STEPS.md`, front-door README/START_HERE docs, standards when approved, and their manifest hashes | Test output and process-review files |
 
@@ -155,8 +169,8 @@ artifacts/AUDIT_TRAILS/START_HERE.md
 artifacts/PILOTS/**/README.md
 ```
 
-If a test run discovers that a protected planning or review document needs to
-change, the testing stream should write that need into its run-local report and
+If a test or build run discovers that a protected planning or review document
+needs to change, the stream should write that need into its run-local report and
 stop changing documents there. A review stream may decide and record the review
 outcome in the process-review file. The project-management stream updates
 `CURRENT_STATUS_AND_NEXT_STEPS.md` or other front-door status docs only after the
@@ -179,6 +193,9 @@ memory.
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope review --baseline /private/tmp/codex_scope_review.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review.json
 
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope build --baseline /private/tmp/codex_scope_build.json
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build.json
+
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope integration --baseline /private/tmp/codex_scope_integration.json
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration.json
 
@@ -197,8 +214,8 @@ as front-door status or process-review records are additionally locked in:
 docs/replication_standards/protected_artifact_docs_manifest.csv
 ```
 
-Testing and integration streams must not update those files or the manifest. A
-review stream may update only process-review rows in the manifest. A
+Testing, build, and integration streams must not update those files or the
+manifest. A review stream may update only process-review rows in the manifest. A
 project-management stream may update only front-door/status rows in the manifest.
 This keeps the review file as the judgment record and the current-status file as
 the published summary.

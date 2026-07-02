@@ -6,6 +6,7 @@ Drill 012 process-review decision incorporated: 2026-07-01
 Step 1 production-runner integration review incorporated: 2026-07-01
 Step 1 clean-runtime import fix review incorporated: 2026-07-02
 Step 1 target-panel materialization fix review incorporated: 2026-07-02
+Step 1 production-build workflow adopted: 2026-07-02
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
@@ -118,6 +119,28 @@ Limit: this clears the missing target-panel runtime-input blocker only. It is
 not a production chunk or production release result. The next larger Step 1
 production chunk still must be rerun from clean main and reviewed before any
 scale-readiness claim.
+```
+
+Step 1 production-build operating mode:
+
+```text
+The next Step 1 attempt should use a single production build stream, not the
+old testing -> integration -> review handoff for every small source-code bug.
+
+Reason: the project claim is AI-assisted production construction and
+reproducibility, not untouched out-of-sample scraper performance. During
+construction, Codex may diagnose failures, make general source/test fixes,
+commit those fixes, and rerun from clean committed code.
+
+Required boundary: the build stream cannot edit current status, process
+reviews, standards, front-door docs, or protected-doc manifest rows. It must not
+hard-code row-specific source answers. It must log fixes, tests, reruns, and
+remaining risks in a run-local BUILD_LOG.md or SUPERVISOR_RUN_REPORT.md.
+
+Review boundary: generated outputs and build logs are evidence only. A separate
+review stream must review the final code/output bundle before any PASS,
+ready-to-scale, or journal-readiness claim. Project management updates this file
+only after review.
 ```
 
 Drill 012 replaces Drill 006 as the current URL-stage proof artifact. It keeps

@@ -67,6 +67,65 @@ INTEGRATION_CODE_PATTERNS = [
     "tests/test_production_*.py",
 ]
 
+BUILD_CODE_PATTERNS = [
+    "src/course_policy/audit_legacy.py",
+    "src/course_policy/benchmark_protocol.py",
+    "src/course_policy/batch2_*.py",
+    "src/course_policy/batch3_discovery.py",
+    "src/course_policy/batch4_discovery.py",
+    "src/course_policy/catalog_*.py",
+    "src/course_policy/clean_no_legacy_benchmark.py",
+    "src/course_policy/current_process_trace.py",
+    "src/course_policy/fresh_discovery.py",
+    "src/course_policy/gfdatafull_panel_benchmark.py",
+    "src/course_policy/institution_universe.py",
+    "src/course_policy/legacy_*.py",
+    "src/course_policy/manual_catalog_search_audit.py",
+    "src/course_policy/ocr_visual_review.py",
+    "src/course_policy/phase3_review_packet.py",
+    "src/course_policy/pilot_status_summary.py",
+    "src/course_policy/production_*.py",
+    "src/course_policy/public_fresh_discovery*.py",
+    "src/course_policy/review_ready_adjustments.py",
+    "src/course_policy/reviewed_root_expansion.py",
+    "src/course_policy/source_root_plan.py",
+    "src/course_policy/spotcheck_workbook.py",
+    "src/course_policy/step1_*.py",
+    "src/course_policy/strict_*.py",
+    "tests/test_audit_legacy.py",
+    "tests/test_benchmark_protocol.py",
+    "tests/test_batch2_*.py",
+    "tests/test_batch3_discovery.py",
+    "tests/test_batch4_discovery.py",
+    "tests/test_catalog_*.py",
+    "tests/test_clean_no_legacy_benchmark.py",
+    "tests/test_current_process_trace.py",
+    "tests/test_fresh_discovery.py",
+    "tests/test_gfdatafull_panel_benchmark.py",
+    "tests/test_institution_universe.py",
+    "tests/test_legacy_*.py",
+    "tests/test_manual_catalog_search_audit.py",
+    "tests/test_ocr_visual_review.py",
+    "tests/test_phase3_review_packet.py",
+    "tests/test_pilot_status_summary.py",
+    "tests/test_production_*.py",
+    "tests/test_public_fresh_discovery*.py",
+    "tests/test_review_ready_adjustments.py",
+    "tests/test_reviewed_root_expansion.py",
+    "tests/test_source_root_plan.py",
+    "tests/test_spotcheck_workbook.py",
+    "tests/test_step1_*.py",
+    "tests/test_strict_*.py",
+]
+
+BUILD_OUTPUT_PATTERNS = [
+    *ALLOWED_TEST_OUTPUT_PATTERNS,
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/BUILD_LOG.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/SUPERVISOR_RUN_REPORT.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/**/BUILD_LOG.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/**/SUPERVISOR_RUN_REPORT.md",
+]
+
 PROJECT_MANAGEMENT_DOC_PATTERNS = [
     "README.md",
     "docs/**",
@@ -179,6 +238,10 @@ def _allowed_for_scope(scope: str, path: str) -> bool:
         return _matches_any(path, ALLOWED_TEST_OUTPUT_PATTERNS)
     if scope == "review":
         return path == MANIFEST_REL_PATH or _matches_any(path, REVIEW_DOC_PATTERNS)
+    if scope == "build":
+        return _matches_any(path, BUILD_CODE_PATTERNS) or _matches_any(
+            path, BUILD_OUTPUT_PATTERNS
+        )
     if scope == "integration":
         return _matches_any(path, INTEGRATION_CODE_PATTERNS)
     if scope == "project_management":
@@ -193,6 +256,8 @@ def _allowed_manifest_row_for_scope(scope: str, path: str) -> bool:
         return False
     if scope == "review":
         return _matches_any(path, REVIEW_DOC_PATTERNS)
+    if scope == "build":
+        return False
     if scope == "integration":
         return False
     if scope == "project_management":
@@ -211,6 +276,13 @@ def _scope_message(scope: str) -> str:
         return (
             "Review streams may edit only the relevant process-review file and "
             "the manifest row for that review file."
+        )
+    if scope == "build":
+        return (
+            "Build streams may edit Step 1 URL-discovery source/tests and "
+            "run-local generated output only. They must not edit status, "
+            "reviews, standards docs, front-door docs, or the protected-doc "
+            "manifest."
         )
     if scope == "integration":
         return (
@@ -294,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=["init", "check"])
     parser.add_argument(
         "--scope",
-        choices=["testing", "review", "integration", "project_management"],
+        choices=["testing", "review", "build", "integration", "project_management"],
         required=True,
     )
     parser.add_argument("--baseline", required=True, type=Path)

@@ -29,11 +29,24 @@ other's snapshots:
 If the guard fails, the stream must stop and report the violations. It must not
 broaden its own scope.
 
+## Production Construction Rule
+
+Step 1 production construction is an AI-assisted build process, not a clean
+out-of-sample validation benchmark. A Step 1 build stream may diagnose failures,
+make general source/test fixes, commit those fixes, and rerun from clean
+committed code until it produces a coherent production chunk/release or reaches
+a real blocker.
+
+This does not weaken review. Build streams must not update current status,
+front-door docs, process reviews, standards, or protected-doc manifest rows.
+Generated reports remain evidence, not authority. A final PASS still requires a
+separate review stream and then a project-management status update.
+
 ## Clean Runtime Rule
 
-For any Step 1 production-runner, integration, review, or testing task that
-imports `course_policy` or runs Step 1 code, the stream must force the package
-source to the clean checkout:
+For any Step 1 production-runner, build, integration, review, or testing task
+that imports `course_policy` or runs Step 1 code, the stream must force the
+package source to the clean checkout:
 
 ```text
 PYTHONPATH=src ../.venv/bin/python ...
@@ -89,6 +102,63 @@ The requested test output exists, requested checks were run with a clean `PYTHON
 
 Failure condition:
 If the guard fails or the run cannot complete, report exactly what failed. No guard pass means no done claim.
+```
+
+## Build Stream Template
+
+```text
+You are the Step 1 production build stream. You are not the review or project-management stream.
+
+Goal: construct <describe production chunk/release target> from explicit Step 1 production inputs. This is production construction, not a clean out-of-sample benchmark claim.
+
+Start from a clean checkout/worktree of current origin/main. Do not use the parked dirty original worktree.
+
+Start by initializing the build guard:
+
+../.venv/bin/python -m course_policy.codex_scope_guard init --scope build --baseline /private/tmp/codex_scope_build_<short_task>.json
+
+Clean-runtime rule:
+Use `PYTHONPATH=src ../.venv/bin/python ...` for every command that imports `course_policy` or runs Step 1 code.
+
+Allowed edit scope:
+- Step 1 URL-discovery production/build source files and matching tests named by the build guard.
+- run-local generated output under the approved `production_chunk_*` and `production_release_*` folders.
+- run-local build logs such as `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` inside the approved production chunk folder.
+
+Do not edit:
+- artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md
+- artifacts/PIPELINE_OUTPUTS/**/process_reviews/**
+- docs/**
+- README.md
+- standards docs
+- protected-doc manifest
+- downstream policy-classification source/tests unless a separate approved scope is created
+
+Tasks:
+1. Run the clean-runtime import check:
+
+PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production; print('import ok')"
+
+2. Run a focused clean-runtime preflight before the production attempt.
+3. Build the requested `production_chunk_*` and matching `production_release_*` from explicit production inputs.
+4. If the production path fails because source/test code needs a fix, make a general fix, add or update regression tests, commit the fix narrowly, and rerun from clean committed code.
+5. Do not hard-code institutions, years, URLs, rows, or benchmark answers into source logic.
+6. Keep a run-local `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` listing each code fix commit, failed command, fix summary, tests, rerun command, and remaining risk.
+7. Stop only when either:
+   - a coherent chunk/release package exists and is ready for review; or
+   - a real blocker remains that cannot be fixed inside the build scope.
+8. Before reporting done, run:
+
+../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build_<short_task>.json
+
+Success condition:
+Report `DONE, READY FOR REVIEW` only when the final chunk/release was produced from clean committed code, required tests/checks were run with `PYTHONPATH=src`, the build log exists, and the build guard passes.
+
+Failure condition:
+Report `NOT DONE` only for a concrete blocker. Include the failed command, blocker, files changed or not changed, tests run, latest commit hash if any, and guard result.
+
+Important:
+The build stream cannot declare PASS, ready-to-scale, or journal-ready. Generated outputs and build logs are evidence for review. The review stream decides pass/fail; project management updates current status only after review.
 ```
 
 ## Review Stream Template

@@ -88,6 +88,65 @@ INTEGRATION_CODE_PATTERNS = [
     "tests/test_production_*.py",
 ]
 
+BUILD_CODE_PATTERNS = [
+    "src/course_policy/audit_legacy.py",
+    "src/course_policy/benchmark_protocol.py",
+    "src/course_policy/batch2_*.py",
+    "src/course_policy/batch3_discovery.py",
+    "src/course_policy/batch4_discovery.py",
+    "src/course_policy/catalog_*.py",
+    "src/course_policy/clean_no_legacy_benchmark.py",
+    "src/course_policy/current_process_trace.py",
+    "src/course_policy/fresh_discovery.py",
+    "src/course_policy/gfdatafull_panel_benchmark.py",
+    "src/course_policy/institution_universe.py",
+    "src/course_policy/legacy_*.py",
+    "src/course_policy/manual_catalog_search_audit.py",
+    "src/course_policy/ocr_visual_review.py",
+    "src/course_policy/phase3_review_packet.py",
+    "src/course_policy/pilot_status_summary.py",
+    "src/course_policy/production_*.py",
+    "src/course_policy/public_fresh_discovery*.py",
+    "src/course_policy/review_ready_adjustments.py",
+    "src/course_policy/reviewed_root_expansion.py",
+    "src/course_policy/source_root_plan.py",
+    "src/course_policy/spotcheck_workbook.py",
+    "src/course_policy/step1_*.py",
+    "src/course_policy/strict_*.py",
+    "tests/test_audit_legacy.py",
+    "tests/test_benchmark_protocol.py",
+    "tests/test_batch2_*.py",
+    "tests/test_batch3_discovery.py",
+    "tests/test_batch4_discovery.py",
+    "tests/test_catalog_*.py",
+    "tests/test_clean_no_legacy_benchmark.py",
+    "tests/test_current_process_trace.py",
+    "tests/test_fresh_discovery.py",
+    "tests/test_gfdatafull_panel_benchmark.py",
+    "tests/test_institution_universe.py",
+    "tests/test_legacy_*.py",
+    "tests/test_manual_catalog_search_audit.py",
+    "tests/test_ocr_visual_review.py",
+    "tests/test_phase3_review_packet.py",
+    "tests/test_pilot_status_summary.py",
+    "tests/test_production_*.py",
+    "tests/test_public_fresh_discovery*.py",
+    "tests/test_review_ready_adjustments.py",
+    "tests/test_reviewed_root_expansion.py",
+    "tests/test_source_root_plan.py",
+    "tests/test_spotcheck_workbook.py",
+    "tests/test_step1_*.py",
+    "tests/test_strict_*.py",
+]
+
+BUILD_OUTPUT_PATTERNS = [
+    *ALLOWED_TEST_OUTPUT_PATTERNS,
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/BUILD_LOG.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/SUPERVISOR_RUN_REPORT.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/**/BUILD_LOG.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/*/**/SUPERVISOR_RUN_REPORT.md",
+]
+
 PROJECT_MANAGEMENT_DOC_PATTERNS = [
     "README.md",
     "docs/**",
@@ -246,6 +305,30 @@ def test_write_scope_patterns_protect_status_and_allow_run_local_reports() -> No
         "artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md",
         INTEGRATION_CODE_PATTERNS,
     )
+    assert _matches_any(
+        "src/course_policy/public_fresh_discovery.py",
+        BUILD_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "tests/test_public_fresh_discovery.py",
+        BUILD_CODE_PATTERNS,
+    )
+    assert not _matches_any(
+        "src/course_policy/policy_classification_batch.py",
+        BUILD_CODE_PATTERNS,
+    )
+    assert not _matches_any(
+        "src/course_policy/ai_config.py",
+        BUILD_CODE_PATTERNS,
+    )
+    assert not _matches_any(
+        "src/course_policy/codex_scope_guard.py",
+        BUILD_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/example/BUILD_LOG.md",
+        BUILD_OUTPUT_PATTERNS,
+    )
 
 
 def test_protected_ignored_artifact_docs_match_manifest() -> None:
@@ -266,7 +349,7 @@ def test_codex_stream_scope_limits_changed_files() -> None:
     scope = os.environ.get("CODEX_STREAM_SCOPE")
     if scope is None:
         pytest.skip(
-            "Set CODEX_STREAM_SCOPE=testing, review, integration, or project_management "
+            "Set CODEX_STREAM_SCOPE=testing, review, build, integration, or project_management "
             "to enforce stream write scope."
         )
 
@@ -287,6 +370,16 @@ def test_codex_stream_scope_limits_changed_files() -> None:
             "Review streams may edit only the relevant process-review file and "
             "the manifest row for that review file. They may not update current "
             "status, front-door docs, standards, or generated test output."
+        )
+    elif scope == "build":
+        allowed = [*BUILD_CODE_PATTERNS, *BUILD_OUTPUT_PATTERNS]
+        violations = _scope_path_violations(allowed)
+        violations.extend(_protected_artifact_doc_mismatches())
+        violations.extend(_manifest_row_violations([]))
+        message = (
+            "Build streams may edit Step 1 URL-discovery source/tests and "
+            "run-local generated output only. They may not edit status, "
+            "reviews, standards, front-door docs, or downstream classification files."
         )
     elif scope == "integration":
         violations = _scope_path_violations(INTEGRATION_CODE_PATTERNS)
@@ -311,7 +404,7 @@ def test_codex_stream_scope_limits_changed_files() -> None:
         )
     else:
         raise AssertionError(
-            "CODEX_STREAM_SCOPE must be testing, review, integration, or project_management; "
+            "CODEX_STREAM_SCOPE must be testing, review, build, integration, or project_management; "
             f"got {scope!r}."
         )
 
