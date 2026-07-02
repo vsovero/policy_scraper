@@ -1991,6 +1991,16 @@ def test_inferred_year_url_replacements_handle_compact_full_year_ranges():
     )[0] == "https://catalog.example.edu/mime/media/44/1210/20052006.pdf"
 
 
+def test_inferred_year_url_replacements_handle_acalog_two_group_compact_ranges():
+    urls = inferred_year_url_replacements(
+        "https://catalog.example.edu/mime/media/44/1210/0405catalog.pdf",
+        source_year=2004,
+        target_year=2005,
+    )
+
+    assert "https://catalog.example.edu/mime/media/44/1210/0506catalog.pdf" in urls
+
+
 def test_inferred_year_url_replacements_add_same_directory_simple_pdf_variants():
     urls = inferred_year_url_replacements(
         "https://www.etbu.edu/sites/default/files/downloads/2016-2017%20Undergraduate%20Catalog%209.24.25.pdf",

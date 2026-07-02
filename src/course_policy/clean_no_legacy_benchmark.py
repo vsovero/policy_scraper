@@ -2180,9 +2180,23 @@ def parse_url_year_range_match(match: object, *, source_year: int) -> tuple[int,
 
 
 def parse_compact_url_year_range_match(match: object, *, source_year: int) -> tuple[int, int, str, str] | None:
-    text = match.group(1)
-    start_two = text[:2]
-    end_two = text[2:]
+    text = clean_text(match.group(1))
+    end_text = ""
+    try:
+        if getattr(match, "lastindex", 0) and match.lastindex >= 2:
+            end_text = clean_text(match.group(2))
+    except IndexError:
+        end_text = ""
+    if end_text:
+        start_two = text
+        end_two = end_text
+    elif len(text) == 4:
+        start_two = text[:2]
+        end_two = text[2:]
+    else:
+        return None
+    if not (len(start_two) == 2 and start_two.isdigit() and len(end_two) == 2 and end_two.isdigit()):
+        return None
     century = source_year // 100 * 100
     start = century + int(start_two)
     if start > source_year + 20:
