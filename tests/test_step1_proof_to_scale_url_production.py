@@ -5,6 +5,10 @@ import pandas as pd
 from course_policy.step1_proof_to_scale_url_production import build_historical_case_precheck
 
 
+def test_step1_proof_to_scale_imports_clean_dependency_closure() -> None:
+    assert callable(build_historical_case_precheck)
+
+
 def test_build_historical_case_precheck_uses_url_free_inventory_counts(tmp_path: Path) -> None:
     inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
     inventory_dir.mkdir(parents=True)

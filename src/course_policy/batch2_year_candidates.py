@@ -84,6 +84,43 @@ def normalized_year_range(text: str) -> tuple[int, int] | None:
     return start, end
 
 
+def catalog_year_range(text: object) -> tuple[int, int] | None:
+    """Return an academic/catalog year span from catalog-like text.
+
+    This is intentionally more permissive than ``normalized_year_range`` so
+    production recovery code can reason about older archive ranges such as
+    ``1970-2012`` without loosening the batch-2 target-year parser.
+    """
+    value = clean_text(text)
+    if not value:
+        return None
+    value = re.sub(r"\b22(\d{2})\s*[-–—_/]\s*(20\d{2})\b", lambda m: f"20{m.group(1)}-{m.group(2)}", value)
+    match = re.search(r"((?:18|19|20)\d{2})\s*[-–—_/]\s*((?:18|19|20)?\d{2})", value)
+    if match:
+        start = int(match.group(1))
+        end_text = match.group(2)
+        end = int(end_text) if len(end_text) == 4 else int(str(start)[:2] + end_text)
+    else:
+        match = re.search(r"(?<!\d)(\d{2})\s*[-–—_/]\s*(\d{2})(?!\d)", value)
+        if not match:
+            match = re.search(
+                r"(?<!\d)(\d{2})(\d{2})(?=[^\d]*(?:catalog|catalogue|cat|bulletin|undergrad|ug|\.pdf|$))",
+                value,
+                flags=re.IGNORECASE,
+            )
+        if not match:
+            return None
+        start_two = int(match.group(1))
+        end_two = int(match.group(2))
+        start = 2000 + start_two if start_two <= 35 else 1900 + start_two
+        end = (start // 100) * 100 + end_two
+    if end <= start:
+        end += 100
+    if not (1800 <= start <= 2030 and start < end <= 2035):
+        return None
+    return start, end
+
+
 def academic_years_from_range(start: int, end: int) -> list[int]:
     return [year for year in range(start, end) if TARGET_START_YEAR <= year <= TARGET_END_YEAR]
 
@@ -267,7 +304,8 @@ def build_year_candidates(archive_pages: pd.DataFrame, result_by_url: dict[str, 
     return out.sort_values(["batch2_rank", "unitid", "target_year", "candidate_priority", "candidate_url"])
 
 
-def candidate_priority(text: str) -> int:
+def candidate_priority(text: object) -> int:
+    text = clean_text(text).lower()
     if "undergraduate" in text and "bachelor" in text:
         return 5
     if "undergraduate" in text:
@@ -279,6 +317,79 @@ def candidate_priority(text: str) -> int:
     if "catalog" in text:
         return 30
     return 50
+
+
+def candidate_document_priority(row: pd.Series | dict[str, object]) -> int:
+    text = " ".join(
+        clean_text(row.get(column))
+        for column in ["candidate_link_text", "candidate_url", "candidate_evidence_text", "source_page_title"]
+    ).lower()
+    if any(
+        term in text
+        for term in [
+            "academic calendar",
+            "admission",
+            "assessment report",
+            "annual report",
+            "application",
+            "calendar",
+            "fact book",
+            "financial aid",
+            "form",
+            "internship",
+            "schedule",
+            "strategic plan",
+            "tuition",
+        ]
+    ):
+        return 90
+    if re.search(r"(^|[/_.-])gr(?:aduate)?([/_.-]|$)", text) and "undergrad" not in text:
+        return 60
+    if any(term in text for term in ["undergraduate", "undergrad", "ugrad", "ug-catalog", "ug_catalog", "ugcat"]):
+        return 10
+    if "catalog" in text or "catalogue" in text or "bulletin" in text:
+        return 20
+    if ".pdf" in text and catalog_year_range(text):
+        return 25
+    return candidate_priority(text)
+
+
+def candidate_selection_sort_columns(prefix_columns: list[str]) -> list[str]:
+    columns = list(prefix_columns)
+    for column in ["candidate_document_priority", "candidate_priority", "candidate_selection_rank", "candidate_url"]:
+        if column not in columns:
+            columns.append(column)
+    return columns
+
+
+def add_candidate_selection_rank_columns(candidates: pd.DataFrame) -> pd.DataFrame:
+    out = candidates.copy()
+    if out.empty:
+        return out
+
+    evidence = pd.Series("", index=out.index, dtype="object")
+    for column in ["candidate_link_text", "candidate_url", "candidate_evidence_text"]:
+        if column in out.columns:
+            evidence = evidence.str.cat(out[column].fillna("").map(clean_text), sep=" ")
+    computed_priority = evidence.map(candidate_priority)
+    if "candidate_priority" in out.columns:
+        existing_priority = pd.to_numeric(out["candidate_priority"], errors="coerce")
+        out["candidate_priority"] = existing_priority.fillna(computed_priority).astype(int)
+    else:
+        out["candidate_priority"] = computed_priority.astype(int)
+
+    out["candidate_document_priority"] = out.apply(candidate_document_priority, axis=1).astype(int)
+    grouping_columns = [column for column in ["unitid", "target_year"] if column in out.columns]
+    rank_sort_columns = grouping_columns + ["candidate_document_priority", "candidate_priority"]
+    if "candidate_url" in out.columns:
+        rank_sort_columns.append("candidate_url")
+    ranked = out.sort_values(rank_sort_columns, kind="mergesort").copy()
+    if grouping_columns:
+        ranked["candidate_selection_rank"] = ranked.groupby(grouping_columns, dropna=False).cumcount() + 1
+    else:
+        ranked["candidate_selection_rank"] = range(1, len(ranked) + 1)
+    out["candidate_selection_rank"] = ranked["candidate_selection_rank"].reindex(out.index).astype(int)
+    return out
 
 
 def build_year_coverage(year_status: pd.DataFrame, candidates: pd.DataFrame) -> pd.DataFrame:
