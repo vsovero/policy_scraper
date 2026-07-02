@@ -1,16 +1,395 @@
 from pathlib import Path
+import time
 
 import pandas as pd
+import pytest
 
 from course_policy.step1_proof_to_scale_url_production import (
     INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT,
     build_historical_case_precheck,
+    build_parser,
+    build_step1_inputs,
+    retrieve_candidate_with_wayback_recovery,
+    retrieve_url_with_retries,
+    run_proof_to_scale,
+    select_high_legacy_coverage_institutions,
+    select_prior_valid_legacy_reverification_institutions,
     write_discovery_inputs,
 )
 
 
 def test_step1_proof_to_scale_imports_clean_dependency_closure() -> None:
     assert callable(build_historical_case_precheck)
+
+
+def test_cli_defaults_to_prior_valid_legacy_reverification_target() -> None:
+    args = build_parser().parse_args(["--namespace", "n", "--chunk-id", "c"])
+
+    assert args.selection_mode == "prior_valid_legacy_reverification"
+
+
+def test_retrieve_url_with_retries_has_wall_clock_guard(monkeypatch) -> None:
+    def slow_retrieve(url: str, *, timeout_seconds: int, max_bytes: int):
+        time.sleep(5)
+        return {"retrieval_status": "retrieved", "body": b"late"}
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.retrieve_url", slow_retrieve)
+
+    started = time.monotonic()
+    result = retrieve_url_with_retries(
+        "https://example.edu/slow",
+        timeout_seconds=1,
+        max_bytes=100,
+        attempts=1,
+        wall_timeout_seconds=0.2,
+    )
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+    assert result["retrieval_status"] == "error"
+    assert result["error_type"] == "RetrievalWallClockTimeout"
+
+
+def test_retrieve_url_with_retries_can_terminate_subprocess_hang(monkeypatch) -> None:
+    def slow_retrieve(url: str, *, timeout_seconds: int, max_bytes: int):
+        time.sleep(5)
+        return {"retrieval_status": "retrieved", "body": b"late"}
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.retrieve_url", slow_retrieve)
+
+    started = time.monotonic()
+    result = retrieve_url_with_retries(
+        "https://web.archive.org/slow",
+        timeout_seconds=1,
+        max_bytes=100,
+        attempts=1,
+        wall_timeout_seconds=0.2,
+        use_subprocess=True,
+        subprocess_start_method="fork",
+    )
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+    assert result["retrieval_status"] == "error"
+    assert result["error_type"] == "RetrievalWallClockTimeout"
+
+
+def test_retrieve_url_with_retries_reads_subprocess_result_before_join(monkeypatch) -> None:
+    large_body = b"x" * (2 * 1024 * 1024)
+
+    def large_retrieve(url: str, *, timeout_seconds: int, max_bytes: int):
+        return {"retrieval_status": "retrieved", "body": large_body}
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.retrieve_url", large_retrieve)
+
+    started = time.monotonic()
+    result = retrieve_url_with_retries(
+        "https://web.archive.org/large-result",
+        timeout_seconds=1,
+        max_bytes=len(large_body),
+        attempts=1,
+        wall_timeout_seconds=2,
+        use_subprocess=True,
+        subprocess_start_method="fork",
+    )
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+    assert result["retrieval_status"] == "retrieved"
+    assert result["body"] == large_body
+
+
+def test_wayback_recovery_uses_single_bounded_lookup_attempts(monkeypatch) -> None:
+    def failed_direct_retrieve(url: str, *, timeout_seconds: int, max_bytes: int, **kwargs):
+        return {"retrieval_status": "error", "error_type": "direct_failure"}
+
+    retry_calls: list[dict[str, object]] = []
+
+    def failed_retry(url: str, **kwargs):
+        retry_calls.append({"url": url, **kwargs})
+        return {"retrieval_status": "error", "error_type": "wayback_failure"}
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.retrieve_url_bounded", failed_direct_retrieve)
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.retrieve_url_with_retries", failed_retry)
+
+    retrieve_candidate_with_wayback_recovery(
+        "https://example.edu/catalog-2004.pdf",
+        target_year=2004,
+        timeout_seconds=30,
+        max_source_bytes=1000,
+        allow_wayback_recovery=True,
+    )
+
+    assert len(retry_calls) == 3
+    assert {call["attempts"] for call in retry_calls} == {1}
+    assert {call["timeout_seconds"] for call in retry_calls} == {12}
+    assert {call["wall_timeout_seconds"] for call in retry_calls} == {14}
+    assert all(call["use_subprocess"] is True for call in retry_calls)
+    assert {call["subprocess_start_method"] for call in retry_calls} == {"spawn"}
+
+
+def test_prior_valid_legacy_selection_prioritizes_current_reverification_bucket() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "institution_name": "Programmatic Accepted U",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2002,
+                "webaddr": "https://program.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 1,
+                "institution_name": "Programmatic Accepted U",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2003,
+                "webaddr": "https://program.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Human Legacy U",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2002,
+                "webaddr": "https://human.edu",
+                "has_human_legacy_source": True,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Human Legacy U",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2003,
+                "webaddr": "https://human.edu",
+                "has_human_legacy_source": True,
+            },
+            {
+                "unitid": 3,
+                "institution_name": "No Human Holdout U",
+                "sector_stream": "public",
+                "state": "CC",
+                "academic_year": 2002,
+                "webaddr": "https://holdout.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 3,
+                "institution_name": "No Human Holdout U",
+                "sector_stream": "public",
+                "state": "CC",
+                "academic_year": 2003,
+                "webaddr": "https://holdout.edu",
+                "has_human_legacy_source": False,
+            },
+        ]
+    )
+    historical_priority = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "priority_bucket": "prior_programmatic_accepted_needs_current_reverification",
+                "prior_programmatic_accepted_rows": 3,
+                "valid_human_legacy_rows": 0,
+            },
+            {
+                "unitid": 3,
+                "priority_bucket": "no_historical_programmatic_attempt_found",
+                "prior_programmatic_accepted_rows": 0,
+                "valid_human_legacy_rows": 0,
+            },
+        ]
+    )
+
+    selected = select_prior_valid_legacy_reverification_institutions(
+        target_universe,
+        historical_priority,
+        pd.DataFrame(),
+        public_count=2,
+        private_count=0,
+        min_target_rows=1,
+        max_target_rows=10,
+    )
+
+    assert selected["unitid"].tolist() == [1, 2]
+    assert "No Human Holdout U" not in set(selected["institution_name"])
+    assert selected.iloc[0]["historical_priority_bucket"] == "prior_programmatic_accepted_needs_current_reverification"
+
+
+def test_high_legacy_coverage_selection_counts_unique_unitids() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "institution_name": "ALPHA UNIVERSITY",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2002,
+                "webaddr": "https://alpha.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 1,
+                "institution_name": "Alpha University",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2003,
+                "webaddr": "https://alpha.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Beta University",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2002,
+                "webaddr": "https://beta.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Beta University",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2003,
+                "webaddr": "https://beta.edu",
+                "has_human_legacy_source": False,
+            },
+        ]
+    )
+    raw_legacy = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "institution_name": "Alpha University",
+                "sector": "public",
+                "candidate_url": "https://alpha.edu/catalog-2002-2003.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2003,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Beta University",
+                "sector": "public",
+                "candidate_url": "https://beta.edu/catalog-2002-2003.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2003,
+            },
+        ]
+    )
+
+    selected = select_high_legacy_coverage_institutions(
+        target_universe,
+        raw_legacy,
+        public_count=2,
+        private_count=0,
+        min_target_rows=1,
+        max_target_rows=10,
+    )
+
+    assert selected["unitid"].tolist() == [1, 2]
+    assert selected["unitid"].is_unique
+
+
+def test_build_step1_inputs_closes_rows_when_source_review_budget_exceeded(monkeypatch, tmp_path: Path) -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 123,
+                "institution_name": "Example State University",
+                "sector": "public",
+                "state": "EX",
+                "academic_year": 2002,
+                "homepage_url": "https://example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    current_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 123,
+                "target_year": 2002,
+                "sector": "public",
+                "best_url": "https://example.edu/catalog-2002.pdf",
+                "best_url_source": "current_production_discovery",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "candidate_link_text": "Catalog 2002",
+                "candidate_evidence_source": "current production discovery",
+                "archive_url": "https://example.edu/catalogs/",
+                "_current_run_file": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/current_run/current.csv",
+                "_selected_panel_file": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/current_run/current.csv",
+            }
+        ]
+    )
+
+    def slow_failed_retrieve(*args, **kwargs):
+        time.sleep(0.12)
+        return (
+            args[0],
+            {"retrieval_status": "error", "error_type": "simulated_dead_source", "body": b"", "links": [], "link_records": []},
+            "direct_retrieval_failed_no_wayback_recovery",
+            "",
+        )
+
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: current_panel,
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.source_family_gap_fill_lookup",
+        lambda *args, **kwargs: {
+            (123, 2002): [
+                {
+                    "unitid": 123,
+                    "institution_name": "Example State University",
+                    "sector": "public",
+                    "state": "EX",
+                    "academic_year": 2002,
+                    "candidate_url": "https://example.edu/catalog-2002-alt.pdf",
+                    "candidate_rank": 2,
+                    "candidate_generation_method": "same_institution_source_family_gap_fill",
+                    "candidate_source_file": "current_run_discovery_output",
+                    "candidate_source_type": "same_institution_source_family_gap_fill",
+                    "source_query_or_root": "https://example.edu/catalog-2002.pdf",
+                    "candidate_generated_at": "budget_test",
+                    "url_source_bucket": "same_institution_source_family_gap_fill",
+                    "catalog_year_start": 2002,
+                    "catalog_year_end": 2002,
+                    "candidate_link_text": "alternate catalog",
+                    "candidate_evidence_source": "generated from same-institution seed",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        slow_failed_retrieve,
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["public"],
+        namespace="budget_test",
+        chunk_id="budget_test_chunk",
+        release_id="budget_test_release",
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        source_review_row_timeout_seconds=0.01,
+    )
+
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    assert "reject_dead_or_unretrievable" in set(review["review_decision"])
+    budget_rows = review.loc[review["review_decision"].eq("reject_source_review_budget_exceeded")]
+    assert len(budget_rows) == 1
+    assert budget_rows.iloc[0]["retrieval_status"] == "not_retrieved_source_review_budget_exceeded"
+    assert "after reviewing 1 candidate(s)" in budget_rows.iloc[0]["review_reason"]
 
 
 def test_write_discovery_inputs_materializes_year_targets_from_target_panel(tmp_path: Path) -> None:
@@ -106,6 +485,40 @@ def test_build_historical_case_precheck_uses_url_free_inventory_counts(tmp_path:
     assert "https://" not in combined_text
 
 
+def test_historical_precheck_drops_direct_url_inventory_fields(tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "unitid": 321,
+                "institution_name": "Leak Test University",
+                "priority_bucket": "prior_programmatic_accepted_needs_current_reverification",
+                "prior_programmatic_accepted_rows": 1,
+                "url": "https://leak.example.edu/catalog-2002.pdf",
+                "candidate_url": "https://leak.example.edu/catalog-2003.pdf",
+                "accepted_source_url": "https://leak.example.edu/catalog-2004.pdf",
+            }
+        ]
+    ).to_csv(inventory_dir / "institution_priority_buckets.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 321,
+                "institution_name": "Leak Test University",
+                "academic_year": 2002,
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+
+    precheck = build_historical_case_precheck(tmp_path, target_panel, "precheck_test_namespace")
+
+    assert {"url", "candidate_url", "accepted_source_url"}.isdisjoint(precheck.columns)
+    combined_text = " ".join(str(value) for value in precheck.iloc[0].tolist())
+    assert "https://leak.example.edu" not in combined_text
+
+
 def test_build_historical_case_precheck_falls_back_without_inventory(tmp_path: Path) -> None:
     target_panel = pd.DataFrame(
         [
@@ -126,3 +539,170 @@ def test_build_historical_case_precheck_falls_back_without_inventory(tmp_path: P
     assert row["valid_human_legacy_rows"] == 1
     assert bool(row["historical_precheck_completed"]) is True
     assert bool(row["runtime_input_guardrail_confirmed"]) is True
+
+
+def test_run_stop_report_written_on_controlled_discovery_failure(monkeypatch, tmp_path: Path) -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 700,
+                "institution_name": "Stop Report U",
+                "sector_stream": "public",
+                "state": "SR",
+                "academic_year": 2002,
+                "webaddr": "https://stop.example.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 700,
+                "institution_name": "Stop Report U",
+                "sector_stream": "public",
+                "state": "SR",
+                "academic_year": 2003,
+                "webaddr": "https://stop.example.edu",
+                "has_human_legacy_source": False,
+            },
+        ]
+    )
+    historical_priority = pd.DataFrame(
+        [
+            {
+                "unitid": 700,
+                "priority_bucket": "prior_programmatic_accepted_needs_current_reverification",
+                "prior_programmatic_accepted_rows": 2,
+            }
+        ]
+    )
+
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_target_panel_universe",
+        lambda *args, **kwargs: target_universe,
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_raw_legacy_url_rows",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_historical_priority_buckets",
+        lambda *args, **kwargs: historical_priority,
+    )
+
+    def fail_discovery(*args, **kwargs):
+        raise RuntimeError("controlled discovery failure")
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.run_discovery_for_sector", fail_discovery)
+
+    with pytest.raises(RuntimeError, match="controlled discovery failure"):
+        run_proof_to_scale(
+            tmp_path,
+            namespace="stop_report_test",
+            chunk_id="stop_report_chunk",
+            release_id=None,
+            selection_mode="prior_valid_legacy_reverification",
+            institution_count=1,
+            public_institution_count=1,
+            private_institution_count=0,
+            min_target_rows=1,
+            max_target_rows=10,
+            timeout_seconds=1,
+            max_root_candidates_per_institution=1,
+            max_archive_pages_per_institution=1,
+            max_workers=1,
+            run_inferred_year_rescue=False,
+            run_archive_expansion=False,
+            run_wayback_cdx_rescue=False,
+            run_ai_year_gap_rescue=False,
+            max_api_cases=None,
+            include_raw_legacy_candidates=False,
+            min_ready_rate=0.0,
+            min_sector_ready_rate=0.0,
+            api_web_rescue_mode="not_run",
+            api_web_rescue_status="not_run",
+            api_web_rescue_reason="",
+            build_release=False,
+            source_review_row_timeout_seconds=1.0,
+        )
+
+    input_dir = tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_inputs/stop_report_test"
+    report = input_dir / "RUN_STOP_REPORT.md"
+    assert report.exists()
+    text = report.read_text(encoding="utf-8")
+    assert "running public discovery" in text
+    assert "controlled discovery failure" in text
+    assert "No valid `production_chunk_*` or `production_release_*` was produced" in text
+    assert (input_dir / "target_panel.csv").exists()
+    assert (input_dir / "source_review_log.csv").exists()
+    assert list(pd.read_csv(input_dir / "source_review_log.csv").columns)[:3] == [
+        "unitid",
+        "institution_name",
+        "sector",
+    ]
+
+
+def test_partial_ledgers_are_preserved_when_source_review_fails(monkeypatch, tmp_path: Path) -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 800,
+                "institution_name": "Partial Ledger U",
+                "sector": "public",
+                "state": "PL",
+                "academic_year": 2002,
+                "homepage_url": "https://partial.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    current_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 800,
+                "target_year": 2002,
+                "sector": "public",
+                "best_url": "https://partial.example.edu/catalog-2002.pdf",
+                "best_url_source": "current_production_discovery",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "candidate_link_text": "Catalog 2002",
+                "candidate_evidence_source": "current production discovery",
+                "archive_url": "https://partial.example.edu/catalogs/",
+                "_current_run_file": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/current_run/current.csv",
+                "_selected_panel_file": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/current_run/current.csv",
+            }
+        ]
+    )
+
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: current_panel,
+    )
+
+    def fail_retrieval(*args, **kwargs):
+        raise RuntimeError("controlled source-review failure")
+
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        fail_retrieval,
+    )
+
+    input_dir = tmp_path / "inputs"
+    with pytest.raises(RuntimeError, match="controlled source-review failure"):
+        build_step1_inputs(
+            tmp_path,
+            target_panel=target_panel,
+            sectors=["public"],
+            namespace="partial_ledger_test",
+            chunk_id="partial_ledger_chunk",
+            release_id=None,
+            input_dir=input_dir,
+            timeout_seconds=1,
+            max_source_bytes=1000,
+        )
+
+    candidate_ledger = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    assert candidate_ledger["candidate_url"].tolist() == ["https://partial.example.edu/catalog-2002.pdf"]
+    assert (input_dir / "source_review_log.csv").exists()
+    assert {"unitid", "academic_year", "review_decision"}.issubset(pd.read_csv(input_dir / "source_review_log.csv").columns)
+    assert (input_dir / "source_evidence_manifest.csv").exists()
+    assert (input_dir / "historical_case_precheck.csv").exists()
+    assert (input_dir / "run_config.json").exists()

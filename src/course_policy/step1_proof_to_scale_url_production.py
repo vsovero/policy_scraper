@@ -14,12 +14,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import multiprocessing as mp
 import re
+import signal
 import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from queue import Empty
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -64,6 +67,14 @@ INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT = Path("artifacts/policy_data_internal/in
 ESTIMATION_START_YEAR = 2002
 ESTIMATION_END_YEAR = 2016
 RETRIEVED_STATUSES = {"retrieved", "retrieved_truncated"}
+PRIOR_VALID_REVERIFICATION_BUCKETS = (
+    "prior_programmatic_accepted_needs_current_reverification",
+    "valid_human_legacy",
+)
+NO_HUMAN_LEGACY_HOLDOUT_BUCKETS = {
+    "programmatic_attempt_no_valid_discovery",
+    "no_historical_programmatic_attempt_found",
+}
 
 CANDIDATE_COLUMNS = [
     "unitid",
@@ -86,6 +97,49 @@ EVIDENCE_COLUMNS = [
     "cached_text_path",
     "cached_text_sha256",
     "source_body_sha256",
+]
+SOURCE_REVIEW_COLUMNS = [
+    "unitid",
+    "institution_name",
+    "sector",
+    "state",
+    "academic_year",
+    "candidate_url",
+    "final_url_after_redirect",
+    "retrieval_status",
+    "http_status",
+    "content_type",
+    "source_page_title",
+    "source_opened",
+    "institution_match_confirmed",
+    "campus_or_unitid_match_confirmed",
+    "source_scope_confirmed",
+    "source_type_confirmed",
+    "year_coverage_confirmed",
+    "archive_child_links_checked",
+    "gap_fill_search_completed",
+    "panel_consistency_confirmed",
+    "deterministic_search_completed",
+    "archive_expansion_completed",
+    "api_web_rescue_mode",
+    "api_web_rescue_status",
+    "api_web_rescue_reason",
+    "retrieval_recovery_method",
+    "retrieval_recovery_source",
+    "candidate_generation_method",
+    "candidate_source_file",
+    "candidate_source_type",
+    "source_query_or_root",
+    "source_type",
+    "source_year_start",
+    "source_year_end",
+    "source_year_coverage_note",
+    "url_source_bucket",
+    "review_decision",
+    "review_reason",
+    "reviewed_by",
+    "reviewed_at",
+    "source_evidence_note",
 ]
 BENCHMARK_COLUMNS = [
     "benchmark_group",
@@ -543,6 +597,137 @@ def raw_legacy_coverage_summary(target_universe: pd.DataFrame, raw_legacy: pd.Da
     return target_counts
 
 
+def prior_valid_priority_summary(
+    target_universe: pd.DataFrame,
+    historical_priority: pd.DataFrame,
+    raw_legacy: pd.DataFrame,
+) -> pd.DataFrame:
+    summary = institution_summary(target_universe)
+    coverage = raw_legacy_coverage_summary(target_universe, raw_legacy)
+    if not coverage.empty:
+        coverage = coverage.sort_values(
+            ["legacy_covered_years", "legacy_coverage_rate", "institution_name", "unitid"],
+            ascending=[False, False, True, True],
+        ).drop_duplicates("unitid", keep="first")
+        summary = summary.merge(
+            coverage[["unitid", "legacy_covered_years", "legacy_coverage_rate"]],
+            on="unitid",
+            how="left",
+        )
+    else:
+        summary["legacy_covered_years"] = 0
+        summary["legacy_coverage_rate"] = 0.0
+    for column in ["legacy_covered_years", "legacy_coverage_rate"]:
+        if column not in summary.columns:
+            summary[column] = 0
+    summary["legacy_covered_years"] = pd.to_numeric(summary["legacy_covered_years"], errors="coerce").fillna(0).astype(int)
+    summary["legacy_coverage_rate"] = pd.to_numeric(summary["legacy_coverage_rate"], errors="coerce").fillna(0.0)
+
+    priority = historical_priority.copy()
+    if not priority.empty and "unitid" in priority.columns:
+        priority["unitid"] = pd.to_numeric(priority["unitid"], errors="coerce").astype("Int64")
+        priority = priority.loc[priority["unitid"].notna()].drop_duplicates("unitid", keep="first")
+        keep_columns = [
+            column
+            for column in [
+                "unitid",
+                "priority_bucket",
+                "valid_human_legacy_rows",
+                "prior_programmatic_accepted_rows",
+                "unreviewed_candidate_lead_rows",
+                "failed_attempt_rows",
+            ]
+            if column in priority.columns
+        ]
+        summary = summary.merge(priority[keep_columns], on="unitid", how="left")
+    for column in [
+        "valid_human_legacy_rows",
+        "prior_programmatic_accepted_rows",
+        "unreviewed_candidate_lead_rows",
+        "failed_attempt_rows",
+    ]:
+        if column not in summary.columns:
+            summary[column] = 0
+        summary[column] = pd.to_numeric(summary[column], errors="coerce").fillna(0).astype(int)
+    summary["historical_priority_bucket"] = summary.get("priority_bucket", pd.Series("", index=summary.index)).map(clean_text)
+    raw_or_human_legacy = summary["legacy_covered_years"].gt(0) | summary["has_human_legacy_source"].map(boolish)
+    summary["historical_priority_bucket"] = summary["historical_priority_bucket"].where(
+        summary["historical_priority_bucket"].ne(""),
+        raw_or_human_legacy.map({True: "valid_human_legacy", False: "no_historical_programmatic_attempt_found"}),
+    )
+    rank_map = {bucket: index for index, bucket in enumerate(PRIOR_VALID_REVERIFICATION_BUCKETS)}
+    summary["priority_rank"] = summary["historical_priority_bucket"].map(rank_map).fillna(99).astype(int)
+    return summary
+
+
+def select_prior_valid_legacy_reverification_institutions(
+    target_universe: pd.DataFrame,
+    historical_priority: pd.DataFrame,
+    raw_legacy: pd.DataFrame,
+    *,
+    public_count: int,
+    private_count: int,
+    min_target_rows: int,
+    max_target_rows: int,
+) -> pd.DataFrame:
+    summary = prior_valid_priority_summary(target_universe, historical_priority, raw_legacy)
+    eligible = summary.loc[
+        summary["historical_priority_bucket"].isin(PRIOR_VALID_REVERIFICATION_BUCKETS)
+        | summary["legacy_covered_years"].gt(0)
+        | summary["has_human_legacy_source"].map(boolish)
+    ].copy()
+    eligible = eligible.loc[~eligible["historical_priority_bucket"].isin(NO_HUMAN_LEGACY_HOLDOUT_BUCKETS)].copy()
+    if eligible.empty:
+        raise RuntimeError(
+            "Prior-valid-legacy reverification selection found no eligible institutions; "
+            "run or supply URL-free historical inventory/precheck memory before the next proof-to-scale chunk."
+        )
+
+    sort_columns = [
+        "priority_rank",
+        "prior_programmatic_accepted_rows",
+        "valid_human_legacy_rows",
+        "legacy_covered_years",
+        "legacy_coverage_rate",
+        "target_year_count",
+        "institution_name",
+        "unitid",
+    ]
+    ascending = [True, False, False, False, False, False, True, True]
+    selected_frames: list[pd.DataFrame] = []
+    for sector, count in [("public", public_count), ("private", private_count)]:
+        if count <= 0:
+            continue
+        sector_frame = eligible.loc[eligible["sector"].eq(sector)].copy()
+        sector_frame = sector_frame.sort_values(sort_columns, ascending=ascending).head(count)
+        selected_frames.append(sector_frame)
+    selected = pd.concat(selected_frames, ignore_index=True, sort=False) if selected_frames else pd.DataFrame()
+    selected = selected.drop_duplicates("unitid", keep="first")
+
+    target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+    if len(target_rows) < min_target_rows:
+        remaining = eligible.loc[~eligible["unitid"].isin(selected["unitid"])].copy()
+        remaining = remaining.sort_values(sort_columns, ascending=ascending)
+        for _, row in remaining.iterrows():
+            selected = pd.concat([selected, row.to_frame().T], ignore_index=True)
+            selected = selected.drop_duplicates("unitid", keep="first")
+            target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+            if len(target_rows) >= min_target_rows:
+                break
+    if len(target_rows) > max_target_rows:
+        selected = selected.sort_values(sort_columns, ascending=ascending).copy()
+        while len(target_rows) > max_target_rows and len(selected) > 1:
+            selected = selected.iloc[:-1].copy()
+            target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+    if selected.empty or not min_target_rows <= len(target_rows) <= max_target_rows:
+        raise RuntimeError(
+            f"Prior-valid-legacy reverification target rows outside proof-to-scale bounds: {len(target_rows)} "
+            f"not in [{min_target_rows}, {max_target_rows}]"
+        )
+    selected["selection_mode"] = "prior_valid_legacy_reverification"
+    return selected.sort_values(sort_columns, ascending=ascending).reset_index(drop=True)
+
+
 def select_high_legacy_coverage_institutions(
     target_universe: pd.DataFrame,
     raw_legacy: pd.DataFrame,
@@ -559,9 +744,10 @@ def select_high_legacy_coverage_institutions(
         frame = frame.sort_values(
             ["legacy_covered_years", "legacy_coverage_rate", "institution_name", "unitid"],
             ascending=[False, False, True, True],
-        ).head(count)
+        ).drop_duplicates("unitid", keep="first").head(count)
         selected_frames.append(frame)
     selected = pd.concat(selected_frames, ignore_index=True, sort=False) if selected_frames else pd.DataFrame()
+    selected = selected.drop_duplicates("unitid", keep="first")
     if selected.empty:
         raise RuntimeError("High-legacy-coverage selection found no institutions with raw legacy URL coverage.")
     target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
@@ -671,16 +857,144 @@ def result_retrieved(result: dict[str, object]) -> bool:
     return clean_text(result.get("retrieval_status")) in RETRIEVED_STATUSES
 
 
+class RetrievalWallClockTimeout(TimeoutError):
+    """Raised when one source retrieval exceeds the production wall clock."""
+
+
+def retrieval_error_result(error_type: str, error_message: str) -> dict[str, object]:
+    return {
+        "url": "",
+        "final_url": "",
+        "http_status": "",
+        "content_type": "",
+        "body": b"",
+        "sha256": "",
+        "retrieval_status": "error",
+        "error_type": error_type,
+        "error_message": error_message,
+        "page_title": "",
+        "links": [],
+        "link_records": [],
+    }
+
+
+def retrieval_wall_timeout_seconds(timeout_seconds: int, override_seconds: float | None = None) -> float:
+    if override_seconds is not None:
+        return max(0.1, float(override_seconds))
+    base = max(1.0, float(timeout_seconds))
+    return max(2.0, base + min(5.0, base))
+
+
+def _raise_retrieval_wall_timeout(signum: int, frame: object) -> None:
+    raise RetrievalWallClockTimeout("retrieval exceeded wall-clock timeout")
+
+
+def _retrieve_url_worker(url: str, timeout_seconds: int, max_bytes: int, output_queue: object) -> None:
+    try:
+        output_queue.put(retrieve_url(url, timeout_seconds=timeout_seconds, max_bytes=max_bytes))
+    except BaseException as exc:
+        output_queue.put(retrieval_error_result(type(exc).__name__, str(exc)))
+
+
+def retrieve_url_in_subprocess(
+    url: str,
+    *,
+    timeout_seconds: int,
+    max_bytes: int,
+    wall_timeout_seconds: float | None = None,
+    subprocess_start_method: str = "spawn",
+) -> dict[str, object]:
+    resolved_wall_timeout = retrieval_wall_timeout_seconds(timeout_seconds, wall_timeout_seconds)
+    context = mp.get_context(subprocess_start_method)
+    output_queue = context.Queue(maxsize=1)
+    process = context.Process(target=_retrieve_url_worker, args=(url, timeout_seconds, max_bytes, output_queue))
+    process.start()
+    deadline = time.monotonic() + resolved_wall_timeout
+    result: dict[str, object] | None = None
+    while time.monotonic() < deadline:
+        try:
+            result = output_queue.get(timeout=min(0.1, max(0.01, deadline - time.monotonic())))
+            break
+        except Empty:
+            if not process.is_alive():
+                try:
+                    result = output_queue.get_nowait()
+                except Empty:
+                    result = None
+                break
+    if result is not None:
+        process.join(2)
+        if process.is_alive():
+            process.terminate()
+            process.join(2)
+        return result
+    if process.is_alive():
+        process.terminate()
+        process.join(2)
+    else:
+        process.join(2)
+        try:
+            result = output_queue.get_nowait()
+        except Empty:
+            result = None
+    if result is not None:
+        return result
+    return retrieval_error_result(
+        "RetrievalWallClockTimeout",
+        f"retrieval exceeded wall-clock timeout after {resolved_wall_timeout:.1f}s",
+    )
+
+
+def retrieve_url_bounded(
+    url: str,
+    *,
+    timeout_seconds: int,
+    max_bytes: int,
+    wall_timeout_seconds: float | None = None,
+    use_subprocess: bool = False,
+    subprocess_start_method: str = "spawn",
+) -> dict[str, object]:
+    if use_subprocess:
+        return retrieve_url_in_subprocess(
+            url,
+            timeout_seconds=timeout_seconds,
+            max_bytes=max_bytes,
+            wall_timeout_seconds=wall_timeout_seconds,
+            subprocess_start_method=subprocess_start_method,
+        )
+    resolved_wall_timeout = retrieval_wall_timeout_seconds(timeout_seconds, wall_timeout_seconds)
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    signal.signal(signal.SIGALRM, _raise_retrieval_wall_timeout)
+    signal.setitimer(signal.ITIMER_REAL, resolved_wall_timeout)
+    try:
+        return retrieve_url(url, timeout_seconds=timeout_seconds, max_bytes=max_bytes)
+    except RetrievalWallClockTimeout as exc:
+        return retrieval_error_result(type(exc).__name__, str(exc))
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
 def retrieve_url_with_retries(
     url: str,
     *,
     timeout_seconds: int,
     max_bytes: int,
     attempts: int,
+    wall_timeout_seconds: float | None = None,
+    use_subprocess: bool = False,
+    subprocess_start_method: str = "spawn",
 ) -> dict[str, object]:
     result: dict[str, object] = {}
     for attempt in range(max(1, attempts)):
-        result = retrieve_url(url, timeout_seconds=timeout_seconds, max_bytes=max_bytes)
+        result = retrieve_url_bounded(
+            url,
+            timeout_seconds=timeout_seconds,
+            max_bytes=max_bytes,
+            wall_timeout_seconds=wall_timeout_seconds,
+            use_subprocess=use_subprocess,
+            subprocess_start_method=subprocess_start_method,
+        )
         if result_retrieved(result):
             return result
         if attempt + 1 < attempts:
@@ -697,10 +1011,12 @@ def retrieve_candidate_with_wayback_recovery(
     allow_wayback_recovery: bool,
 ) -> tuple[str, dict[str, object], str, str]:
     """Retrieve a source URL, then try bounded Wayback recovery for dead sources."""
-    result = retrieve_url(candidate_url, timeout_seconds=timeout_seconds, max_bytes=max_source_bytes)
+    result = retrieve_url_bounded(candidate_url, timeout_seconds=timeout_seconds, max_bytes=max_source_bytes)
     if result_retrieved(result) or not allow_wayback_recovery or urlparse(candidate_url).netloc.lower() == "web.archive.org":
         return candidate_url, result, "direct_retrieval", ""
 
+    wayback_timeout_seconds = max(4, min(timeout_seconds, 12))
+    wayback_wall_timeout_seconds = wayback_timeout_seconds + 2
     lookup_urls = [
         wayback_available_url(candidate_url, target_year),
         wayback_available_latest_url(candidate_url),
@@ -709,9 +1025,12 @@ def retrieve_candidate_with_wayback_recovery(
     for lookup_url in lookup_urls:
         lookup_result = retrieve_url_with_retries(
             lookup_url,
-            timeout_seconds=max(timeout_seconds, 30),
+            timeout_seconds=wayback_timeout_seconds,
             max_bytes=5 * 1024 * 1024,
-            attempts=3,
+            attempts=1,
+            wall_timeout_seconds=wayback_wall_timeout_seconds,
+            use_subprocess=True,
+            subprocess_start_method="spawn",
         )
         if not result_retrieved(lookup_result):
             continue
@@ -728,9 +1047,12 @@ def retrieve_candidate_with_wayback_recovery(
         for snapshot_url in snapshots:
             snapshot_result = retrieve_url_with_retries(
                 snapshot_url,
-                timeout_seconds=max(timeout_seconds, 30),
+                timeout_seconds=wayback_timeout_seconds,
                 max_bytes=max_source_bytes,
-                attempts=2,
+                attempts=1,
+                wall_timeout_seconds=wayback_wall_timeout_seconds,
+                use_subprocess=True,
+                subprocess_start_method="spawn",
             )
             if result_retrieved(snapshot_result):
                 return snapshot_url, snapshot_result, "wayback_recovery", lookup_url
@@ -1142,6 +1464,234 @@ def current_panel_for_targets(repo_root: Path, target_panel: pd.DataFrame, secto
     return panel.drop_duplicates(["unitid", "target_year"], keep="first")
 
 
+def frame_with_columns(rows: list[dict[str, object]], base_columns: list[str]) -> pd.DataFrame:
+    frame = pd.DataFrame(rows)
+    for column in base_columns:
+        if column not in frame.columns:
+            frame[column] = ""
+    extra_columns = [column for column in frame.columns if column not in base_columns]
+    return frame[[*base_columns, *extra_columns]]
+
+
+def step1_run_config(
+    *,
+    chunk_id: str,
+    release_id: str | None,
+    namespace: str,
+    benchmark_rows: int,
+    min_ready_rate: float,
+    min_sector_ready_rate: float,
+    api_web_rescue_required_for_unresolved: bool,
+    api_web_rescue_mode: str,
+    api_web_rescue_status: str,
+    api_web_rescue_reason: str,
+    archive_expansion_completed: bool,
+    raw_human_legacy_candidate_rows: int,
+    source_review_row_timeout_seconds: float | None,
+) -> dict[str, object]:
+    return {
+        "chunk_id": chunk_id,
+        "release_id": release_id or "",
+        "year_scope": f"{ESTIMATION_START_YEAR}-{ESTIMATION_END_YEAR}",
+        "target_panel_source": "Stata Files/Data/mainpanelgf_clean.dta",
+        "run_namespace": namespace,
+        "front_door": "actual target panel -> current URL discovery -> retrieval evidence -> source review -> production runner",
+        "benchmark_mode": "raw_human_legacy_url_tested" if benchmark_rows else "not_tested",
+        "benchmark_key": (
+            "raw human legacy URL rows in this target panel, scored after candidate retrieval/source review"
+            if benchmark_rows
+            else "not supplied; benchmark scoring not applicable for this proof-to-scale production closure run"
+        ),
+        "production_readiness_min_ready_rate": min_ready_rate,
+        "production_readiness_min_sector_ready_rate": min_sector_ready_rate,
+        "api_web_rescue_required_for_unresolved": api_web_rescue_required_for_unresolved,
+        "api_web_rescue_mode": api_web_rescue_mode,
+        "api_web_rescue_status": api_web_rescue_status,
+        "api_web_rescue_reason": api_web_rescue_reason,
+        "archive_expansion_completed": archive_expansion_completed,
+        "raw_human_legacy_candidate_rows": raw_human_legacy_candidate_rows,
+        "source_review_row_timeout_seconds": (
+            source_review_row_timeout_seconds if source_review_row_timeout_seconds is not None else "disabled"
+        ),
+    }
+
+
+def benchmark_rows_for_legacy_candidates(legacy_candidates: pd.DataFrame) -> list[dict[str, object]]:
+    benchmark_rows: list[dict[str, object]] = []
+    if legacy_candidates.empty:
+        return benchmark_rows
+    for _, benchmark in legacy_candidates.iterrows():
+        benchmark_rows.append(
+            {
+                "benchmark_group": "raw_human_legacy_url",
+                "unitid": int(benchmark["unitid"]),
+                "institution_name": clean_text(benchmark.get("institution_name")),
+                "academic_year": int(benchmark["academic_year"]),
+                "benchmark_url": clean_text(benchmark.get("candidate_url")),
+            }
+        )
+    return benchmark_rows
+
+
+def write_step1_input_snapshot(
+    input_dir: Path,
+    *,
+    target_panel: pd.DataFrame,
+    candidate_rows: list[dict[str, object]],
+    review_rows: list[dict[str, object]],
+    historical_case_precheck: pd.DataFrame,
+    evidence_rows: list[dict[str, object]],
+    benchmark_rows: list[dict[str, object]],
+    config: dict[str, object],
+) -> None:
+    input_dir.mkdir(parents=True, exist_ok=True)
+    (input_dir / "run_config.json").write_text(json.dumps(config, indent=2, sort_keys=True), encoding="utf-8")
+    write_csv(target_panel, input_dir / "target_panel.csv")
+    write_csv(frame_with_columns(candidate_rows, CANDIDATE_COLUMNS), input_dir / "candidate_url_ledger.csv")
+    write_csv(frame_with_columns(review_rows, SOURCE_REVIEW_COLUMNS), input_dir / "source_review_log.csv")
+    write_csv(historical_case_precheck, input_dir / "historical_case_precheck.csv")
+    write_csv(frame_with_columns(evidence_rows, EVIDENCE_COLUMNS), input_dir / "source_evidence_manifest.csv")
+    write_csv(frame_with_columns(benchmark_rows, BENCHMARK_COLUMNS), input_dir / "benchmark_key.csv")
+
+
+def write_initial_step1_input_snapshot(
+    repo_root: Path,
+    *,
+    target_panel: pd.DataFrame,
+    namespace: str,
+    chunk_id: str,
+    release_id: str | None,
+    input_dir: Path,
+    min_ready_rate: float,
+    min_sector_ready_rate: float,
+    api_web_rescue_mode: str,
+    api_web_rescue_status: str,
+    api_web_rescue_reason: str,
+    api_web_rescue_required_for_unresolved: bool = False,
+    archive_expansion_completed: bool = False,
+    raw_human_legacy_candidate_rows: int = 0,
+    source_review_row_timeout_seconds: float | None = None,
+) -> None:
+    historical_case_precheck = build_historical_case_precheck(repo_root, target_panel, namespace)
+    config = step1_run_config(
+        chunk_id=chunk_id,
+        release_id=release_id,
+        namespace=namespace,
+        benchmark_rows=0,
+        min_ready_rate=min_ready_rate,
+        min_sector_ready_rate=min_sector_ready_rate,
+        api_web_rescue_required_for_unresolved=api_web_rescue_required_for_unresolved,
+        api_web_rescue_mode=api_web_rescue_mode,
+        api_web_rescue_status=api_web_rescue_status,
+        api_web_rescue_reason=api_web_rescue_reason,
+        archive_expansion_completed=archive_expansion_completed,
+        raw_human_legacy_candidate_rows=raw_human_legacy_candidate_rows,
+        source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+    )
+    write_step1_input_snapshot(
+        input_dir,
+        target_panel=target_panel,
+        candidate_rows=[],
+        review_rows=[],
+        historical_case_precheck=historical_case_precheck,
+        evidence_rows=[],
+        benchmark_rows=[],
+        config=config,
+    )
+
+
+def csv_row_count(path: Path) -> int | str:
+    if not path.exists() or path.stat().st_size == 0:
+        return 0
+    try:
+        return len(pd.read_csv(path, low_memory=False))
+    except Exception:
+        return "unavailable"
+
+
+def existing_partial_artifact_paths(repo_root: Path, namespace: str, input_dir: Path) -> list[Path]:
+    candidates = [
+        input_dir / "target_panel.csv",
+        input_dir / "candidate_url_ledger.csv",
+        input_dir / "source_review_log.csv",
+        input_dir / "historical_case_precheck.csv",
+        input_dir / "source_evidence_manifest.csv",
+        input_dir / "benchmark_key.csv",
+        input_dir / "run_config.json",
+        repo_root / PRODUCTION_SELECTION_ROOT / namespace / "selected_institutions.csv",
+        repo_root / PRODUCTION_SELECTION_ROOT / namespace / "selection_summary.csv",
+        repo_root / INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT,
+    ]
+    for stream_dir in (repo_root / URL_DISCOVERY_ROOT).glob(f"*{namespace}*"):
+        if stream_dir.is_dir():
+            candidates.append(stream_dir)
+    return [path for path in candidates if path.exists()]
+
+
+def write_run_stop_report(
+    repo_root: Path,
+    *,
+    namespace: str,
+    input_dir: Path,
+    stage: str,
+    reason: str,
+    started_monotonic: float | None,
+    target_panel: pd.DataFrame | None,
+    exception: BaseException | None = None,
+) -> Path:
+    input_dir.mkdir(parents=True, exist_ok=True)
+    elapsed = "" if started_monotonic is None else f"{time.monotonic() - started_monotonic:.1f}s"
+    target_rows = "" if target_panel is None else len(target_panel)
+    target_institutions = "" if target_panel is None or target_panel.empty else int(target_panel["unitid"].nunique())
+    candidate_rows = csv_row_count(input_dir / "candidate_url_ledger.csv")
+    review_rows = csv_row_count(input_dir / "source_review_log.csv")
+    evidence_rows = csv_row_count(input_dir / "source_evidence_manifest.csv")
+    completed_target_rows: int | str = 0
+    review_path = input_dir / "source_review_log.csv"
+    if review_path.exists() and review_path.stat().st_size > 0:
+        try:
+            review = pd.read_csv(review_path, low_memory=False)
+            if {"unitid", "academic_year"}.issubset(review.columns):
+                completed_target_rows = len(review[["unitid", "academic_year"]].drop_duplicates())
+        except Exception:
+            completed_target_rows = "unavailable"
+    partial_paths = existing_partial_artifact_paths(repo_root, namespace, input_dir)
+    lines = [
+        "# Run Stop Report",
+        "",
+        f"- namespace: `{namespace}`",
+        f"- stage_stopped: `{stage}`",
+        f"- reason: {reason}",
+        f"- elapsed_time: {elapsed or 'unavailable'}",
+        f"- target_institutions: {target_institutions if target_institutions != '' else 'unavailable'}",
+        f"- target_rows: {target_rows if target_rows != '' else 'unavailable'}",
+        f"- completed_target_rows_with_review_entries: {completed_target_rows}",
+        f"- candidate_url_ledger_rows: {candidate_rows}",
+        f"- source_review_log_rows: {review_rows}",
+        f"- source_evidence_manifest_rows: {evidence_rows}",
+        "",
+        "No valid `production_chunk_*` or `production_release_*` was produced by this stopped run.",
+        "",
+        "## Key Partial Artifacts",
+    ]
+    if partial_paths:
+        lines.extend(f"- `{repo_relative(path, repo_root)}`" for path in partial_paths)
+    else:
+        lines.append("- None available before stop.")
+    if exception is not None:
+        lines.extend(
+            [
+                "",
+                "## Exception",
+                f"- type: `{type(exception).__name__}`",
+                f"- message: {clean_text(exception)}",
+            ]
+        )
+    report_path = input_dir / "RUN_STOP_REPORT.md"
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report_path
+
+
 def build_step1_inputs(
     repo_root: Path,
     *,
@@ -1163,6 +1713,7 @@ def build_step1_inputs(
     min_sector_ready_rate: float = 0.0,
     api_web_rescue_required_for_unresolved: bool = False,
     allow_wayback_recovery: bool = True,
+    source_review_row_timeout_seconds: float | None = 90.0,
 ) -> Path:
     input_dir = input_dir if input_dir.is_absolute() else repo_root / input_dir
     if input_dir.exists():
@@ -1182,6 +1733,23 @@ def build_step1_inputs(
     if not legacy_candidates.empty:
         for _, legacy_row in legacy_candidates.iterrows():
             legacy_lookup[(int(legacy_row["unitid"]), int(legacy_row["academic_year"]))] = legacy_row
+    benchmark_rows = benchmark_rows_for_legacy_candidates(legacy_candidates)
+    historical_case_precheck = build_historical_case_precheck(repo_root, target_panel, namespace)
+    config = step1_run_config(
+        chunk_id=chunk_id,
+        release_id=release_id,
+        namespace=namespace,
+        benchmark_rows=len(benchmark_rows),
+        min_ready_rate=min_ready_rate,
+        min_sector_ready_rate=min_sector_ready_rate,
+        api_web_rescue_required_for_unresolved=api_web_rescue_required_for_unresolved,
+        api_web_rescue_mode=api_web_rescue_mode,
+        api_web_rescue_status=api_web_rescue_status,
+        api_web_rescue_reason=api_web_rescue_reason,
+        archive_expansion_completed=archive_expansion_completed,
+        raw_human_legacy_candidate_rows=len(legacy_candidates),
+        source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+    )
     merged = target_panel.merge(
         panel[
             [
@@ -1218,12 +1786,29 @@ def build_step1_inputs(
     review_rows: list[dict[str, object]] = []
     evidence_rows: list[dict[str, object]] = []
     retrieval_cache: dict[tuple[str, bool], tuple[str, dict[str, object], str, str]] = {}
+    write_step1_input_snapshot(
+        input_dir,
+        target_panel=target_panel,
+        candidate_rows=candidate_rows,
+        review_rows=review_rows,
+        historical_case_precheck=historical_case_precheck,
+        evidence_rows=evidence_rows,
+        benchmark_rows=benchmark_rows,
+        config=config,
+    )
 
     ordered_rows = merged.sort_values(["sector", "institution_name", "unitid", "academic_year"])
     total_rows = len(ordered_rows)
     for processed_index, (_, row) in enumerate(ordered_rows.iterrows(), start=1):
         if processed_index == 1 or processed_index % 25 == 0 or processed_index == total_rows:
             print(f"[source-review] {processed_index}/{total_rows} target rows", flush=True)
+        row_started = time.monotonic()
+        row_deadline = (
+            row_started + max(0.1, float(source_review_row_timeout_seconds))
+            if source_review_row_timeout_seconds is not None
+            else None
+        )
+        reviewed_candidates_for_row = 0
         unitid = int(row["unitid"])
         year = int(row["academic_year"])
         institution = clean_text(row.get("institution_name"))
@@ -1275,9 +1860,84 @@ def build_step1_inputs(
                     "reviewed_at": namespace,
                 }
             )
+            write_step1_input_snapshot(
+                input_dir,
+                target_panel=target_panel,
+                candidate_rows=candidate_rows,
+                review_rows=review_rows,
+                historical_case_precheck=historical_case_precheck,
+                evidence_rows=evidence_rows,
+                benchmark_rows=benchmark_rows,
+                config=config,
+            )
             continue
 
         for option_index, option in enumerate(candidate_options, start=1):
+            candidate_url_for_budget = clean_text(option.get("candidate_url"))
+            if row_deadline is not None and time.monotonic() >= row_deadline:
+                review_rows.append(
+                    {
+                        "unitid": unitid,
+                        "institution_name": institution,
+                        "sector": clean_text(row.get("sector")),
+                        "state": clean_text(row.get("state")),
+                        "academic_year": year,
+                        "candidate_url": candidate_url_for_budget,
+                        "final_url_after_redirect": candidate_url_for_budget,
+                        "retrieval_status": "not_retrieved_source_review_budget_exceeded",
+                        "http_status": "",
+                        "content_type": "",
+                        "source_page_title": "",
+                        "source_opened": False,
+                        "institution_match_confirmed": False,
+                        "campus_or_unitid_match_confirmed": False,
+                        "source_scope_confirmed": False,
+                        "source_type_confirmed": False,
+                        "year_coverage_confirmed": False,
+                        "archive_child_links_checked": False,
+                        "gap_fill_search_completed": True,
+                        "panel_consistency_confirmed": False,
+                        "deterministic_search_completed": True,
+                        "archive_expansion_completed": archive_expansion_completed,
+                        "api_web_rescue_mode": api_web_rescue_mode,
+                        "api_web_rescue_status": api_web_rescue_status,
+                        "api_web_rescue_reason": api_web_rescue_reason,
+                        "retrieval_recovery_method": "source_review_row_budget_exceeded",
+                        "retrieval_recovery_source": "",
+                        "candidate_generation_method": clean_text(option.get("candidate_generation_method")),
+                        "candidate_source_file": clean_text(option.get("candidate_source_file")),
+                        "candidate_source_type": clean_text(option.get("candidate_source_type")),
+                        "source_query_or_root": clean_text(option.get("source_query_or_root")),
+                        "source_type": "",
+                        "source_year_start": "",
+                        "source_year_end": "",
+                        "source_year_coverage_note": (
+                            f"source-review row time budget exceeded after reviewing "
+                            f"{reviewed_candidates_for_row} candidate(s)"
+                        ),
+                        "url_source_bucket": clean_text(option.get("url_source_bucket")),
+                        "review_decision": "reject_source_review_budget_exceeded",
+                        "review_reason": (
+                            f"Source-review row time budget exceeded after reviewing "
+                            f"{reviewed_candidates_for_row} candidate(s); remaining candidates were "
+                            "closed unresolved for production-scale runtime control."
+                        ),
+                        "reviewed_by": "codex_current_run_source_review_from_retrieval_evidence",
+                        "reviewed_at": namespace,
+                        "source_evidence_note": "",
+                    }
+                )
+                write_step1_input_snapshot(
+                    input_dir,
+                    target_panel=target_panel,
+                    candidate_rows=candidate_rows,
+                    review_rows=review_rows,
+                    historical_case_precheck=historical_case_precheck,
+                    evidence_rows=evidence_rows,
+                    benchmark_rows=benchmark_rows,
+                    config=config,
+                )
+                break
             option_row = row.copy()
             option_row["catalog_year_start"] = option.get("catalog_year_start")
             option_row["catalog_year_end"] = option.get("catalog_year_end")
@@ -1305,6 +1965,16 @@ def build_step1_inputs(
                     "candidate_generated_at": clean_text(option.get("candidate_generated_at")) or namespace,
                 }
             )
+            write_step1_input_snapshot(
+                input_dir,
+                target_panel=target_panel,
+                candidate_rows=candidate_rows,
+                review_rows=review_rows,
+                historical_case_precheck=historical_case_precheck,
+                evidence_rows=evidence_rows,
+                benchmark_rows=benchmark_rows,
+                config=config,
+            )
 
             cache_key = (candidate_url, allow_wayback_recovery)
             if cache_key in retrieval_cache:
@@ -1318,6 +1988,7 @@ def build_step1_inputs(
                     allow_wayback_recovery=allow_wayback_recovery,
                 )
                 retrieval_cache[cache_key] = (candidate_url, result, retrieval_method, recovery_source)
+            reviewed_candidates_for_row += 1
             if retrieval_method == "wayback_recovery":
                 candidate_rows[-1]["candidate_url"] = candidate_url
                 candidate_rows[-1]["candidate_generation_method"] = f"{candidate_generation_method}_wayback_recovery"
@@ -1333,7 +2004,7 @@ def build_step1_inputs(
             if promoted_url != candidate_url:
                 original_url = candidate_url
                 candidate_url = promoted_url
-                result = retrieve_url(candidate_url, timeout_seconds=timeout_seconds, max_bytes=max_source_bytes)
+                result = retrieve_url_bounded(candidate_url, timeout_seconds=timeout_seconds, max_bytes=max_source_bytes)
                 child_checked = True
                 candidate_rows[-1]["candidate_url"] = candidate_url
                 candidate_rows[-1]["candidate_generation_method"] = "child_policy_link_from_catalog_page"
@@ -1440,52 +2111,29 @@ def build_step1_inputs(
                     "source_evidence_note": cache_path.relative_to(input_dir).as_posix(),
                 }
             )
+            write_step1_input_snapshot(
+                input_dir,
+                target_panel=target_panel,
+                candidate_rows=candidate_rows,
+                review_rows=review_rows,
+                historical_case_precheck=historical_case_precheck,
+                evidence_rows=evidence_rows,
+                benchmark_rows=benchmark_rows,
+                config=config,
+            )
             if accepted:
                 break
 
-    benchmark_rows: list[dict[str, object]] = []
-    if not legacy_candidates.empty:
-        for _, benchmark in legacy_candidates.iterrows():
-            benchmark_rows.append(
-                {
-                    "benchmark_group": "raw_human_legacy_url",
-                    "unitid": int(benchmark["unitid"]),
-                    "institution_name": clean_text(benchmark.get("institution_name")),
-                    "academic_year": int(benchmark["academic_year"]),
-                    "benchmark_url": clean_text(benchmark.get("candidate_url")),
-                }
-            )
-
-    historical_case_precheck = build_historical_case_precheck(repo_root, target_panel, namespace)
-    config = {
-        "chunk_id": chunk_id,
-        "release_id": release_id or "",
-        "year_scope": f"{ESTIMATION_START_YEAR}-{ESTIMATION_END_YEAR}",
-        "target_panel_source": "Stata Files/Data/mainpanelgf_clean.dta",
-        "run_namespace": namespace,
-        "front_door": "actual target panel -> current URL discovery -> retrieval evidence -> source review -> production runner",
-        "benchmark_mode": "raw_human_legacy_url_tested" if benchmark_rows else "not_tested",
-        "benchmark_key": (
-            "raw human legacy URL rows in this target panel, scored after candidate retrieval/source review"
-            if benchmark_rows
-            else "not supplied; benchmark scoring not applicable for this proof-to-scale production closure run"
-        ),
-        "production_readiness_min_ready_rate": min_ready_rate,
-        "production_readiness_min_sector_ready_rate": min_sector_ready_rate,
-        "api_web_rescue_required_for_unresolved": api_web_rescue_required_for_unresolved,
-        "api_web_rescue_mode": api_web_rescue_mode,
-        "api_web_rescue_status": api_web_rescue_status,
-        "api_web_rescue_reason": api_web_rescue_reason,
-        "archive_expansion_completed": archive_expansion_completed,
-        "raw_human_legacy_candidate_rows": len(legacy_candidates),
-    }
-    (input_dir / "run_config.json").write_text(json.dumps(config, indent=2, sort_keys=True), encoding="utf-8")
-    write_csv(target_panel, input_dir / "target_panel.csv")
-    write_csv(pd.DataFrame(candidate_rows, columns=CANDIDATE_COLUMNS), input_dir / "candidate_url_ledger.csv")
-    write_csv(pd.DataFrame(review_rows), input_dir / "source_review_log.csv")
-    write_csv(historical_case_precheck, input_dir / "historical_case_precheck.csv")
-    write_csv(pd.DataFrame(evidence_rows, columns=EVIDENCE_COLUMNS), input_dir / "source_evidence_manifest.csv")
-    write_csv(pd.DataFrame(benchmark_rows, columns=BENCHMARK_COLUMNS), input_dir / "benchmark_key.csv")
+    write_step1_input_snapshot(
+        input_dir,
+        target_panel=target_panel,
+        candidate_rows=candidate_rows,
+        review_rows=review_rows,
+        historical_case_precheck=historical_case_precheck,
+        evidence_rows=evidence_rows,
+        benchmark_rows=benchmark_rows,
+        config=config,
+    )
     return input_dir
 
 
@@ -1531,133 +2179,209 @@ def run_proof_to_scale(
     api_web_rescue_status: str,
     api_web_rescue_reason: str,
     build_release: bool,
+    source_review_row_timeout_seconds: float | None,
 ) -> ProofToScaleResult:
     repo_root = repo_root.resolve()
-    set_run_namespace(namespace)
-    target_universe = load_target_panel_universe(repo_root)
-    raw_legacy = load_raw_legacy_url_rows(repo_root)
-    if selection_mode == "high_legacy_coverage":
-        selected = select_high_legacy_coverage_institutions(
-            target_universe,
-            raw_legacy,
-            public_count=public_institution_count,
-            private_count=private_institution_count,
-            min_target_rows=min_target_rows,
-            max_target_rows=max_target_rows,
-        )
-    else:
-        selected = select_representative_institutions(
-            target_universe,
-            institution_count=institution_count,
-            min_target_rows=min_target_rows,
-            max_target_rows=max_target_rows,
-        )
-    target_panel = target_panel_for_selection(target_universe, selected)
-    sectors = sorted(target_panel["sector"].dropna().map(clean_text).unique().tolist())
-    write_selection_audit(repo_root, namespace, selected, target_panel)
-    write_discovery_inputs(repo_root, target_panel, sectors)
-
-    for sector in sectors:
-        sector_institutions = int(target_panel.loc[target_panel["sector"].eq(sector), "unitid"].nunique())
-        if sector_institutions == 0:
-            continue
-        run_discovery_for_sector(
-            repo_root,
-            sector,
-            limit=None,
-            rank_start=1,
-            timeout_seconds=timeout_seconds,
-            max_root_candidates_per_institution=max_root_candidates_per_institution,
-            max_archive_pages_per_institution=max_archive_pages_per_institution,
-            max_workers=max_workers,
-            chunk_size=max(1, sector_institutions),
-            resume=False,
-            skip_network_preflight=True,
-        )
-        if run_inferred_year_rescue:
-            run_inferred_year_url_rescue_for_sector(repo_root, sector, timeout_seconds=timeout_seconds, max_workers=max_workers)
-        if run_archive_expansion:
-            run_archive_expansion_rescue_for_sector(
-                repo_root,
-                sector,
-                timeout_seconds=timeout_seconds,
-                max_archive_pages_per_institution=max_archive_pages_per_institution,
-                max_seed_roots_per_institution=max_archive_pages_per_institution,
-                max_workers=max_workers,
-            )
-        if run_wayback_cdx_rescue:
-            run_wayback_cdx_rescue_for_sector(
-                repo_root,
-                sector,
-                timeout_seconds=timeout_seconds,
-                max_seed_roots_per_institution=max_archive_pages_per_institution,
-                max_snapshots_per_institution=max_archive_pages_per_institution,
-                max_workers=max_workers,
-            )
-        if run_ai_year_gap_rescue:
-            run_ai_year_gap_rescue_for_sector(
-                repo_root,
-                sector,
-                config_path=None,
-                max_api_cases=max_api_cases,
-                timeout_seconds=timeout_seconds,
-                max_archive_pages_per_institution=max_archive_pages_per_institution,
-                max_workers=max_workers,
-                rerun_existing_cases=True,
-                rematerialize_unitids=set(),
-            )
-
     input_dir = repo_root / PRODUCTION_INPUTS_ROOT / namespace
-    resolved_api_web_rescue_mode = api_web_rescue_mode
-    resolved_api_web_rescue_status = api_web_rescue_status
-    resolved_api_web_rescue_reason = api_web_rescue_reason
-    if run_ai_year_gap_rescue and clean_text(api_web_rescue_mode).lower() in {"", "not_run"}:
-        resolved_api_web_rescue_mode = "live_or_cached_ai_year_gap_rescue"
-    if run_ai_year_gap_rescue and clean_text(api_web_rescue_status).lower() in {"", "not_run"}:
-        resolved_api_web_rescue_status = "attempted_by_current_production_command"
-    if run_ai_year_gap_rescue and not clean_text(api_web_rescue_reason):
-        resolved_api_web_rescue_reason = (
-            "The current production command ran the configured AI/web year-gap rescue before source-review handoff."
+    started_monotonic = time.monotonic()
+    stage = "initializing"
+    target_panel: pd.DataFrame | None = None
+    try:
+        set_run_namespace(namespace)
+        stage = "loading target universe"
+        target_universe = load_target_panel_universe(repo_root)
+        raw_legacy = load_raw_legacy_url_rows(repo_root)
+        historical_priority = load_historical_priority_buckets(repo_root)
+        stage = "selecting target panel"
+        if selection_mode == "high_legacy_coverage":
+            selected = select_high_legacy_coverage_institutions(
+                target_universe,
+                raw_legacy,
+                public_count=public_institution_count,
+                private_count=private_institution_count,
+                min_target_rows=min_target_rows,
+                max_target_rows=max_target_rows,
+            )
+        elif selection_mode == "representative":
+            selected = select_representative_institutions(
+                target_universe,
+                institution_count=institution_count,
+                min_target_rows=min_target_rows,
+                max_target_rows=max_target_rows,
+            )
+        else:
+            selected = select_prior_valid_legacy_reverification_institutions(
+                target_universe,
+                historical_priority,
+                raw_legacy,
+                public_count=public_institution_count,
+                private_count=private_institution_count,
+                min_target_rows=min_target_rows,
+                max_target_rows=max_target_rows,
+            )
+        target_panel = target_panel_for_selection(target_universe, selected)
+        sectors = sorted(target_panel["sector"].dropna().map(clean_text).unique().tolist())
+        stage = "writing selection audit"
+        write_selection_audit(repo_root, namespace, selected, target_panel)
+        stage = "writing discovery runtime inputs"
+        write_discovery_inputs(repo_root, target_panel, sectors)
+        if input_dir.exists():
+            shutil.rmtree(input_dir)
+        initial_raw_legacy_candidate_rows = (
+            len(raw_legacy_candidates_for_target(target_panel, raw_legacy))
+            if include_raw_legacy_candidates and not raw_legacy.empty
+            else 0
         )
-    build_step1_inputs(
-        repo_root,
-        target_panel=target_panel,
-        sectors=sectors,
-        namespace=namespace,
-        chunk_id=chunk_id,
-        release_id=release_id,
-        input_dir=input_dir,
-        timeout_seconds=timeout_seconds,
-        max_source_bytes=1_000_000,
-        raw_legacy=raw_legacy,
-        include_raw_legacy_candidates=include_raw_legacy_candidates,
-        archive_expansion_completed=run_archive_expansion,
-        api_web_rescue_mode=resolved_api_web_rescue_mode,
-        api_web_rescue_status=resolved_api_web_rescue_status,
-        api_web_rescue_reason=resolved_api_web_rescue_reason,
-        min_ready_rate=min_ready_rate,
-        min_sector_ready_rate=min_sector_ready_rate,
-        api_web_rescue_required_for_unresolved=run_ai_year_gap_rescue,
-    )
-    result = build_step1_production_chunk(
-        repo_root,
-        input_dir=input_dir,
-        chunk_id=chunk_id,
-        release_id=release_id,
-        build_release=build_release,
-    )
-    return ProofToScaleResult(
-        namespace=namespace,
-        input_dir=input_dir,
-        chunk_dir=result.output_dir,
-        release_dir=result.release_dir,
-        target_rows=result.target_rows,
-        target_institutions=int(target_panel["unitid"].nunique()),
-        ready_rows=result.ready_rows,
-        unresolved_rows=result.unresolved_rows,
-        requirements_pass=result.requirements_pass,
-        release_pass=result.release_pass,
-    )
+        write_initial_step1_input_snapshot(
+            repo_root,
+            target_panel=target_panel,
+            namespace=namespace,
+            chunk_id=chunk_id,
+            release_id=release_id,
+            input_dir=input_dir,
+            min_ready_rate=min_ready_rate,
+            min_sector_ready_rate=min_sector_ready_rate,
+            api_web_rescue_mode=api_web_rescue_mode,
+            api_web_rescue_status=api_web_rescue_status,
+            api_web_rescue_reason=api_web_rescue_reason,
+            api_web_rescue_required_for_unresolved=run_ai_year_gap_rescue,
+            archive_expansion_completed=False,
+            raw_human_legacy_candidate_rows=initial_raw_legacy_candidate_rows,
+            source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+        )
+
+        for sector in sectors:
+            sector_institutions = int(target_panel.loc[target_panel["sector"].eq(sector), "unitid"].nunique())
+            if sector_institutions == 0:
+                continue
+            stage = f"running {sector} discovery"
+            run_discovery_for_sector(
+                repo_root,
+                sector,
+                limit=None,
+                rank_start=1,
+                timeout_seconds=timeout_seconds,
+                max_root_candidates_per_institution=max_root_candidates_per_institution,
+                max_archive_pages_per_institution=max_archive_pages_per_institution,
+                max_workers=max_workers,
+                chunk_size=max(1, sector_institutions),
+                resume=False,
+                skip_network_preflight=True,
+            )
+            if run_inferred_year_rescue:
+                stage = f"running {sector} inferred-year rescue"
+                run_inferred_year_url_rescue_for_sector(repo_root, sector, timeout_seconds=timeout_seconds, max_workers=max_workers)
+            if run_archive_expansion:
+                stage = f"running {sector} archive expansion"
+                run_archive_expansion_rescue_for_sector(
+                    repo_root,
+                    sector,
+                    timeout_seconds=timeout_seconds,
+                    max_archive_pages_per_institution=max_archive_pages_per_institution,
+                    max_seed_roots_per_institution=max_archive_pages_per_institution,
+                    max_workers=max_workers,
+                )
+            if run_wayback_cdx_rescue:
+                stage = f"running {sector} wayback cdx rescue"
+                run_wayback_cdx_rescue_for_sector(
+                    repo_root,
+                    sector,
+                    timeout_seconds=timeout_seconds,
+                    max_seed_roots_per_institution=max_archive_pages_per_institution,
+                    max_snapshots_per_institution=max_archive_pages_per_institution,
+                    max_workers=max_workers,
+                )
+            if run_ai_year_gap_rescue:
+                stage = f"running {sector} ai year-gap rescue"
+                run_ai_year_gap_rescue_for_sector(
+                    repo_root,
+                    sector,
+                    config_path=None,
+                    max_api_cases=max_api_cases,
+                    timeout_seconds=timeout_seconds,
+                    max_archive_pages_per_institution=max_archive_pages_per_institution,
+                    max_workers=max_workers,
+                    rerun_existing_cases=True,
+                    rematerialize_unitids=set(),
+                )
+
+        resolved_api_web_rescue_mode = api_web_rescue_mode
+        resolved_api_web_rescue_status = api_web_rescue_status
+        resolved_api_web_rescue_reason = api_web_rescue_reason
+        if run_ai_year_gap_rescue and clean_text(api_web_rescue_mode).lower() in {"", "not_run"}:
+            resolved_api_web_rescue_mode = "live_or_cached_ai_year_gap_rescue"
+        if run_ai_year_gap_rescue and clean_text(api_web_rescue_status).lower() in {"", "not_run"}:
+            resolved_api_web_rescue_status = "attempted_by_current_production_command"
+        if run_ai_year_gap_rescue and not clean_text(api_web_rescue_reason):
+            resolved_api_web_rescue_reason = (
+                "The current production command ran the configured AI/web year-gap rescue before source-review handoff."
+            )
+        stage = "building step1 production inputs"
+        build_step1_inputs(
+            repo_root,
+            target_panel=target_panel,
+            sectors=sectors,
+            namespace=namespace,
+            chunk_id=chunk_id,
+            release_id=release_id,
+            input_dir=input_dir,
+            timeout_seconds=timeout_seconds,
+            max_source_bytes=1_000_000,
+            raw_legacy=raw_legacy,
+            include_raw_legacy_candidates=include_raw_legacy_candidates,
+            archive_expansion_completed=run_archive_expansion,
+            api_web_rescue_mode=resolved_api_web_rescue_mode,
+            api_web_rescue_status=resolved_api_web_rescue_status,
+            api_web_rescue_reason=resolved_api_web_rescue_reason,
+            min_ready_rate=min_ready_rate,
+            min_sector_ready_rate=min_sector_ready_rate,
+            api_web_rescue_required_for_unresolved=run_ai_year_gap_rescue,
+            source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+        )
+        stage = "packaging production chunk"
+        result = build_step1_production_chunk(
+            repo_root,
+            input_dir=input_dir,
+            chunk_id=chunk_id,
+            release_id=release_id,
+            build_release=build_release,
+        )
+        return ProofToScaleResult(
+            namespace=namespace,
+            input_dir=input_dir,
+            chunk_dir=result.output_dir,
+            release_dir=result.release_dir,
+            target_rows=result.target_rows,
+            target_institutions=int(target_panel["unitid"].nunique()),
+            ready_rows=result.ready_rows,
+            unresolved_rows=result.unresolved_rows,
+            requirements_pass=result.requirements_pass,
+            release_pass=result.release_pass,
+        )
+    except KeyboardInterrupt as exc:
+        write_run_stop_report(
+            repo_root,
+            namespace=namespace,
+            input_dir=input_dir,
+            stage=stage,
+            reason="interrupted by KeyboardInterrupt",
+            started_monotonic=started_monotonic,
+            target_panel=target_panel,
+            exception=exc,
+        )
+        raise
+    except Exception as exc:
+        write_run_stop_report(
+            repo_root,
+            namespace=namespace,
+            input_dir=input_dir,
+            stage=stage,
+            reason=f"{type(exc).__name__}: {exc}",
+            started_monotonic=started_monotonic,
+            target_panel=target_panel,
+            exception=exc,
+        )
+        raise
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1668,8 +2392,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--release-id", default=None)
     parser.add_argument(
         "--selection-mode",
-        choices=["representative", "high_legacy_coverage"],
-        default="representative",
+        choices=["prior_valid_legacy_reverification", "representative", "high_legacy_coverage"],
+        default="prior_valid_legacy_reverification",
     )
     parser.add_argument("--institution-count", type=int, default=32)
     parser.add_argument("--public-institution-count", type=int, default=8)
@@ -1692,6 +2416,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-web-rescue-status", default="not_run")
     parser.add_argument("--api-web-rescue-reason", default="")
     parser.add_argument("--build-release", action="store_true")
+    parser.add_argument("--source-review-row-timeout-seconds", type=float, default=90.0)
     return parser
 
 
@@ -1725,6 +2450,7 @@ def main(argv: list[str] | None = None) -> int:
         api_web_rescue_status=args.api_web_rescue_status,
         api_web_rescue_reason=args.api_web_rescue_reason,
         build_release=args.build_release,
+        source_review_row_timeout_seconds=args.source_review_row_timeout_seconds,
     )
     print(
         "proof_to_scale_result "
