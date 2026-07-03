@@ -379,7 +379,7 @@ def test_release_package_includes_ai_provenance_and_package_local_lineage(tmp_pa
         assert row["packaged_sha256"] == _sha256(packaged)
 
 
-def test_release_package_handles_blank_ai_provenance_artifact_path(tmp_path: Path) -> None:
+def test_release_package_handles_dry_run_ai_provenance_without_response_artifacts(tmp_path: Path) -> None:
     _write_chunk(tmp_path, include_ai_provenance=True)
     triage_path = (
         tmp_path
@@ -387,6 +387,8 @@ def test_release_package_handles_blank_ai_provenance_artifact_path(tmp_path: Pat
         / "test_namespace/ai_year_gap_triage.csv"
     )
     triage = pd.read_csv(triage_path)
+    triage["api_validation_status"] = "dry_run"
+    triage["api_raw_response_path"] = ""
     triage["api_parsed_response_path"] = ""
     triage.to_csv(triage_path, index=False)
 
@@ -399,9 +401,16 @@ def test_release_package_handles_blank_ai_provenance_artifact_path(tmp_path: Pat
     assert result.package_pass
     ai_manifest = pd.read_csv(result.release_dir / "ai_model_output_manifest.csv")
     ai_row = ai_manifest.loc[ai_manifest["task_type"].eq("clean_no_legacy_year_gap_web_discovery")].iloc[0]
+    assert ai_row["validation_status"] == "dry_run"
+    assert ai_row["prompt_path"].startswith("audit/ai_api_provenance/")
+    assert ai_row["triage_path"].startswith("audit/ai_api_provenance/")
+    assert pd.isna(ai_row["raw_response_path"]) or ai_row["raw_response_path"] == ""
+    assert pd.isna(ai_row["raw_response_sha256"]) or ai_row["raw_response_sha256"] == ""
     assert pd.isna(ai_row["parsed_response_path"]) or ai_row["parsed_response_path"] == ""
     assert pd.isna(ai_row["parsed_response_sha256"]) or ai_row["parsed_response_sha256"] == ""
     assert pd.isna(ai_row["output_hash"]) or ai_row["output_hash"] == ""
+    status = pd.read_csv(result.release_dir / "release_status.csv").set_index("check")
+    assert status.loc["ai_api_provenance_packaged", "status"] == "pass"
 
 
 def test_release_package_rejects_failing_chunk(tmp_path: Path) -> None:

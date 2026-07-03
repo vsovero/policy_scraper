@@ -1258,17 +1258,29 @@ def ai_api_provenance_detail(release_dir: Path) -> tuple[str, str]:
         return "not_applicable", "No AI/API-assisted URL-stage rows detected."
     if manifest.empty:
         return "fail", "AI/API-assisted rows detected, but ai_model_output_manifest.csv has no rows."
-    required = ["prompt_path", "raw_response_path", "parsed_response_path", "triage_path"]
     missing = 0
+    dry_run_rows = 0
+    completed_rows = 0
     for _, row in manifest.iterrows():
         if clean_text(row.get("task_type")) != "clean_no_legacy_year_gap_web_discovery":
             continue
+        validation_status = clean_text(row.get("validation_status")).lower()
+        if validation_status == "dry_run":
+            dry_run_rows += 1
+            required = ["prompt_path", "triage_path"]
+        else:
+            completed_rows += 1
+            required = ["prompt_path", "raw_response_path", "parsed_response_path", "triage_path"]
         for column in required:
             rel = clean_text(row.get(column))
-            if not rel or not (release_dir / rel).exists():
+            if not rel or not (release_dir / rel).is_file():
                 missing += 1
     status = "pass" if missing == 0 else "fail"
-    return status, f"manifest_rows={len(manifest)}; missing_required_artifact_refs={missing}"
+    return (
+        status,
+        f"manifest_rows={len(manifest)}; completed_api_rows={completed_rows}; "
+        f"dry_run_rows={dry_run_rows}; missing_required_artifact_refs={missing}",
+    )
 
 
 def source_lineage_package_local_detail(release_dir: Path) -> tuple[str, str]:
