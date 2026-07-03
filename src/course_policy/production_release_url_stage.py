@@ -162,8 +162,16 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_if_file(path: Path) -> str:
+    return sha256_file(path) if path.is_file() else ""
+
+
+def path_in_release_if_file(path: Path, release_dir: Path) -> str:
+    return path_in_release(path, release_dir) if path.is_file() else ""
+
+
 def read_json_object(path: Path) -> dict[str, object]:
-    if not path.exists() or path.stat().st_size == 0:
+    if not path.is_file() or path.stat().st_size == 0:
         return {}
     try:
         loaded = json.loads(path.read_text(encoding="utf-8"))
@@ -1037,14 +1045,14 @@ def write_ai_model_output_manifest(release_dir: Path) -> None:
                     "unitid": clean_text(row.get("unitid")),
                     "institution_name": clean_text(row.get("institution_name")),
                     "call_or_run_id": clean_text(row.get("api_log_call_id")),
-                    "input_hash": sha256_file(prompt_path) if prompt_path.exists() else "",
-                    "output_hash": sha256_file(parsed_path) if parsed_path.exists() else "",
-                    "prompt_path": path_in_release(prompt_path, release_dir) if prompt_path.exists() else "",
-                    "prompt_sha256": sha256_file(prompt_path) if prompt_path.exists() else "",
-                    "raw_response_path": path_in_release(raw_path, release_dir) if raw_path.exists() else "",
-                    "raw_response_sha256": sha256_file(raw_path) if raw_path.exists() else "",
-                    "parsed_response_path": path_in_release(parsed_path, release_dir) if parsed_path.exists() else "",
-                    "parsed_response_sha256": sha256_file(parsed_path) if parsed_path.exists() else "",
+                    "input_hash": sha256_if_file(prompt_path),
+                    "output_hash": sha256_if_file(parsed_path),
+                    "prompt_path": path_in_release_if_file(prompt_path, release_dir),
+                    "prompt_sha256": sha256_if_file(prompt_path),
+                    "raw_response_path": path_in_release_if_file(raw_path, release_dir),
+                    "raw_response_sha256": sha256_if_file(raw_path),
+                    "parsed_response_path": path_in_release_if_file(parsed_path, release_dir),
+                    "parsed_response_sha256": sha256_if_file(parsed_path),
                     "triage_path": path_in_release(triage_path, release_dir),
                     "triage_sha256": sha256_file(triage_path),
                     **linkage,
