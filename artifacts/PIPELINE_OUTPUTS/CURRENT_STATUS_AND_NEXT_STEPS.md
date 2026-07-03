@@ -10,24 +10,25 @@ Step 1 production-build workflow adopted: 2026-07-02
 Step 1 prior-valid reverification batch 001 review incorporated: 2026-07-02
 Step 1 prior-valid reverification batch 002 review incorporated: 2026-07-02
 Step 1 prior-valid reverification batch 003 review incorporated: 2026-07-03
+Step 1 prior-valid reverification batch 004 review incorporated: 2026-07-03
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
 
-## 2026-07-02 Step 1 Current URL-Stage Status
+## 2026-07-03 Step 1 Current URL-Stage Status
 
 Current reviewed Step 1 URL-stage production-test artifacts:
 
 ```text
-01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_003/
-01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_003/CHUNK_REPORT.md
-01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_003/
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_004/
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_004/CHUNK_REPORT.md
+01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_004/
 ```
 
 Bottom line:
 
 ```text
-Step 1 prior-valid reverification test batch 003: accepted by process review
+Step 1 prior-valid reverification test batch 004: accepted by process review
 Clean-runner requirements:                         14/14 satisfied
 Release-local package verification:                verified
 Historical case precheck:                          complete; URL-free planning memory only
@@ -37,22 +38,22 @@ Ready-to-scale URL-stage claim:                    under process-review scope, n
 Full journal-release claim:                        not claimed
 Target institutions:                               28
 Target rows:                                      420
-Accepted source-ledger rows:                      297
-Explicit unresolved rows:                         123
-Ready/source-ledger rate:                         70.7%
-Ready rate, private:                              75.7%
-Ready rate, public:                               58.3%
-Benchmark denominator:                            138
-Current-run benchmark recovered:                  136
-Benchmark rows invalidated by review:               2
+Accepted source-ledger rows:                      224
+Explicit unresolved rows:                         196
+Ready/source-ledger rate:                         53.3%
+Ready rate, private:                              64.7%
+Ready rate, public:                               25.0%
+Benchmark denominator:                            178
+Current-run benchmark recovered:                  165
+Benchmark rows invalidated by review:              13
 Unresolved benchmark misses:                        0
-Release-local verifier:                            verified; 819 files checked
+Release-local verifier:                            verified; 818 files checked
 ```
 
 Interpretation:
 
 ```text
-Accepted as a successful Step 1 URL-stage prior-valid reverification test batch.
+Accepted as a Step 1 URL-stage prior-valid reverification test batch.
 The batch demonstrates that the clean production runner can build a reviewed
 source ledger, unresolved-row table, benchmark accounting, and package-local
 release for a prior-valid legacy lane from clean origin/main.
@@ -68,21 +69,21 @@ packaging remain later-stage work.
 Next action:
 
 ```text
-Start step1_prior_valid_reverification_test_batch_004 from clean origin/main at
-or after f9c107a. Use the same managed
+Start step1_prior_valid_reverification_test_batch_005 from clean origin/main at
+or after the batch 004 status update commit. Use the same managed
 goal/phase table, rebuild or confirm the durable-quarantine historical
 inventory, select the next prior-valid reverification chunk, and require a
 process review before updating this status file again.
 ```
 
-Review-publication note: the batch 001, batch 002, and batch 003 process reviews were
-completed in their batch worktrees. Publishing those ignored artifacts into canonical
-`process_reviews/` should be handled by the review stream, not by project
-management.
+Review-publication note: the batch 001, batch 002, batch 003, and batch 004
+process reviews were completed in their batch worktrees. Publishing those
+ignored artifacts into canonical `process_reviews/` should be handled by the
+review stream, not by project management.
 
-Batches 001 and 002 remain prior accepted evidence. Together with batch 003,
-the reviewed prior-valid reverification lane now covers 84 institutions and
-1,251 institution-years.
+Batches 001, 002, and 003 remain prior accepted evidence. Together with batch
+004, the reviewed prior-valid reverification lane now covers 112 institutions
+and 1,671 institution-years.
 
 ## 2026-07-01 Prior Step 1 Proof-To-Scale Status
 
