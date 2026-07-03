@@ -9,6 +9,7 @@ Step 1 target-panel materialization fix review incorporated: 2026-07-02
 Step 1 production-build workflow adopted: 2026-07-02
 Step 1 prior-valid reverification batch 001 review incorporated: 2026-07-02
 Step 1 prior-valid reverification batch 002 review incorporated: 2026-07-02
+Step 1 prior-valid reverification batch 003 review incorporated: 2026-07-03
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
@@ -18,15 +19,15 @@ this file for current decisions, next steps, and production-readiness notes.
 Current reviewed Step 1 URL-stage production-test artifacts:
 
 ```text
-01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_002/
-01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_002/CHUNK_REPORT.md
-01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_002/
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_003/
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_003/CHUNK_REPORT.md
+01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_003/
 ```
 
 Bottom line:
 
 ```text
-Step 1 prior-valid reverification test batch 002: accepted by process review
+Step 1 prior-valid reverification test batch 003: accepted by process review
 Clean-runner requirements:                         14/14 satisfied
 Release-local package verification:                verified
 Historical case precheck:                          complete; URL-free planning memory only
@@ -36,16 +37,16 @@ Ready-to-scale URL-stage claim:                    under process-review scope, n
 Full journal-release claim:                        not claimed
 Target institutions:                               28
 Target rows:                                      420
-Accepted source-ledger rows:                      313
-Explicit unresolved rows:                         107
-Ready/source-ledger rate:                         74.5%
-Ready rate, private:                              77.0%
-Ready rate, public:                               68.3%
-Benchmark denominator:                            198
-Current-run benchmark recovered:                  183
-Benchmark rows invalidated by review:              15
+Accepted source-ledger rows:                      297
+Explicit unresolved rows:                         123
+Ready/source-ledger rate:                         70.7%
+Ready rate, private:                              75.7%
+Ready rate, public:                               58.3%
+Benchmark denominator:                            138
+Current-run benchmark recovered:                  136
+Benchmark rows invalidated by review:               2
 Unresolved benchmark misses:                        0
-Release-local verifier:                            verified; 881 files checked
+Release-local verifier:                            verified; 819 files checked
 ```
 
 Interpretation:
@@ -67,22 +68,21 @@ packaging remain later-stage work.
 Next action:
 
 ```text
-Start step1_prior_valid_reverification_test_batch_003 from clean origin/main at
-or after f89cb10. Use the same managed
+Start step1_prior_valid_reverification_test_batch_004 from clean origin/main at
+or after f9c107a. Use the same managed
 goal/phase table, rebuild or confirm the durable-quarantine historical
 inventory, select the next prior-valid reverification chunk, and require a
 process review before updating this status file again.
 ```
 
-Review-publication note: the batch 001 and batch 002 process reviews were
+Review-publication note: the batch 001, batch 002, and batch 003 process reviews were
 completed in their batch worktrees. Publishing those ignored artifacts into canonical
 `process_reviews/` should be handled by the review stream, not by project
 management.
 
-Batch 001 remains prior accepted evidence: 28 institutions, 411 target rows,
-284 accepted source-ledger rows, 127 explicit unresolved rows, 150 current-run
-benchmark recoveries, 11 benchmark rows invalidated by review, and 0 unresolved
-benchmark misses.
+Batches 001 and 002 remain prior accepted evidence. Together with batch 003,
+the reviewed prior-valid reverification lane now covers 84 institutions and
+1,251 institution-years.
 
 ## 2026-07-01 Prior Step 1 Proof-To-Scale Status
 
