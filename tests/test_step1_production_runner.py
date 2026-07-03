@@ -299,10 +299,32 @@ def test_clean_runner_fails_unreviewed_candidates(tmp_path: Path) -> None:
     assert review_req["status"] == "fail"
 
 
-def test_clean_runner_fails_benchmark_miss(tmp_path: Path) -> None:
+def test_clean_runner_resolves_benchmark_miss_with_alternate_ready_source(tmp_path: Path) -> None:
     input_dir = _write_clean_inputs(tmp_path)
     benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
     benchmark["benchmark_url"] = "https://example.edu/different-catalog.pdf"
+    benchmark.to_csv(input_dir / "benchmark_key.csv", index=False)
+
+    result = build_step1_production_chunk(
+        tmp_path,
+        input_dir=input_dir,
+        chunk_id="production_chunk_clean_runner_test",
+    )
+
+    assert result.requirements_pass
+    recovery = pd.read_csv(result.output_dir / "BENCHMARK_RECOVERY.csv")
+    misses = pd.read_csv(result.output_dir / "BENCHMARK_MISSES.csv")
+    assert misses.empty
+    assert recovery["benchmark_recovery_status"].tolist() == ["source_ledger_resolved_by_other_evidence"]
+    assert recovery["current_run_recovered"].tolist() == [False]
+    assert recovery["source_ledger_resolved_or_invalidated"].tolist() == [True]
+
+
+def test_clean_runner_fails_unresolved_benchmark_miss(tmp_path: Path) -> None:
+    input_dir = _write_clean_inputs(tmp_path)
+    benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
+    benchmark["academic_year"] = 2003
+    benchmark["benchmark_url"] = "https://example.edu/different-2003-catalog.pdf"
     benchmark.to_csv(input_dir / "benchmark_key.csv", index=False)
 
     result = build_step1_production_chunk(

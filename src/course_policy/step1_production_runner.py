@@ -724,6 +724,12 @@ def build_benchmark_recovery(
                 miss_type = ""
                 invalidated = True
                 source_resolved_or_invalidated = True
+            elif ready:
+                status = "source_ledger_resolved_by_other_evidence"
+                resolution_type = "source_ledger_resolved_by_other_evidence"
+                miss_type = "benchmark_url_not_recovered_source_ledger_resolved_by_other_evidence"
+                invalidated = False
+                source_resolved_or_invalidated = True
             else:
                 status = "miss"
                 resolution_type = "unresolved_benchmark_miss"
