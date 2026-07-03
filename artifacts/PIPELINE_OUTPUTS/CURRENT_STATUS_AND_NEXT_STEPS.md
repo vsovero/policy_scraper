@@ -7,13 +7,76 @@ Step 1 production-runner integration review incorporated: 2026-07-01
 Step 1 clean-runtime import fix review incorporated: 2026-07-02
 Step 1 target-panel materialization fix review incorporated: 2026-07-02
 Step 1 production-build workflow adopted: 2026-07-02
+Step 1 prior-valid reverification batch 001 review incorporated: 2026-07-02
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
 
-## 2026-07-01 Step 1 Proof-To-Scale Status
+## 2026-07-02 Step 1 Current URL-Stage Status
 
-Current clean URL-stage proof artifacts:
+Current reviewed Step 1 URL-stage production-test artifacts:
+
+```text
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/
+01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/CHUNK_REPORT.md
+01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_001/
+01_url_discovery/process_reviews/step1_prior_valid_reverification_test_batch_001_review.md
+```
+
+Bottom line:
+
+```text
+Step 1 prior-valid reverification test batch 001: accepted by process review
+Clean-runner requirements:                         14/14 satisfied
+Release-local package verification:                verified
+Historical case precheck:                          complete; URL-free planning memory only
+Legacy/prior benchmark accounting:                 complete
+Clean no-legacy benchmark claim:                   not tested
+Ready-to-scale URL-stage claim:                    under process-review scope, not journal readiness
+Full journal-release claim:                        not claimed
+Target institutions:                               28
+Target rows:                                      411
+Accepted source-ledger rows:                      284
+Explicit unresolved rows:                         127
+Ready/source-ledger rate:                         69.1%
+Ready rate, private:                              68.2%
+Ready rate, public:                               71.4%
+Benchmark denominator:                            161
+Current-run benchmark recovered:                  150
+Benchmark rows invalidated by review:              11
+Unresolved benchmark misses:                        0
+Release-local verifier:                            verified; 995 files checked
+```
+
+Interpretation:
+
+```text
+Accepted as a successful Step 1 URL-stage prior-valid reverification test batch.
+The batch demonstrates that the clean production runner can build a reviewed
+source ledger, unresolved-row table, benchmark accounting, and package-local
+release for a prior-valid legacy lane from clean origin/main.
+
+NOT TESTED for clean no-legacy benchmark recovery because this lane uses
+transparent legacy/prior-valid candidates for reverification.
+
+NOT A FULL JOURNAL RELEASE because downstream text extraction, policy
+classification, adjudication, final panel construction, and full release
+packaging remain later-stage work.
+```
+
+Next action:
+
+```text
+Start step1_prior_valid_reverification_test_batch_002 from clean origin/main at
+or after 7e5b5b692ecec3b3474cf6e1ed76831b11a9d293. Use the same managed
+goal/phase table, rebuild or confirm the durable-quarantine historical
+inventory, select the next prior-valid reverification chunk, and require a
+process review before updating this status file again.
+```
+
+## 2026-07-01 Prior Step 1 Proof-To-Scale Status
+
+Prior clean URL-stage proof artifacts:
 
 ```text
 01_url_discovery/production_chunks/production_chunk_scale_drill_012/
@@ -21,7 +84,7 @@ Current clean URL-stage proof artifacts:
 01_url_discovery/production_releases/production_release_scale_drill_012/
 ```
 
-Bottom line:
+Prior Drill 012 bottom line:
 
 ```text
 Gate 1 clean-runner/source-review mechanics:     pass
@@ -50,12 +113,13 @@ Release-local verifier:                          pass
 Completion rule:
 
 ```text
-The active Step 1 proof-to-scale goal has a current successful URL-stage test
-batch in Drill 012. Drill 012 passed Gate 1 and Gate 2 process review for the
-URL-stage proof-to-scale claim. It is not a clean no-legacy benchmark and it is
-not a full journal replication package because downstream text extraction,
-policy classification, adjudication, final panel construction, and full release
-packaging remain later-stage work.
+Drill 012 remains the prior successful URL-stage proof-to-scale batch. It has
+now been superseded as the current Step 1 status artifact by
+step1_prior_valid_reverification_test_batch_001, but remains useful prior
+evidence for the clean-runner and release-package path. Drill 012 is not a
+clean no-legacy benchmark and it is not a full journal replication package
+because downstream text extraction, policy classification, adjudication, final
+panel construction, and full release packaging remain later-stage work.
 ```
 
 Process-review-controlled interpretation:

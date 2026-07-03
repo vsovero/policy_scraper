@@ -2,28 +2,35 @@
 
 Open this folder for current URL-discovery production-facing outputs.
 
-As of 2026-07-01, the current clean proof-to-scale URL-stage production
+As of 2026-07-02, the current reviewed Step 1 URL-stage production-test
 artifacts are:
 
 ```text
-production_chunks/production_chunk_scale_drill_012/
-production_chunks/production_chunk_scale_drill_012/CHUNK_REPORT.md
-production_releases/production_release_scale_drill_012/
+production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/
+production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/CHUNK_REPORT.md
+production_releases/production_release_step1_prior_valid_reverification_test_batch_001/
+process_reviews/step1_prior_valid_reverification_test_batch_001_review.md
 ```
 
-Bottom line: Drill 012 is the current successful URL-stage proof-to-scale batch
-for Gate 1 and Gate 2. It passed process review for clean production-runner
-mechanics, source-ledger row accounting, substantive readiness floors,
-legacy/prior benchmark accounting, accepted-source evidence packaging, and
-release-package rebuild. It does not claim clean no-legacy benchmark success or
-full journal-release readiness. The run has `369/375` accepted source rows,
-`6/375` explicit unresolved rows, `333` benchmark rows, `330` current-run
-benchmark recoveries, `3` benchmark rows invalidated by review, and `0`
-unresolved benchmark misses. The ready rate is `98.4%` overall, `100.0%`
-private, and `92.0%` public. The release verifies from its own root with `519`
-files checked and `0` local path failures. This remains URL-stage evidence only:
-downstream text extraction, policy classification, final panel construction, and
-full journal replication packaging are not included.
+Bottom line: `step1_prior_valid_reverification_test_batch_001` is the current
+successful Step 1 URL-stage prior-valid reverification test batch. Process
+review accepted it for clean production-runner requirements, URL-free historical
+case precheck, source-ledger accounting, prior-valid benchmark accounting,
+accepted-source evidence packaging, and package-local release verification. It
+does not claim clean no-legacy benchmark success or full journal-release
+readiness. The run has `284/411` accepted source rows, `127/411` explicit
+unresolved rows, `161` benchmark rows, `150` current-run benchmark recoveries,
+`11` benchmark rows invalidated by review, and `0` unresolved benchmark misses.
+The ready/source-ledger rate is `69.1%` overall, `68.2%` private, and `71.4%`
+public. The release verifies from its own root with `995` files checked and `0`
+local path failures. This remains URL-stage evidence only: downstream text
+extraction, policy classification, final panel construction, and full journal
+replication packaging are not included.
+
+Next production-test action: start
+`step1_prior_valid_reverification_test_batch_002` from clean `origin/main` at
+or after commit `7e5b5b692ecec3b3474cf6e1ed76831b11a9d293`, using the same
+managed goal/phase table and process-review gate.
 
 The old transitional production-shaped artifacts were moved to
 `policy_scraper/artifacts/PILOTS/url_discovery/` as pilot/history evidence
