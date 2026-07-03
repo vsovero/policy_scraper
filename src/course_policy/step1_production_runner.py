@@ -704,10 +704,13 @@ def build_benchmark_recovery(
                     if any(benchmark_url_match(value, benchmark_url) for value in reviewed_urls if clean_text(value)):
                         benchmark_reviewed_rejected = True
                         break
-            recovered = ready and any(
-                benchmark_url_match(value, benchmark_url)
-                for value in [accepted_url, candidate_url, final_url]
-                if clean_text(value)
+            recovered = ready and (
+                any(
+                    benchmark_url_match(value, benchmark_url)
+                    for value in [accepted_url, candidate_url, final_url]
+                    if clean_text(value)
+                )
+                or human_legacy_wayback_recovery_resolves_benchmark(row, year)
             )
             if recovered:
                 status = "recovered_by_current_chunk"
@@ -786,6 +789,43 @@ def benchmark_url_match(accepted_url: object, benchmark_url: object) -> bool:
     accepted = clean_text(accepted_url)
     benchmark = clean_text(benchmark_url)
     return bool(accepted and benchmark) and (accepted == benchmark or comparable_url(accepted) == comparable_url(benchmark))
+
+
+def source_year_covers_target(row: pd.Series, year: int) -> bool:
+    start = pd.to_numeric(pd.Series([row.get("source_year_start")]), errors="coerce").iloc[0]
+    end = pd.to_numeric(pd.Series([row.get("source_year_end")]), errors="coerce").iloc[0]
+    if pd.isna(start) or pd.isna(end):
+        return False
+    return int(start) <= year <= int(end)
+
+
+def human_legacy_wayback_recovery_resolves_benchmark(row: pd.Series, year: int) -> bool:
+    """Count accepted human-legacy Wayback recoveries despite archived host drift."""
+    if not truthy(row.get("ready_for_text_extraction")):
+        return False
+    provenance = " ".join(
+        clean_text(row.get(column)).lower()
+        for column in [
+            "url_source_bucket",
+            "candidate_generation_method",
+            "candidate_source_file",
+            "retrieval_recovery_method",
+            "review_reason",
+        ]
+    )
+    if "wayback" not in provenance:
+        return False
+    if "human_legacy" not in provenance and "legacy_url" not in provenance:
+        return False
+    if not source_year_covers_target(row, year):
+        return False
+    confirmed_columns = [
+        "institution_match_confirmed",
+        "source_scope_confirmed",
+        "source_type_confirmed",
+        "year_coverage_confirmed",
+    ]
+    return all(truthy(row.get(column)) for column in confirmed_columns)
 
 
 def accepted_review_evidence_complete(handoff: pd.DataFrame) -> tuple[bool, str]:

@@ -355,6 +355,56 @@ def test_benchmark_match_treats_wayback_case_variant_as_same_pdf() -> None:
     )
 
 
+def test_clean_runner_counts_accepted_human_legacy_wayback_host_drift_as_recovered(tmp_path: Path) -> None:
+    input_dir = _write_clean_inputs(tmp_path)
+    wayback_url = (
+        "http://web.archive.org/web/20140516150704id_/"
+        "http://www4.example.edu/university-catalog/2002-2003-catalog/university-regulations"
+    )
+    benchmark_url = "https://www.example.edu/university-catalog/2002-2003-catalog/university-regulations"
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    accepted = review["academic_year"].eq(2002)
+    review.loc[accepted, "candidate_url"] = wayback_url
+    review.loc[accepted, "final_url_after_redirect"] = wayback_url
+    review.loc[accepted, "retrieval_status"] = "retrieved"
+    review.loc[accepted, "candidate_generation_method"] = "raw_public_legacy_workbook_url_wayback_recovery"
+    review.loc[accepted, "candidate_source_type"] = "human_legacy_url_wayback_recovery"
+    review.loc[accepted, "url_source_bucket"] = "active_human_legacy_url_wayback_recovery"
+    review.loc[accepted, "source_type"] = "catalog_html_or_policy_page"
+    review.loc[accepted, "source_year_start"] = 2002
+    review.loc[accepted, "source_year_end"] = 2003
+    review.loc[accepted, "review_reason"] = (
+        "Current-run retrieval confirmed institution, source type, and target year/span evidence. "
+        "Dead source URL was recovered through bounded Wayback lookup."
+    )
+    review.to_csv(input_dir / "source_review_log.csv", index=False)
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    candidates.loc[candidates["academic_year"].eq(2002), "candidate_url"] = wayback_url
+    candidates.loc[
+        candidates["academic_year"].eq(2002),
+        "candidate_generation_method",
+    ] = "raw_public_legacy_workbook_url_wayback_recovery"
+    candidates.to_csv(input_dir / "candidate_url_ledger.csv", index=False)
+    evidence = pd.read_csv(input_dir / "source_evidence_manifest.csv")
+    evidence.loc[evidence["academic_year"].eq(2002), "candidate_url"] = wayback_url
+    evidence.to_csv(input_dir / "source_evidence_manifest.csv", index=False)
+    benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
+    benchmark["benchmark_url"] = benchmark_url
+    benchmark.to_csv(input_dir / "benchmark_key.csv", index=False)
+
+    result = build_step1_production_chunk(
+        tmp_path,
+        input_dir=input_dir,
+        chunk_id="production_chunk_clean_runner_test",
+    )
+
+    assert result.requirements_pass
+    misses = pd.read_csv(result.output_dir / "BENCHMARK_MISSES.csv")
+    recovery = pd.read_csv(result.output_dir / "BENCHMARK_RECOVERY.csv")
+    assert misses.empty
+    assert recovery["benchmark_recovery_status"].tolist() == ["recovered_by_current_chunk"]
+
+
 def test_clean_runner_accepts_multiyear_catalog_without_benchmark_key(tmp_path: Path) -> None:
     input_dir = _write_clean_inputs(tmp_path)
     (input_dir / "benchmark_key.csv").unlink()
