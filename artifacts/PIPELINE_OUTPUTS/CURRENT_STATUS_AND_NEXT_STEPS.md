@@ -7,13 +7,18 @@ Step 1 production-runner integration review incorporated: 2026-07-01
 Step 1 clean-runtime import fix review incorporated: 2026-07-02
 Step 1 target-panel materialization fix review incorporated: 2026-07-02
 Step 1 production-build workflow adopted: 2026-07-02
-Step 1 prior-valid reverification batch 001 review incorporated: 2026-07-02
-Step 1 prior-valid reverification batch 002 review incorporated: 2026-07-02
-Step 1 prior-valid reverification batch 003 review incorporated: 2026-07-03
-Step 1 prior-valid reverification batch 004 review incorporated: 2026-07-03
+Step 1 prior-discovery source reconstruction batch 001 review incorporated: 2026-07-02
+Step 1 prior-discovery source reconstruction batch 002 review incorporated: 2026-07-02
+Step 1 prior-discovery source reconstruction batch 003 review incorporated: 2026-07-03
+Step 1 prior-discovery source reconstruction batch 004 review incorporated: 2026-07-03
 
 This is the active human-facing status register for the policy pipeline. Open
 this file for current decisions, next steps, and production-readiness notes.
+
+Terminology note: use `prior-discovery source reconstruction` for this Step 1
+lane. The existing reviewed artifact IDs still contain
+`prior_valid_reverification` for traceability, but that phrase should be treated
+as a frozen run identifier, not the preferred process name.
 
 ## 2026-07-03 Step 1 Current URL-Stage Status
 
@@ -28,7 +33,7 @@ Current reviewed Step 1 URL-stage production-test artifacts:
 Bottom line:
 
 ```text
-Step 1 prior-valid reverification test batch 004: accepted by process review
+Step 1 prior-discovery source reconstruction batch 004: accepted by process review
 Clean-runner requirements:                         14/14 satisfied
 Release-local package verification:                verified
 Historical case precheck:                          complete; URL-free planning memory only
@@ -53,13 +58,13 @@ Release-local verifier:                            verified; 818 files checked
 Interpretation:
 
 ```text
-Accepted as a Step 1 URL-stage prior-valid reverification test batch.
+Accepted as a Step 1 URL-stage prior-discovery source reconstruction batch.
 The batch demonstrates that the clean production runner can build a reviewed
 source ledger, unresolved-row table, benchmark accounting, and package-local
-release for a prior-valid legacy lane from clean origin/main.
+release for a prior-discovery lane from clean origin/main.
 
 NOT TESTED for clean no-legacy benchmark recovery because this lane uses
-transparent legacy/prior-valid candidates for reverification.
+transparent prior-discovery candidates for source reconstruction.
 
 NOT A FULL JOURNAL RELEASE because downstream text extraction, policy
 classification, adjudication, final panel construction, and full release
@@ -72,8 +77,8 @@ Next action:
 Start step1_prior_valid_reverification_test_batch_005 from clean origin/main at
 or after the batch 004 status update commit. Use the same managed
 goal/phase table, rebuild or confirm the durable-quarantine historical
-inventory, select the next prior-valid reverification chunk, and require a
-process review before updating this status file again.
+inventory, select the next prior-discovery source reconstruction chunk, and
+require a process review before updating this status file again.
 ```
 
 Review-publication note: the batch 001, batch 002, batch 003, and batch 004
@@ -82,8 +87,8 @@ ignored artifacts into canonical `process_reviews/` should be handled by the
 review stream, not by project management.
 
 Batches 001, 002, and 003 remain prior accepted evidence. Together with batch
-004, the reviewed prior-valid reverification lane now covers 112 institutions
-and 1,671 institution-years.
+004, the reviewed prior-discovery source reconstruction lane now covers 112
+institutions and 1,671 institution-years.
 
 ## 2026-07-01 Prior Step 1 Proof-To-Scale Status
 

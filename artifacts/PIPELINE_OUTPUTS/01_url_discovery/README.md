@@ -2,6 +2,11 @@
 
 Open this folder for current URL-discovery production-facing outputs.
 
+Terminology note: use `prior-discovery source reconstruction` for the current
+Step 1 lane. Existing reviewed artifact IDs still contain
+`prior_valid_reverification` for traceability; treat that phrase as a frozen run
+identifier, not the preferred process name.
+
 As of 2026-07-03, the current reviewed Step 1 URL-stage production-test
 artifacts are:
 
@@ -12,9 +17,9 @@ production_releases/production_release_step1_prior_valid_reverification_test_bat
 ```
 
 Bottom line: `step1_prior_valid_reverification_test_batch_004` is the current
-accepted Step 1 URL-stage prior-valid reverification test batch. Process review
-accepted it for clean production-runner requirements, URL-free historical case
-precheck, source-ledger accounting, prior-valid benchmark accounting,
+accepted Step 1 URL-stage prior-discovery source reconstruction batch. Process
+review accepted it for clean production-runner requirements, URL-free historical
+case precheck, source-ledger accounting, legacy/prior benchmark accounting,
 accepted-source evidence packaging, and package-local release verification. It
 does not claim clean no-legacy benchmark success or full journal-release
 readiness. The run has `224/420` accepted source rows, `196/420` explicit
