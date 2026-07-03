@@ -6,34 +6,34 @@ As of 2026-07-02, the current reviewed Step 1 URL-stage production-test
 artifacts are:
 
 ```text
-production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/
-production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/CHUNK_REPORT.md
-production_releases/production_release_step1_prior_valid_reverification_test_batch_001/
+production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_002/
+production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_002/CHUNK_REPORT.md
+production_releases/production_release_step1_prior_valid_reverification_test_batch_002/
 ```
 
-Bottom line: `step1_prior_valid_reverification_test_batch_001` is the current
+Bottom line: `step1_prior_valid_reverification_test_batch_002` is the current
 successful Step 1 URL-stage prior-valid reverification test batch. Process
 review accepted it for clean production-runner requirements, URL-free historical
 case precheck, source-ledger accounting, prior-valid benchmark accounting,
 accepted-source evidence packaging, and package-local release verification. It
 does not claim clean no-legacy benchmark success or full journal-release
-readiness. The run has `284/411` accepted source rows, `127/411` explicit
-unresolved rows, `161` benchmark rows, `150` current-run benchmark recoveries,
-`11` benchmark rows invalidated by review, and `0` unresolved benchmark misses.
-The ready/source-ledger rate is `69.1%` overall, `68.2%` private, and `71.4%`
-public. The release verifies from its own root with `995` files checked and `0`
+readiness. The run has `313/420` accepted source rows, `107/420` explicit
+unresolved rows, `198` benchmark rows, `183` current-run benchmark recoveries,
+`15` benchmark rows invalidated by review, and `0` unresolved benchmark misses.
+The ready/source-ledger rate is `74.5%` overall, `77.0%` private, and `68.3%`
+public. The release verifies from its own root with `881` files checked and `0`
 local path failures. This remains URL-stage evidence only: downstream text
 extraction, policy classification, final panel construction, and full journal
 replication packaging are not included.
 
 Next production-test action: start
-`step1_prior_valid_reverification_test_batch_002` from clean `origin/main` at
-or after commit `7e5b5b692ecec3b3474cf6e1ed76831b11a9d293`, using the same
+`step1_prior_valid_reverification_test_batch_003` from clean `origin/main` at
+or after commit `f89cb10`, using the same
 managed goal/phase table and process-review gate.
 
-The batch 001 review record was produced in the batch worktree. If it should be
-published into this canonical `process_reviews/` folder, that should be done by
-the review stream.
+The batch 001 and batch 002 review records were produced in their batch
+worktrees. If they should be published into this canonical `process_reviews/`
+folder, that should be done by the review stream.
 
 The old transitional production-shaped artifacts were moved to
 `policy_scraper/artifacts/PILOTS/url_discovery/` as pilot/history evidence
