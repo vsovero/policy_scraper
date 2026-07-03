@@ -20,6 +20,10 @@ audit_trails/
 
 old_or_superseded/
   Early superseded pilot attempts kept for traceability.
+
+historical_testing_log/README.md
+  Older Step 1 planning, pilot, drill, and regression notes moved out of the
+  current-status register. Historical context only, not current status.
 ```
 
 ## Status
