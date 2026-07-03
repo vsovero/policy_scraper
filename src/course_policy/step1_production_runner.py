@@ -778,7 +778,7 @@ def comparable_url(value: object) -> str:
     if hostname.startswith("www."):
         hostname = hostname[4:]
     query = urlencode(sorted(parse_qsl(parsed.query, keep_blank_values=True)))
-    path = parsed.path.rstrip("/") or "/"
+    path = (parsed.path.rstrip("/") or "/").lower()
     return urlunparse(("", hostname, path, "", query, ""))
 
 

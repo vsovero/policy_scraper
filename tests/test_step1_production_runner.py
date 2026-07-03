@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from course_policy.step1_production_runner import build_step1_production_chunk
+from course_policy.step1_production_runner import benchmark_url_match, build_step1_production_chunk
 
 
 def _write_clean_inputs(
@@ -346,6 +346,13 @@ def test_clean_runner_recovers_benchmark_when_only_fragment_differs(tmp_path: Pa
     assert result.requirements_pass
     misses = pd.read_csv(result.output_dir / "BENCHMARK_MISSES.csv")
     assert misses.empty
+
+
+def test_benchmark_match_treats_wayback_case_variant_as_same_pdf() -> None:
+    assert benchmark_url_match(
+        "http://web.archive.org/web/20121108104011id_/http://evansville.edu/registrar/downloads/CourseCatalog2007-2009.pdf",
+        "https://www.evansville.edu/registrar/downloads/coursecatalog2007-2009.pdf",
+    )
 
 
 def test_clean_runner_accepts_multiyear_catalog_without_benchmark_key(tmp_path: Path) -> None:
