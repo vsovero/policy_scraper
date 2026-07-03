@@ -701,6 +701,104 @@ def test_run_stop_report_written_on_controlled_discovery_failure(monkeypatch, tm
     ]
 
 
+def test_run_proof_to_scale_applies_prior_valid_exclusion_file(monkeypatch, tmp_path: Path) -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "institution_name": "Already Completed U",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2002,
+                "webaddr": "https://done.example.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Next Candidate U",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2002,
+                "webaddr": "https://next.example.edu",
+                "has_human_legacy_source": True,
+            },
+        ]
+    )
+    historical_priority = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "priority_bucket": "prior_programmatic_accepted_needs_current_reverification",
+                "prior_programmatic_accepted_rows": 5,
+            }
+        ]
+    )
+    exclusion = tmp_path / "completed_batch.csv"
+    pd.DataFrame([{"unitid": 1}]).to_csv(exclusion, index=False)
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_target_panel_universe",
+        lambda *args, **kwargs: target_universe,
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_raw_legacy_url_rows",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.load_historical_priority_buckets",
+        lambda *args, **kwargs: historical_priority,
+    )
+
+    def fail_discovery(*args, **kwargs):
+        raise RuntimeError("stop after selection")
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.run_discovery_for_sector", fail_discovery)
+
+    with pytest.raises(RuntimeError, match="stop after selection"):
+        run_proof_to_scale(
+            tmp_path,
+            namespace="exclude_file_test",
+            chunk_id="exclude_file_chunk",
+            release_id=None,
+            selection_mode="prior_valid_legacy_reverification",
+            institution_count=1,
+            public_institution_count=2,
+            private_institution_count=0,
+            min_target_rows=1,
+            max_target_rows=10,
+            timeout_seconds=1,
+            max_root_candidates_per_institution=1,
+            max_archive_pages_per_institution=1,
+            max_workers=1,
+            run_inferred_year_rescue=False,
+            run_archive_expansion=False,
+            run_wayback_cdx_rescue=False,
+            run_ai_year_gap_rescue=False,
+            max_api_cases=None,
+            include_raw_legacy_candidates=False,
+            min_ready_rate=0.0,
+            min_sector_ready_rate=0.0,
+            api_web_rescue_mode="not_run",
+            api_web_rescue_status="not_run",
+            api_web_rescue_reason="",
+            build_release=False,
+            source_review_row_timeout_seconds=1.0,
+            exclude_unitids_file=exclusion,
+        )
+
+    selected = pd.read_csv(
+        tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_selection/exclude_file_test/selected_institutions.csv"
+    )
+    target_panel = pd.read_csv(
+        tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_inputs/exclude_file_test/target_panel.csv"
+    )
+    config = (tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_inputs/exclude_file_test/run_config.json").read_text(
+        encoding="utf-8"
+    )
+    assert selected["unitid"].tolist() == [2]
+    assert target_panel["unitid"].tolist() == [2]
+    assert '"excluded_unitid_count": 1' in config
+
+
 def test_partial_ledgers_are_preserved_when_source_review_fails(monkeypatch, tmp_path: Path) -> None:
     target_panel = pd.DataFrame(
         [

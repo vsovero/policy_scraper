@@ -2232,7 +2232,6 @@ def run_proof_to_scale(
                 private_count=private_institution_count,
                 min_target_rows=min_target_rows,
                 max_target_rows=max_target_rows,
-                exclude_unitids=excluded_unitids,
             )
         elif selection_mode == "representative":
             selected = select_representative_institutions(
@@ -2250,6 +2249,7 @@ def run_proof_to_scale(
                 private_count=private_institution_count,
                 min_target_rows=min_target_rows,
                 max_target_rows=max_target_rows,
+                exclude_unitids=excluded_unitids,
             )
         target_panel = target_panel_for_selection(target_universe, selected)
         sectors = sorted(target_panel["sector"].dropna().map(clean_text).unique().tolist())
