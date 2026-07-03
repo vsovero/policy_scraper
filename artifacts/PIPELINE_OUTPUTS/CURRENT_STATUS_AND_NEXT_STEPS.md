@@ -90,6 +90,14 @@ Batches 001, 002, and 003 remain prior accepted evidence. Together with batch
 004, the reviewed prior-discovery source reconstruction lane now covers 112
 institutions and 1,671 institution-years.
 
+Step 2 handoff decision: do more reviewed Step 1 prior-discovery source
+reconstruction batches before building the unified URL/source dataset for Step
+2. The accepted batch releases currently contain the reviewed source-ledger
+pieces, but the canonical main repo does not yet contain a consolidated Step 2
+input table. Build that combined handoff only after more batches receive
+process-review acceptance, so the aggregation is a deliberate release step
+rather than a small partial bundle.
+
 ## 2026-07-01 Prior Step 1 Proof-To-Scale Status
 
 Prior clean URL-stage proof artifacts:

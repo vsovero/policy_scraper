@@ -40,6 +40,11 @@ The batch 001, batch 002, batch 003, and batch 004 review records were produced
 in their batch worktrees. If they should be published into this canonical
 `process_reviews/` folder, that should be done by the review stream.
 
+Step 2 handoff decision: continue running reviewed Step 1 prior-discovery
+source reconstruction batches before creating a unified URL/source input for
+Step 2. The reviewed batch releases hold the current source-ledger pieces; the
+canonical main repo does not yet contain a consolidated Step 2 handoff table.
+
 The old transitional production-shaped artifacts were moved to
 `policy_scraper/artifacts/PILOTS/url_discovery/` as pilot/history evidence
 because they depended on old pilot runtime inputs.
