@@ -9,7 +9,6 @@ artifacts are:
 production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/
 production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/CHUNK_REPORT.md
 production_releases/production_release_step1_prior_valid_reverification_test_batch_001/
-process_reviews/step1_prior_valid_reverification_test_batch_001_review.md
 ```
 
 Bottom line: `step1_prior_valid_reverification_test_batch_001` is the current
@@ -31,6 +30,10 @@ Next production-test action: start
 `step1_prior_valid_reverification_test_batch_002` from clean `origin/main` at
 or after commit `7e5b5b692ecec3b3474cf6e1ed76831b11a9d293`, using the same
 managed goal/phase table and process-review gate.
+
+The batch 001 review record was produced in the batch worktree. If it should be
+published into this canonical `process_reviews/` folder, that should be done by
+the review stream.
 
 The old transitional production-shaped artifacts were moved to
 `policy_scraper/artifacts/PILOTS/url_discovery/` as pilot/history evidence

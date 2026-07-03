@@ -20,7 +20,6 @@ Current reviewed Step 1 URL-stage production-test artifacts:
 01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/
 01_url_discovery/production_chunks/production_chunk_step1_prior_valid_reverification_test_batch_001/CHUNK_REPORT.md
 01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_001/
-01_url_discovery/process_reviews/step1_prior_valid_reverification_test_batch_001_review.md
 ```
 
 Bottom line:
@@ -73,6 +72,11 @@ goal/phase table, rebuild or confirm the durable-quarantine historical
 inventory, select the next prior-valid reverification chunk, and require a
 process review before updating this status file again.
 ```
+
+Review-publication note: the batch 001 process review was completed in the
+batch worktree. Publishing that ignored artifact into canonical
+`process_reviews/` should be handled by the review stream, not by project
+management.
 
 ## 2026-07-01 Prior Step 1 Proof-To-Scale Status
 
