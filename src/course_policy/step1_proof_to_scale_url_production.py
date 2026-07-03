@@ -225,6 +225,19 @@ def load_historical_priority_buckets(repo_root: Path) -> pd.DataFrame:
     return frame.loc[frame["unitid"].notna()].drop_duplicates("unitid", keep="first").copy()
 
 
+def load_excluded_unitids(path: Path | None, repo_root: Path) -> set[int]:
+    if path is None:
+        return set()
+    resolved = path if path.is_absolute() else repo_root / path
+    if not resolved.exists():
+        raise FileNotFoundError(f"Excluded-unitids file not found: {resolved}")
+    frame = pd.read_csv(resolved, low_memory=False)
+    if "unitid" not in frame.columns:
+        raise ValueError(f"Excluded-unitids file must contain a unitid column: {resolved}")
+    unitids = pd.to_numeric(frame["unitid"], errors="coerce").dropna().astype(int)
+    return set(unitids.tolist())
+
+
 def build_historical_case_precheck(repo_root: Path, target_panel: pd.DataFrame, namespace: str) -> pd.DataFrame:
     """Create URL-free historical-memory rows for the clean production runner."""
     priority = load_historical_priority_buckets(repo_root)
@@ -669,6 +682,7 @@ def select_prior_valid_legacy_reverification_institutions(
     private_count: int,
     min_target_rows: int,
     max_target_rows: int,
+    exclude_unitids: set[int] | None = None,
 ) -> pd.DataFrame:
     summary = prior_valid_priority_summary(target_universe, historical_priority, raw_legacy)
     eligible = summary.loc[
@@ -677,6 +691,8 @@ def select_prior_valid_legacy_reverification_institutions(
         | summary["has_human_legacy_source"].map(boolish)
     ].copy()
     eligible = eligible.loc[~eligible["historical_priority_bucket"].isin(NO_HUMAN_LEGACY_HOLDOUT_BUCKETS)].copy()
+    if exclude_unitids:
+        eligible = eligible.loc[~eligible["unitid"].isin(exclude_unitids)].copy()
     if eligible.empty:
         raise RuntimeError(
             "Prior-valid-legacy reverification selection found no eligible institutions; "
@@ -1488,6 +1504,8 @@ def step1_run_config(
     archive_expansion_completed: bool,
     raw_human_legacy_candidate_rows: int,
     source_review_row_timeout_seconds: float | None,
+    excluded_unitid_count: int = 0,
+    excluded_unitids_source: str = "",
 ) -> dict[str, object]:
     return {
         "chunk_id": chunk_id,
@@ -1513,6 +1531,8 @@ def step1_run_config(
         "source_review_row_timeout_seconds": (
             source_review_row_timeout_seconds if source_review_row_timeout_seconds is not None else "disabled"
         ),
+        "excluded_unitid_count": excluded_unitid_count,
+        "excluded_unitids_source": excluded_unitids_source,
     }
 
 
@@ -1571,6 +1591,8 @@ def write_initial_step1_input_snapshot(
     archive_expansion_completed: bool = False,
     raw_human_legacy_candidate_rows: int = 0,
     source_review_row_timeout_seconds: float | None = None,
+    excluded_unitid_count: int = 0,
+    excluded_unitids_source: str = "",
 ) -> None:
     historical_case_precheck = build_historical_case_precheck(repo_root, target_panel, namespace)
     config = step1_run_config(
@@ -1587,6 +1609,8 @@ def write_initial_step1_input_snapshot(
         archive_expansion_completed=archive_expansion_completed,
         raw_human_legacy_candidate_rows=raw_human_legacy_candidate_rows,
         source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+        excluded_unitid_count=excluded_unitid_count,
+        excluded_unitids_source=excluded_unitids_source,
     )
     write_step1_input_snapshot(
         input_dir,
@@ -1714,6 +1738,8 @@ def build_step1_inputs(
     api_web_rescue_required_for_unresolved: bool = False,
     allow_wayback_recovery: bool = True,
     source_review_row_timeout_seconds: float | None = 90.0,
+    excluded_unitid_count: int = 0,
+    excluded_unitids_source: str = "",
 ) -> Path:
     input_dir = input_dir if input_dir.is_absolute() else repo_root / input_dir
     if input_dir.exists():
@@ -1749,6 +1775,8 @@ def build_step1_inputs(
         archive_expansion_completed=archive_expansion_completed,
         raw_human_legacy_candidate_rows=len(legacy_candidates),
         source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+        excluded_unitid_count=excluded_unitid_count,
+        excluded_unitids_source=excluded_unitids_source,
     )
     merged = target_panel.merge(
         panel[
@@ -2180,6 +2208,7 @@ def run_proof_to_scale(
     api_web_rescue_reason: str,
     build_release: bool,
     source_review_row_timeout_seconds: float | None,
+    exclude_unitids_file: Path | None = None,
 ) -> ProofToScaleResult:
     repo_root = repo_root.resolve()
     input_dir = repo_root / PRODUCTION_INPUTS_ROOT / namespace
@@ -2192,6 +2221,8 @@ def run_proof_to_scale(
         target_universe = load_target_panel_universe(repo_root)
         raw_legacy = load_raw_legacy_url_rows(repo_root)
         historical_priority = load_historical_priority_buckets(repo_root)
+        excluded_unitids = load_excluded_unitids(exclude_unitids_file, repo_root)
+        excluded_unitids_source = repo_relative(exclude_unitids_file, repo_root) if exclude_unitids_file is not None else ""
         stage = "selecting target panel"
         if selection_mode == "high_legacy_coverage":
             selected = select_high_legacy_coverage_institutions(
@@ -2201,6 +2232,7 @@ def run_proof_to_scale(
                 private_count=private_institution_count,
                 min_target_rows=min_target_rows,
                 max_target_rows=max_target_rows,
+                exclude_unitids=excluded_unitids,
             )
         elif selection_mode == "representative":
             selected = select_representative_institutions(
@@ -2248,6 +2280,8 @@ def run_proof_to_scale(
             archive_expansion_completed=False,
             raw_human_legacy_candidate_rows=initial_raw_legacy_candidate_rows,
             source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+            excluded_unitid_count=len(excluded_unitids),
+            excluded_unitids_source=excluded_unitids_source,
         )
 
         for sector in sectors:
@@ -2337,6 +2371,8 @@ def run_proof_to_scale(
             min_sector_ready_rate=min_sector_ready_rate,
             api_web_rescue_required_for_unresolved=run_ai_year_gap_rescue,
             source_review_row_timeout_seconds=source_review_row_timeout_seconds,
+            excluded_unitid_count=len(excluded_unitids),
+            excluded_unitids_source=excluded_unitids_source,
         )
         stage = "packaging production chunk"
         result = build_step1_production_chunk(
@@ -2417,6 +2453,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-web-rescue-reason", default="")
     parser.add_argument("--build-release", action="store_true")
     parser.add_argument("--source-review-row-timeout-seconds", type=float, default=90.0)
+    parser.add_argument(
+        "--exclude-unitids-file",
+        type=Path,
+        default=None,
+        help="Optional CSV with a unitid column to exclude already-completed institutions from prior-valid selection.",
+    )
     return parser
 
 
@@ -2451,6 +2493,7 @@ def main(argv: list[str] | None = None) -> int:
         api_web_rescue_reason=args.api_web_rescue_reason,
         build_release=args.build_release,
         source_review_row_timeout_seconds=args.source_review_row_timeout_seconds,
+        exclude_unitids_file=args.exclude_unitids_file,
     )
     print(
         "proof_to_scale_result "

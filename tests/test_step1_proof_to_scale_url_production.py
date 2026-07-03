@@ -9,6 +9,7 @@ from course_policy.step1_proof_to_scale_url_production import (
     build_historical_case_precheck,
     build_parser,
     build_step1_inputs,
+    load_excluded_unitids,
     retrieve_candidate_with_wayback_recovery,
     retrieve_url_with_retries,
     run_proof_to_scale,
@@ -26,6 +27,12 @@ def test_cli_defaults_to_prior_valid_legacy_reverification_target() -> None:
     args = build_parser().parse_args(["--namespace", "n", "--chunk-id", "c"])
 
     assert args.selection_mode == "prior_valid_legacy_reverification"
+
+
+def test_cli_accepts_prior_valid_exclusion_file() -> None:
+    args = build_parser().parse_args(["--namespace", "n", "--chunk-id", "c", "--exclude-unitids-file", "done.csv"])
+
+    assert args.exclude_unitids_file == Path("done.csv")
 
 
 def test_retrieve_url_with_retries_has_wall_clock_guard(monkeypatch) -> None:
@@ -217,6 +224,61 @@ def test_prior_valid_legacy_selection_prioritizes_current_reverification_bucket(
     assert selected["unitid"].tolist() == [1, 2]
     assert "No Human Holdout U" not in set(selected["institution_name"])
     assert selected.iloc[0]["historical_priority_bucket"] == "prior_programmatic_accepted_needs_current_reverification"
+
+
+def test_prior_valid_legacy_selection_excludes_completed_unitids() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "institution_name": "Already Completed U",
+                "sector_stream": "public",
+                "state": "AA",
+                "academic_year": 2002,
+                "webaddr": "https://done.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 2,
+                "institution_name": "Next Candidate U",
+                "sector_stream": "public",
+                "state": "BB",
+                "academic_year": 2002,
+                "webaddr": "https://next.edu",
+                "has_human_legacy_source": True,
+            },
+        ]
+    )
+    historical_priority = pd.DataFrame(
+        [
+            {
+                "unitid": 1,
+                "priority_bucket": "prior_programmatic_accepted_needs_current_reverification",
+                "prior_programmatic_accepted_rows": 5,
+                "valid_human_legacy_rows": 0,
+            }
+        ]
+    )
+
+    selected = select_prior_valid_legacy_reverification_institutions(
+        target_universe,
+        historical_priority,
+        pd.DataFrame(),
+        public_count=2,
+        private_count=0,
+        min_target_rows=1,
+        max_target_rows=10,
+        exclude_unitids={1},
+    )
+
+    assert selected["unitid"].tolist() == [2]
+
+
+def test_load_excluded_unitids_reads_unitid_column(tmp_path: Path) -> None:
+    exclusion = tmp_path / "completed.csv"
+    pd.DataFrame([{"unitid": 10}, {"unitid": "11"}, {"unitid": ""}]).to_csv(exclusion, index=False)
+
+    assert load_excluded_unitids(exclusion, tmp_path) == {10, 11}
 
 
 def test_high_legacy_coverage_selection_counts_unique_unitids() -> None:
