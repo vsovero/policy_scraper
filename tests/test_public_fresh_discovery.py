@@ -1,3 +1,6 @@
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 
 from course_policy.public_fresh_discovery import (
@@ -5,6 +8,9 @@ from course_policy.public_fresh_discovery import (
     build_year_panel,
     build_year_candidates,
     classify_institution_status,
+    iter_completed_fetches_with_wall_timeout,
+    retrieval_error_result,
+    retrieval_timeout_result,
     select_public_fresh_institutions,
 )
 
@@ -55,6 +61,34 @@ def test_select_public_fresh_institutions_uses_no_legacy_queue_and_can_exclude_b
     assert selected["unitid"].tolist() == [1]
     assert selected["fresh_rank"].tolist() == [1]
     assert selected["batch3_rank"].tolist() == [1]
+
+
+def test_iter_completed_fetches_with_wall_timeout_marks_pending_fetches():
+    def slow_fetch() -> dict[str, object]:
+        time.sleep(0.25)
+        return {"retrieval_status": "retrieved"}
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future_to_item = {executor.submit(slow_fetch): "slow-url"}
+
+    rows = list(
+        iter_completed_fetches_with_wall_timeout(
+            executor,
+            future_to_item,
+            progress_label="test-fetch",
+            timeout_seconds=1,
+            max_workers=1,
+            timeout_result_factory=lambda item, message: retrieval_timeout_result(message),
+            exception_result_factory=retrieval_error_result,
+            progress_interval_seconds=1,
+            min_wall_timeout_seconds=0,
+            max_wall_timeout_seconds=0,
+        )
+    )
+
+    assert rows[0][0] == "slow-url"
+    assert rows[0][1]["retrieval_status"] == "timeout"
+    assert rows[0][1]["error_type"] == "concurrent_fetch_wall_timeout"
 
 
 def test_institution_status_distinguishes_root_found_from_year_candidates_found():

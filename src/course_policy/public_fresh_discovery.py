@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import math
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +40,9 @@ INSTITUTION_YEAR_TARGETS_INPUT = INTERIM_DIR / "institution_year_targets.csv"
 RETRYABLE_RETRIEVAL_STATUSES = {"url_error", "timeout", "network_error", "error"}
 RETRYABLE_HTTP_STATUSES = {408, 425, 429, 500, 502, 503, 504}
 DEFAULT_RETRIEVAL_ATTEMPTS = 3
+DEFAULT_FETCH_PROGRESS_INTERVAL_SECONDS = 15
+DEFAULT_MIN_FETCH_WALL_TIMEOUT_SECONDS = 60
+DEFAULT_MAX_FETCH_WALL_TIMEOUT_SECONDS = 300
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,133 @@ class PublicFreshDiscoveryOutputs:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def retrieval_timeout_result(message: str) -> dict[str, object]:
+    return {
+        "retrieval_status": "timeout",
+        "http_status": "",
+        "final_url": "",
+        "content_type": "",
+        "content_length_bytes": "",
+        "page_title": "",
+        "year_hints": "",
+        "catalog_year_start": "",
+        "catalog_year_end": "",
+        "sha256": "",
+        "error_type": "concurrent_fetch_wall_timeout",
+        "error_message": message,
+        "retrieval_attempt_count": DEFAULT_RETRIEVAL_ATTEMPTS,
+        "body": b"",
+        "links": [],
+        "link_records": [],
+    }
+
+
+def retrieval_error_result(exc: BaseException) -> dict[str, object]:
+    return {
+        "retrieval_status": "error",
+        "http_status": "",
+        "final_url": "",
+        "content_type": "",
+        "content_length_bytes": "",
+        "page_title": "",
+        "year_hints": "",
+        "catalog_year_start": "",
+        "catalog_year_end": "",
+        "sha256": "",
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+        "retrieval_attempt_count": 1,
+        "body": b"",
+        "links": [],
+        "link_records": [],
+    }
+
+
+def concurrent_fetch_wall_timeout_seconds(
+    job_count: int,
+    *,
+    timeout_seconds: int,
+    max_workers: int,
+    attempts: int = DEFAULT_RETRIEVAL_ATTEMPTS,
+    min_wall_timeout_seconds: int = DEFAULT_MIN_FETCH_WALL_TIMEOUT_SECONDS,
+    max_wall_timeout_seconds: int = DEFAULT_MAX_FETCH_WALL_TIMEOUT_SECONDS,
+) -> int:
+    if job_count <= 0:
+        return 0
+    worker_count = max(1, max_workers)
+    attempt_count = max(1, attempts)
+    estimated_seconds = timeout_seconds * attempt_count * (
+        max(1, math.ceil(job_count / worker_count)) + 1
+    )
+    return max(
+        min_wall_timeout_seconds,
+        min(max_wall_timeout_seconds, int(estimated_seconds)),
+    )
+
+
+def iter_completed_fetches_with_wall_timeout[T](
+    executor: ThreadPoolExecutor,
+    future_to_item: dict[Future, T],
+    *,
+    progress_label: str,
+    timeout_seconds: int,
+    max_workers: int,
+    timeout_result_factory: Callable[[T, str], dict[str, object]],
+    exception_result_factory: Callable[[BaseException], dict[str, object]],
+    progress_interval_seconds: int = DEFAULT_FETCH_PROGRESS_INTERVAL_SECONDS,
+    min_wall_timeout_seconds: int = DEFAULT_MIN_FETCH_WALL_TIMEOUT_SECONDS,
+    max_wall_timeout_seconds: int = DEFAULT_MAX_FETCH_WALL_TIMEOUT_SECONDS,
+) -> Iterator[tuple[T, dict[str, object]]]:
+    total = len(future_to_item)
+    if total == 0:
+        return
+    wall_timeout = concurrent_fetch_wall_timeout_seconds(
+        total,
+        timeout_seconds=timeout_seconds,
+        max_workers=max_workers,
+        min_wall_timeout_seconds=min_wall_timeout_seconds,
+        max_wall_timeout_seconds=max_wall_timeout_seconds,
+    )
+    pending = set(future_to_item)
+    completed = 0
+    deadline = time.monotonic() + wall_timeout
+    try:
+        while pending:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            done, pending = wait(
+                pending,
+                timeout=min(progress_interval_seconds, max(0.1, remaining)),
+                return_when=FIRST_COMPLETED,
+            )
+            if not done:
+                print(f"[{progress_label}] completed {completed}/{total}", flush=True)
+                continue
+            for future in done:
+                completed += 1
+                item = future_to_item[future]
+                try:
+                    result = future.result()
+                except Exception as exc:  # pragma: no cover - network failures vary.
+                    result = exception_result_factory(exc)
+                yield item, result
+            if completed == total or completed % 25 == 0:
+                print(f"[{progress_label}] completed {completed}/{total}", flush=True)
+        if pending:
+            message = f"concurrent fetch wall-clock timeout after {wall_timeout} seconds"
+            print(
+                f"[{progress_label}] timed out {len(pending)}/{total} fetches after {wall_timeout}s",
+                flush=True,
+            )
+            for future in list(pending):
+                future.cancel()
+                item = future_to_item[future]
+                yield item, timeout_result_factory(item, message)
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def suffixed_path(path: Path, suffix: str) -> Path:
@@ -178,20 +310,26 @@ def build_root_candidates_concurrent(
     if not jobs:
         return pd.DataFrame()
 
-    def fetch(job: tuple[pd.Series, int, dict[str, str]]) -> tuple[pd.Series, int, dict[str, str], dict[str, object]]:
-        task, idx, candidate = job
-        result = retrieve_url_with_retries(
+    def fetch(job: tuple[pd.Series, int, dict[str, str]]) -> dict[str, object]:
+        _, _, candidate = job
+        return retrieve_url_with_retries(
             candidate["candidate_url"],
             timeout_seconds=timeout_seconds,
             max_bytes=ROOT_RETRIEVAL_BYTES,
         )
-        return task, idx, candidate, result
 
     rows: list[dict[str, object]] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(fetch, job) for job in jobs]
-        for future in as_completed(futures):
-            task, idx, candidate, result = future.result()
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    future_to_job = {executor.submit(fetch, job): job for job in jobs}
+    for (task, idx, candidate), result in iter_completed_fetches_with_wall_timeout(
+        executor,
+        future_to_job,
+        progress_label=f"root-candidates-{source_slug}",
+        timeout_seconds=timeout_seconds,
+        max_workers=max_workers,
+        timeout_result_factory=lambda item, message: retrieval_timeout_result(message),
+        exception_result_factory=retrieval_error_result,
+    ):
             local_source_path = ""
             if result["retrieval_status"] in RETRIEVED_STATUSES:
                 local_source_path = str(
@@ -249,41 +387,28 @@ def build_archive_pages_concurrent(
     if usable.empty:
         return pd.DataFrame(), {}
 
-    def error_result(exc: BaseException) -> dict[str, object]:
-        return {
-            "retrieval_status": "error",
-            "http_status": "",
-            "final_url": "",
-            "content_type": "",
-            "page_title": "",
-            "year_hints": "",
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
-            "retrieval_attempt_count": 1,
-            "link_records": [],
-            "body": b"",
-        }
-
     root_results: dict[str, dict[str, object]] = {}
     print(f"[archive-pages] {source_slug} root fetches={len(usable)}", flush=True)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {
-            executor.submit(
-                retrieve_url_with_retries,
-                clean_text(decision["preferred_source_root_url"]),
-                timeout_seconds=timeout_seconds,
-                max_bytes=ROOT_RETRIEVAL_BYTES,
-            ): clean_text(decision["preferred_source_root_url"])
-            for _, decision in usable.iterrows()
-        }
-        for completed, future in enumerate(as_completed(future_to_url), 1):
-            url = future_to_url[future]
-            try:
-                root_results[url] = future.result()
-            except Exception as exc:  # pragma: no cover - network failures vary.
-                root_results[url] = error_result(exc)
-            if completed == len(future_to_url) or completed % 25 == 0:
-                print(f"[archive-pages] {source_slug} roots {completed}/{len(future_to_url)}", flush=True)
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    future_to_url = {
+        executor.submit(
+            retrieve_url_with_retries,
+            clean_text(decision["preferred_source_root_url"]),
+            timeout_seconds=timeout_seconds,
+            max_bytes=ROOT_RETRIEVAL_BYTES,
+        ): clean_text(decision["preferred_source_root_url"])
+        for _, decision in usable.iterrows()
+    }
+    for url, result in iter_completed_fetches_with_wall_timeout(
+        executor,
+        future_to_url,
+        progress_label=f"archive-pages-{source_slug}-roots",
+        timeout_seconds=timeout_seconds,
+        max_workers=max_workers,
+        timeout_result_factory=lambda item, message: retrieval_timeout_result(message),
+        exception_result_factory=retrieval_error_result,
+    ):
+        root_results[url] = result
 
     archive_jobs: list[tuple[pd.Series, int, dict[str, str]]] = []
     seen: set[tuple[int, str]] = set()
@@ -300,28 +425,29 @@ def build_archive_pages_concurrent(
     result_by_url = dict(root_results)
     rows: list[dict[str, object]] = []
 
-    def fetch_archive(job: tuple[pd.Series, int, dict[str, str]]) -> tuple[pd.Series, int, dict[str, str], dict[str, object]]:
-        decision, idx, archive = job
+    def fetch_archive(job: tuple[pd.Series, int, dict[str, str]]) -> dict[str, object]:
+        _, _, archive = job
         archive_url = archive["archive_url"]
         if archive_url in root_results:
-            result = root_results[archive_url]
-        else:
-            result = retrieve_url_with_retries(
-                archive_url,
-                timeout_seconds=timeout_seconds,
-                max_bytes=ROOT_RETRIEVAL_BYTES,
-            )
-        return decision, idx, archive, result
+            return root_results[archive_url]
+        return retrieve_url_with_retries(
+            archive_url,
+            timeout_seconds=timeout_seconds,
+            max_bytes=ROOT_RETRIEVAL_BYTES,
+        )
 
     print(f"[archive-pages] {source_slug} archive fetches={len(archive_jobs)}", flush=True)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_job = {executor.submit(fetch_archive, job): job for job in archive_jobs}
-        for completed, future in enumerate(as_completed(future_to_job), 1):
-            try:
-                decision, idx, archive, result = future.result()
-            except Exception as exc:  # pragma: no cover - network failures vary.
-                decision, idx, archive = future_to_job[future]
-                result = error_result(exc)
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    future_to_job = {executor.submit(fetch_archive, job): job for job in archive_jobs}
+    for (decision, idx, archive), result in iter_completed_fetches_with_wall_timeout(
+        executor,
+        future_to_job,
+        progress_label=f"archive-pages-{source_slug}-archives",
+        timeout_seconds=timeout_seconds,
+        max_workers=max_workers,
+        timeout_result_factory=lambda item, message: retrieval_timeout_result(message),
+        exception_result_factory=retrieval_error_result,
+    ):
             archive_url = archive["archive_url"]
             result_by_url[archive_url] = result
             local_source_path = ""
@@ -359,8 +485,6 @@ def build_archive_pages_concurrent(
                     "created_at": utc_now(),
                 }
             )
-            if completed == len(future_to_job) or completed % 25 == 0:
-                print(f"[archive-pages] {source_slug} archives {completed}/{len(future_to_job)}", flush=True)
     nested_archive_sources = {
         "contentdm_collection_api",
         "contentdm_collection_year_api",
@@ -414,14 +538,17 @@ def build_archive_pages_concurrent(
             frontier_rows = []
             continue
         new_rows: list[dict[str, object]] = []
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_job = {executor.submit(fetch_archive, job): job for job in nested_jobs}
-            for completed, future in enumerate(as_completed(future_to_job), 1):
-                try:
-                    decision, idx, archive, result = future.result()
-                except Exception as exc:  # pragma: no cover - network failures vary.
-                    decision, idx, archive = future_to_job[future]
-                    result = error_result(exc)
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        future_to_job = {executor.submit(fetch_archive, job): job for job in nested_jobs}
+        for (decision, idx, archive), result in iter_completed_fetches_with_wall_timeout(
+            executor,
+            future_to_job,
+            progress_label=f"archive-pages-{source_slug}-nested-depth-{nested_depth}",
+            timeout_seconds=timeout_seconds,
+            max_workers=max_workers,
+            timeout_result_factory=lambda item, message: retrieval_timeout_result(message),
+            exception_result_factory=retrieval_error_result,
+        ):
                 archive_url = archive["archive_url"]
                 result_by_url[archive_url] = result
                 local_source_path = ""
@@ -459,11 +586,6 @@ def build_archive_pages_concurrent(
                 }
                 rows.append(row)
                 new_rows.append(row)
-                if completed == len(future_to_job) or completed % 25 == 0:
-                    print(
-                        f"[archive-pages] {source_slug} nested depth {nested_depth} archives {completed}/{len(future_to_job)}",
-                        flush=True,
-                    )
         frontier_rows = new_rows
     if not rows:
         return pd.DataFrame(), result_by_url
