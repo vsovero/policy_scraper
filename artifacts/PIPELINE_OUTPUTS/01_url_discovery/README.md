@@ -6,14 +6,17 @@ Open this folder for current URL-discovery production-facing outputs. This READM
 
 Use `prior-discovery source reconstruction` for the current Step 1 lane. Existing reviewed artifact IDs still contain `prior_valid_reverification` for traceability; treat that phrase as a frozen run identifier, not the preferred process name.
 
-Latest reviewed URL-stage artifact:
+Latest reviewed URL-stage packet:
 
 ```text
-production_chunk_step1_prior_valid_reverification_test_batch_004
-production_release_step1_prior_valid_reverification_test_batch_004
+step1_prior_discovery_source_reconstruction_packet_005_008
+production_chunk_step1_prior_valid_reverification_test_batch_005
+production_chunk_step1_prior_valid_reverification_test_batch_006
+production_chunk_step1_prior_valid_reverification_test_batch_007
+production_chunk_step1_prior_valid_reverification_test_batch_008
 ```
 
-Batch 004 is the current accepted Step 1 URL-stage prior-discovery source reconstruction batch. It does not claim clean no-legacy benchmark success or full journal-release readiness.
+Packet 005-008 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
 
 ## Current Reporting
 
@@ -21,7 +24,7 @@ Batch 004 is the current accepted Step 1 URL-stage prior-discovery source recons
 - Batch rollup table: `reports/prior_discovery_source_reconstruction_rollup/README.md`
 - Historical pilot/drill/regression log: `../../PILOTS/url_discovery/historical_testing_log/README.md`
 
-Current accepted totals are 4 batches, 112 institutions, 1,671 target institution-years, 1,118 accepted source-ledger rows, 553 explicit unresolved rows, and 0 unresolved benchmark misses.
+Current accepted totals are 8 batches, 224 institutions, 3,283 target institution-years, 1,828 accepted source-ledger rows, 1,455 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
 
 ## Step 2 Handoff Decision
 
