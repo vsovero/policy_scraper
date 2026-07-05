@@ -13,28 +13,28 @@ This lane is not a clean no-legacy benchmark. It is also not a journal-ready rel
 ## Latest Reviewed URL-Stage Packet
 
 ```text
-step1_prior_discovery_source_reconstruction_packet_005_008
-production_chunk_step1_prior_valid_reverification_test_batch_005
-production_chunk_step1_prior_valid_reverification_test_batch_006
-production_chunk_step1_prior_valid_reverification_test_batch_007
-production_chunk_step1_prior_valid_reverification_test_batch_008
+step1_prior_discovery_source_reconstruction_packet_009_012
+production_chunk_step1_prior_valid_reverification_test_batch_009
+production_chunk_step1_prior_valid_reverification_test_batch_010
+production_chunk_step1_prior_valid_reverification_test_batch_011
+production_chunk_step1_prior_valid_reverification_test_batch_012
 ```
 
-Packet 005-008 is the latest Step 1 URL-stage prior-discovery source reconstruction packet accepted by process review. It adds 112 institutions, 1,612 target institution-years, 710 accepted source-ledger rows, 902 explicit unresolved rows, 492 benchmark rows, 433 current-run benchmark recoveries, 58 benchmark rows invalidated by review, 1 benchmark row resolved by other source-ledger evidence, and 0 unresolved benchmark misses.
+Packet 009-012 is the latest Step 1 URL-stage prior-discovery source reconstruction packet accepted by process review. It adds 112 institutions, 1,664 target institution-years, 701 accepted source-ledger rows, 963 explicit unresolved rows, 440 benchmark rows, 329 current-run benchmark recoveries, 111 benchmark rows invalidated by review, 0 benchmark rows resolved by other source-ledger evidence, and 0 unresolved benchmark misses.
 
-The benchmark-accounting source fix from the packet review has been integrated on `main` as `ee4b469`.
+The fetch-bound and Python 3.10 compatibility fixes from the packet review have been integrated on `main` through `5d71061`.
 
 ## Current Production-Construction Totals
 
-- Accepted batches: 8 (001-008)
-- Institutions covered: 224
-- Institution-years targeted: 3,283
-- Accepted source-ledger rows ready for Step 2 text extraction: 1,828
-- Explicit unresolved rows: 1,455
-- Overall ready/source-ledger rate: 55.7%
-- Benchmark rows: 1,167
-- Current-run benchmark recovered: 1,067
-- Benchmark rows invalidated by review: 99
+- Accepted batches: 12 (001-012)
+- Institutions covered: 336
+- Institution-years targeted: 4,947
+- Accepted source-ledger rows ready for Step 2 text extraction: 2,529
+- Explicit unresolved rows: 2,418
+- Overall ready/source-ledger rate: 51.1%
+- Benchmark rows: 1,607
+- Current-run benchmark recovered: 1,396
+- Benchmark rows invalidated by review: 210
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
 
@@ -42,7 +42,7 @@ Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery
 
 ## Next Action
 
-Run the next managed testing packet, `step1_prior_discovery_source_reconstruction_packet_009_012`, from clean `origin/main` after this packet-status update. The testing packet should run batches 009-012 sequentially, preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
+Run the next managed testing packet, `step1_prior_discovery_source_reconstruction_packet_013_016`, from clean `origin/main` after this packet-status update. The testing packet should run batches 013-016 sequentially, preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
 
 Project management should update this file only after the packet-level process review reaches acceptance.
 
@@ -57,7 +57,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
-- Review records for batches 001-008 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
+- Review records for batches 001-012 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live
 
