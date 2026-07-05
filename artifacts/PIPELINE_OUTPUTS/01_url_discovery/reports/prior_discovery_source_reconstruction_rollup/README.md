@@ -1,20 +1,20 @@
 # Step 1 Prior-Discovery Source Reconstruction Rollup
 
-Updated: 2026-07-04
+Updated: 2026-07-05
 
 This is the current production-construction reporting table for Step 1 URL/source discovery. It covers reviewed prior-discovery source reconstruction batches only. It does not include old pilot/drill metrics, and it does not claim clean no-legacy benchmark success or journal-release readiness.
 
 ## Current Totals
 
-- Accepted batches: 12
-- Institutions covered: 336
-- Institution-years targeted: 4,947
-- Accepted source-ledger rows ready for Step 2 text extraction: 2,529
-- Explicit unresolved rows: 2,418
-- Overall ready/source-ledger rate: 51.1%
-- Benchmark rows: 1,607
-- Current-run benchmark recovered: 1,396
-- Benchmark rows invalidated by review: 210
+- Accepted batches: 16
+- Institutions covered: 448
+- Institution-years targeted: 6,550
+- Accepted source-ledger rows ready for Step 2 text extraction: 3,226
+- Explicit unresolved rows: 3,324
+- Overall ready/source-ledger rate: 49.3%
+- Benchmark rows: 2,125
+- Current-run benchmark recovered: 1,849
+- Benchmark rows invalidated by review: 275
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
 
@@ -25,7 +25,8 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 | Prior reviewed batches | 4 | 112 | 1,671 | 1,118 | 553 | 66.9% | 675 | 634 | 41 | 0 | 0 | 3,513 |
 | Packet 005-008 | 4 | 112 | 1,612 | 710 | 902 | 44.0% | 492 | 433 | 58 | 1 | 0 | 4,694 |
 | Packet 009-012 | 4 | 112 | 1,664 | 701 | 963 | 42.1% | 440 | 329 | 111 | 0 | 0 | 6,526 |
-| TOTAL | 12 | 336 | 4,947 | 2,529 | 2,418 | 51.1% | 1,607 | 1,396 | 210 | 1 | 0 | 14,733 |
+| Packet 013-016 | 4 | 112 | 1,603 | 697 | 906 | 43.5% | 518 | 453 | 65 | 0 | 0 | 4,769 |
+| TOTAL | 16 | 448 | 6,550 | 3,226 | 3,324 | 49.3% | 2,125 | 1,849 | 275 | 1 | 0 | 19,502 |
 
 ## Batch Rollup
 
@@ -43,7 +44,11 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 | 010 | 009-012 | 28 | 419 | 201 | 218 | 48.0% | 42.5% | 61.7% | 150 | 104 | 46 | 0 | 0 | 1,540 | accepted |
 | 011 | 009-012 | 28 | 419 | 182 | 237 | 43.4% | 48.3% | 31.1% | 121 | 96 | 25 | 0 | 0 | 1,808 | accepted |
 | 012 | 009-012 | 28 | 414 | 135 | 279 | 32.6% | 28.1% | 43.7% | 71 | 51 | 20 | 0 | 0 | 1,853 | accepted |
-| TOTAL | 001-012 | 336 | 4,947 | 2,529 | 2,418 | 51.1% |  |  | 1,607 | 1,396 | 210 | 1 | 0 | 14,733 | accepted batches only |
+| 013 | 013-016 | 28 | 401 | 114 | 287 | 28.4% | 33.8% | 13.9% | 44 | 39 | 5 | 0 | 0 | 1,562 | accepted |
+| 014 | 013-016 | 28 | 390 | 73 | 317 | 18.7% | 12.5% | 36.6% | 13 | 13 | 0 | 0 | 0 | 586 | accepted |
+| 015 | 013-016 | 28 | 399 | 258 | 141 | 64.7% | 74.6% | 41.7% | 243 | 205 | 38 | 0 | 0 | 1,131 | accepted |
+| 016 | 013-016 | 28 | 413 | 252 | 161 | 61.0% | 61.4% | 60.0% | 218 | 196 | 22 | 0 | 0 | 1,490 | accepted |
+| TOTAL | 001-016 | 448 | 6,550 | 3,226 | 3,324 | 49.3% |  |  | 2,125 | 1,849 | 275 | 1 | 0 | 19,502 | accepted batches only |
 
 ## Interpretation
 
@@ -69,3 +74,7 @@ No unified Step 2 URL/source handoff table has been built yet. The reviewed batc
 - Batch 010: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_009_012/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_010/`
 - Batch 011: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_009_012/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_011/`
 - Batch 012: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_009_012/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_012/`
+- Batch 013: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_013_016/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_013/`
+- Batch 014: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_013_016/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_014/`
+- Batch 015: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_013_016/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_015/`
+- Batch 016: `policy_scraper_worktrees/completed/policy_scraper_step1_prior_discovery_source_reconstruction_packet_013_016/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_prior_valid_reverification_test_batch_016/`
