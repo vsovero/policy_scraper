@@ -10,6 +10,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TypeVar
 
 import pandas as pd
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
@@ -43,6 +44,7 @@ DEFAULT_RETRIEVAL_ATTEMPTS = 3
 DEFAULT_FETCH_PROGRESS_INTERVAL_SECONDS = 15
 DEFAULT_MIN_FETCH_WALL_TIMEOUT_SECONDS = 60
 DEFAULT_MAX_FETCH_WALL_TIMEOUT_SECONDS = 300
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -126,7 +128,7 @@ def concurrent_fetch_wall_timeout_seconds(
     )
 
 
-def iter_completed_fetches_with_wall_timeout[T](
+def iter_completed_fetches_with_wall_timeout(
     executor: ThreadPoolExecutor,
     future_to_item: dict[Future, T],
     *,
