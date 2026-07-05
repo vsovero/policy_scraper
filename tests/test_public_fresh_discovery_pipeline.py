@@ -132,6 +132,34 @@ def test_merge_final_panel_expands_candidate_catalog_span_to_missing_years():
     assert final["final_status"].tolist() == ["ai_candidate_added", "ai_candidate_added"]
 
 
+def test_merge_final_panel_handles_numeric_missing_source_column():
+    base_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "fresh_rank": 1,
+                "target_year": 2002,
+                "best_url": "",
+                "best_url_source": float("nan"),
+            },
+        ]
+    )
+    candidates = pd.DataFrame(
+        {
+            "unitid": [10],
+            "target_year": [2002],
+            "candidate_url": ["http://coursecatalog.example.edu/previous/0204_catalog.pdf"],
+            "candidate_source_method": pd.Series(["inferred_year_url_pattern"], dtype="string"),
+            "candidate_priority": [18],
+        }
+    )
+
+    final = merge_final_panel(base_panel, candidates)
+
+    assert final["final_best_url_source"].iloc[0] == "inferred_year_url_pattern"
+    assert final["final_status"].iloc[0] == "ai_candidate_added"
+
+
 def test_merge_final_panel_replaces_inferred_probe_with_retrieved_archive_candidate():
     base_panel = pd.DataFrame(
         [

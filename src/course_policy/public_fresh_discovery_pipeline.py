@@ -611,7 +611,10 @@ def merge_final_panel(base_panel: pd.DataFrame, all_candidates: pd.DataFrame) ->
     panel["best_url"] = panel["best_url"].fillna("").map(clean_text)
     if all_candidates.empty:
         panel["final_best_url"] = panel["best_url"]
-        panel["final_best_url_source"] = panel.get("best_url_source", "")
+        if "best_url_source" in panel.columns:
+            panel["final_best_url_source"] = panel["best_url_source"].fillna("").map(clean_text).astype(object)
+        else:
+            panel["final_best_url_source"] = ""
         panel["final_status"] = panel["final_best_url"].map(lambda value: "candidate_found" if clean_text(value) else "still_missing")
         return panel
     candidates = add_candidate_selection_rank_columns(expand_candidate_spans(all_candidates))
@@ -622,7 +625,7 @@ def merge_final_panel(base_panel: pd.DataFrame, all_candidates: pd.DataFrame) ->
     )
     if "candidate_source_method" not in chosen.columns:
         chosen["candidate_source_method"] = ""
-    chosen["candidate_source_method"] = chosen["candidate_source_method"].fillna("")
+    chosen["candidate_source_method"] = chosen["candidate_source_method"].fillna("").map(clean_text).astype(object)
     if "candidate_evidence_source" in chosen.columns:
         chosen.loc[chosen["candidate_source_method"].eq(""), "candidate_source_method"] = chosen.loc[
             chosen["candidate_source_method"].eq(""),
@@ -668,7 +671,10 @@ def merge_final_panel(base_panel: pd.DataFrame, all_candidates: pd.DataFrame) ->
     panel.loc[~base_has & ai_has, "final_best_url"] = panel.loc[~base_has & ai_has, "ai_candidate_url"]
     panel.loc[replace_risky_base, "final_best_url"] = panel.loc[replace_risky_base, "ai_candidate_url"]
     panel.loc[replace_generated_probe, "final_best_url"] = panel.loc[replace_generated_probe, "ai_candidate_url"]
-    panel["final_best_url_source"] = panel.get("best_url_source", "")
+    if "best_url_source" in panel.columns:
+        panel["final_best_url_source"] = panel["best_url_source"].fillna("").map(clean_text).astype(object)
+    else:
+        panel["final_best_url_source"] = ""
     panel.loc[~base_has & ai_has, "final_best_url_source"] = panel.loc[~base_has & ai_has, "candidate_source_method"]
     panel.loc[replace_risky_base, "final_best_url_source"] = panel.loc[replace_risky_base, "candidate_source_method"]
     panel.loc[replace_generated_probe, "final_best_url_source"] = panel.loc[replace_generated_probe, "candidate_source_method"]
