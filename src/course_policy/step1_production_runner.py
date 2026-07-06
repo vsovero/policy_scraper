@@ -103,6 +103,13 @@ ACCEPTED_DECISIONS = {
     "accept_cached_external_evidence_replay",
     "accept_current_run_source_review",
 }
+TEXT_VALIDATION_DECISIONS = {"needs_text_validation"}
+VALIDATED_HUMAN_LEGACY_PROVENANCE = "validated_human_legacy"
+MISLEADING_HUMAN_LEGACY_LABELS = {
+    "raw_human_legacy_url",
+    "human_legacy_url",
+    "active_human_legacy_url",
+}
 REQUIRED_ACCEPTED_REVIEW_FIELDS = (
     "source_opened",
     "institution_match_confirmed",
@@ -348,7 +355,10 @@ def selected_review_rows(source_review: pd.DataFrame) -> pd.DataFrame:
     if source_review.empty:
         return source_review
     review = normalized_key_frame(source_review)
-    review["decision_rank"] = review["review_decision"].map(clean_text).isin(ACCEPTED_DECISIONS).map({True: 0, False: 1})
+    decision = review["review_decision"].map(clean_text)
+    review["decision_rank"] = decision.map(
+        lambda value: 0 if value in ACCEPTED_DECISIONS else (1 if value in TEXT_VALIDATION_DECISIONS else 2)
+    )
     return (
         review.sort_values(["unitid", "academic_year", "decision_rank", "reviewed_at"])
         .drop_duplicates(["unitid", "academic_year"], keep="first")
@@ -424,15 +434,16 @@ def build_handoff(
         decision = clean_text(review.get("review_decision"))
         candidate_url = clean_text(review.get("candidate_url")) or clean_text(candidate.get("candidate_url"))
         accepted = decision in ACCEPTED_DECISIONS
+        needs_text_validation = decision in TEXT_VALIDATION_DECISIONS
         evidence_row = evidence.get((unitid, year, candidate_url), {})
         evidence_path = clean_text(evidence_row.get("cached_text_path") or evidence_row.get("source_body_path"))
         evidence_hash = clean_text(evidence_row.get("cached_text_sha256") or evidence_row.get("source_body_sha256"))
         evidence_ref = f"{evidence_hash} {evidence_path}".strip()
 
-        if accepted:
-            status = "source_review_ready"
+        if accepted or needs_text_validation:
+            status = "source_review_ready" if accepted else "source_needs_text_validation"
             ready = True
-            unresolved_reason = ""
+            unresolved_reason = "" if accepted else clean_text(review.get("review_reason"))
             url_for_text = clean_text(review.get("final_url_after_redirect")) or candidate_url
             stop_reason = ""
         elif candidate_url and decision:
@@ -480,6 +491,10 @@ def build_handoff(
                 or clean_text(review.get("candidate_source_method")),
                 "candidate_source_file": clean_text(candidate.get("candidate_source_file"))
                 or clean_text(review.get("candidate_source_file")),
+                "candidate_source_type": clean_text(candidate.get("candidate_source_type"))
+                or clean_text(review.get("candidate_source_type")),
+                "legacy_input_provenance": clean_text(review.get("legacy_input_provenance"))
+                or clean_text(candidate.get("legacy_input_provenance")),
                 "candidate_rank": clean_text(candidate.get("candidate_rank")),
                 "deterministic_search_completed": clean_text(review.get("deterministic_search_completed")),
                 "archive_expansion_completed": clean_text(review.get("archive_expansion_completed")),
@@ -500,9 +515,9 @@ def build_handoff(
                 "archive_child_links_checked": clean_text(review.get("archive_child_links_checked")),
                 "gap_fill_search_completed": clean_text(review.get("gap_fill_search_completed")),
                 "panel_consistency_confirmed": clean_text(review.get("panel_consistency_confirmed")),
-                "source_type": accepted_source_type(review) if accepted else "",
-                "source_year_start": clean_text(review.get("source_year_start")) or year if accepted else "",
-                "source_year_end": clean_text(review.get("source_year_end")) or year if accepted else "",
+                "source_type": accepted_source_type(review) if accepted or needs_text_validation else "",
+                "source_year_start": clean_text(review.get("source_year_start")) or year if accepted or needs_text_validation else "",
+                "source_year_end": clean_text(review.get("source_year_end")) or year if accepted or needs_text_validation else "",
                 "source_year_coverage_note": clean_text(review.get("source_year_coverage_note")),
                 "review_decision": decision or "not_reviewed_no_target_year_candidate",
                 "review_reason": clean_text(review.get("review_reason")) or unresolved_reason,
@@ -513,7 +528,7 @@ def build_handoff(
                 "evidence_hash_or_cache_path": evidence_ref,
                 "unresolved_reason": unresolved_reason,
                 "stop_reason": stop_reason,
-                "next_required_action": "" if accepted else "source_search_or_review_needed",
+                "next_required_action": "" if accepted else ("text_extraction_final_validation" if needs_text_validation else "source_search_or_review_needed"),
                 "production_chunk_created_at": now,
             }
         )
@@ -531,6 +546,13 @@ def source_year_coverage(row: pd.Series) -> str:
 
 
 def provenance_type_for_handoff(row: pd.Series) -> str:
+    legacy_input_provenance = clean_text(row.get("legacy_input_provenance")).lower()
+    if legacy_input_provenance == VALIDATED_HUMAN_LEGACY_PROVENANCE:
+        return "prior_human"
+    if legacy_input_provenance == "prior_programmatic":
+        return "prior_programmatic"
+    if legacy_input_provenance == "imported_llm_candidate_lead":
+        return "imported_llm_candidate_lead"
     text = " ".join(
         clean_text(row.get(column)).lower()
         for column in ["url_source_bucket", "candidate_generation_method", "candidate_source_file"]
@@ -563,6 +585,7 @@ def build_source_ledger_delta(handoff: pd.DataFrame) -> pd.DataFrame:
                 "source_type": clean_text(row.get("source_type")),
                 "source_year_coverage": source_year_coverage(row),
                 "provenance_type": provenance_type_for_handoff(row),
+                "legacy_input_provenance": clean_text(row.get("legacy_input_provenance")),
                 "review_file": clean_text(row.get("source_review_file")),
                 "review_decision": clean_text(row.get("review_decision")),
                 "review_reason": clean_text(row.get("review_reason")),
@@ -635,6 +658,7 @@ def build_benchmark_recovery(
         "sector",
         "academic_year",
         "benchmark_url",
+        "legacy_input_provenance",
         "original_benchmark_denominator",
         "active_benchmark_denominator",
         "active_benchmark_row",
@@ -746,6 +770,7 @@ def build_benchmark_recovery(
                 "sector": sector,
                 "academic_year": year,
                 "benchmark_url": benchmark_url,
+                "legacy_input_provenance": clean_text(target.get("legacy_input_provenance")),
                 "original_benchmark_denominator": 1,
                 "active_benchmark_denominator": 0 if invalidated else 1,
                 "active_benchmark_row": not invalidated,
@@ -809,6 +834,7 @@ def human_legacy_wayback_recovery_resolves_benchmark(row: pd.Series, year: int) 
     """Count accepted human-legacy Wayback recoveries despite archived host drift."""
     if not truthy(row.get("ready_for_text_extraction")):
         return False
+    legacy_input_provenance = clean_text(row.get("legacy_input_provenance")).lower()
     provenance = " ".join(
         clean_text(row.get(column)).lower()
         for column in [
@@ -821,7 +847,7 @@ def human_legacy_wayback_recovery_resolves_benchmark(row: pd.Series, year: int) 
     )
     if "wayback" not in provenance:
         return False
-    if "human_legacy" not in provenance and "legacy_url" not in provenance:
+    if legacy_input_provenance != VALIDATED_HUMAN_LEGACY_PROVENANCE and "human_legacy" not in provenance and "legacy_url" not in provenance:
         return False
     if not source_year_covers_target(row, year):
         return False
@@ -835,7 +861,7 @@ def human_legacy_wayback_recovery_resolves_benchmark(row: pd.Series, year: int) 
 
 
 def accepted_review_evidence_complete(handoff: pd.DataFrame) -> tuple[bool, str]:
-    accepted = handoff.loc[handoff["ready_for_text_extraction"].map(truthy)].copy()
+    accepted = handoff.loc[handoff["review_decision"].map(clean_text).isin(ACCEPTED_DECISIONS)].copy()
     if accepted.empty:
         return True, "accepted_rows=0"
     missing: list[str] = []
@@ -1005,6 +1031,56 @@ def historical_case_precheck_complete(handoff: pd.DataFrame, precheck: pd.DataFr
     )
 
 
+def legacy_label_and_human_funnel_gate(handoff: pd.DataFrame, benchmark_recovery: pd.DataFrame) -> tuple[bool, str]:
+    frames: list[pd.DataFrame] = []
+    for frame in [handoff, benchmark_recovery]:
+        if frame.empty:
+            continue
+        out = frame.copy()
+        for column in ["legacy_input_provenance", "review_decision", "retrieval_status"]:
+            if column not in out.columns:
+                out[column] = ""
+        text_columns = [
+            column
+            for column in [
+                "benchmark_group",
+                "candidate_generation_method",
+                "candidate_source_type",
+                "candidate_source_file",
+                "url_source_bucket",
+                "production_url_source",
+            ]
+            if column in out.columns
+        ]
+        if text_columns:
+            out["_legacy_label_text"] = out[text_columns].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+        else:
+            out["_legacy_label_text"] = ""
+        frames.append(out)
+    if not frames:
+        return True, "legacy_rows_checked=0"
+    combined = pd.concat(frames, ignore_index=True, sort=False)
+    provenance = combined["legacy_input_provenance"].map(clean_text).str.lower()
+    label_text = combined["_legacy_label_text"].map(clean_text).str.lower()
+    has_old_human_label = label_text.map(lambda text: any(label in text for label in MISLEADING_HUMAN_LEGACY_LABELS))
+    misleading_human_labels = has_old_human_label & provenance.ne(VALIDATED_HUMAN_LEGACY_PROVENANCE)
+    decision = combined["review_decision"].map(clean_text)
+    retrieval_status = combined["retrieval_status"].map(clean_text)
+    old_wrong_decision = decision.eq("reject_wrong_institution")
+    prior_human_thin_wrong = (
+        provenance.eq(VALIDATED_HUMAN_LEGACY_PROVENANCE)
+        & decision.isin({"reject_wrong_institution", "confirmed_wrong_institution"})
+        & retrieval_status.eq("retrieved_truncated")
+    )
+    pass_gate = not (misleading_human_labels.any() or old_wrong_decision.any() or prior_human_thin_wrong.any())
+    return pass_gate, (
+        f"rows_checked={len(combined)}; "
+        f"misleading_human_label_rows={int(misleading_human_labels.sum())}; "
+        f"old_reject_wrong_institution_rows={int(old_wrong_decision.sum())}; "
+        f"prior_human_thin_wrong_institution_rows={int(prior_human_thin_wrong.sum())}"
+    )
+
+
 def build_requirements(
     *,
     config: dict[str, object],
@@ -1029,6 +1105,7 @@ def build_requirements(
     input_path_text = " ".join(input_manifest["path"].map(clean_text)) if not input_manifest.empty else ""
     no_pilot_inputs = not contains_forbidden_runtime_reference(input_path_text)
     precheck_pass, precheck_detail = historical_case_precheck_complete(handoff, historical_case_precheck)
+    legacy_gate_pass, legacy_gate_detail = legacy_label_and_human_funnel_gate(handoff, benchmark_recovery)
     search_accounting_pass, search_accounting_detail = candidate_search_accounting_complete(handoff)
     min_ready_rate = float_config(config, "production_readiness_min_ready_rate", 0.0)
     min_sector_ready_rate = float_config(config, "production_readiness_min_sector_ready_rate", 0.0)
@@ -1104,6 +1181,20 @@ def build_requirements(
             "evidence_file": "OUTPUT_urls_for_text_extraction.csv",
             "evidence_column_or_check": f"unreviewed_candidate_count={unreviewed}",
             "gap_if_incomplete": "" if unreviewed == 0 else "Review or remove unreviewed candidate URLs.",
+            "last_checked_at": now,
+        },
+        {
+            "requirement_id": "legacy_label_and_prior_human_funnel",
+            "pipeline_stage": "01_url_discovery_clean_production_runner",
+            "requirement": "Legacy input labels and prior-human source review decisions are provenance-aware.",
+            "acceptance_criterion": (
+                "No raw human legacy label appears without validated-human provenance; no old reject_wrong_institution "
+                "decision remains; validated-human truncated evidence is not invalidated as wrong institution."
+            ),
+            "status": "pass" if legacy_gate_pass else "fail",
+            "evidence_file": "OUTPUT_urls_for_text_extraction.csv; BENCHMARK_RECOVERY.csv",
+            "evidence_column_or_check": legacy_gate_detail,
+            "gap_if_incomplete": "" if legacy_gate_pass else "Fix legacy provenance labels or route prior-human thin evidence to text validation.",
             "last_checked_at": now,
         },
         {

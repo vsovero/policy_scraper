@@ -299,6 +299,65 @@ def test_clean_runner_fails_unreviewed_candidates(tmp_path: Path) -> None:
     assert review_req["status"] == "fail"
 
 
+def test_clean_runner_fails_misleading_human_legacy_label_without_validated_provenance(tmp_path: Path) -> None:
+    input_dir = _write_clean_inputs(tmp_path)
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    accepted = review["academic_year"].eq(2002)
+    review.loc[accepted, "candidate_generation_method"] = "raw_human_legacy_url"
+    review.loc[accepted, "candidate_source_type"] = "human_legacy_url"
+    review.loc[accepted, "url_source_bucket"] = "active_human_legacy_url"
+    review.loc[accepted, "legacy_input_provenance"] = "unknown_legacy_input"
+    review.to_csv(input_dir / "source_review_log.csv", index=False)
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    candidates.loc[candidates["academic_year"].eq(2002), "candidate_generation_method"] = "raw_human_legacy_url"
+    candidates.loc[candidates["academic_year"].eq(2002), "candidate_source_type"] = "human_legacy_url"
+    candidates.loc[candidates["academic_year"].eq(2002), "legacy_input_provenance"] = "unknown_legacy_input"
+    candidates.to_csv(input_dir / "candidate_url_ledger.csv", index=False)
+
+    result = build_step1_production_chunk(
+        tmp_path,
+        input_dir=input_dir,
+        chunk_id="production_chunk_clean_runner_test",
+    )
+
+    assert not result.requirements_pass
+    requirements = pd.read_csv(result.output_dir / "REQUIREMENTS_STATUS.csv")
+    gate = requirements.loc[requirements["requirement_id"].eq("legacy_label_and_prior_human_funnel")].iloc[0]
+    assert gate["status"] == "fail"
+    assert "misleading_human_label_rows=1" in gate["evidence_column_or_check"]
+
+
+def test_clean_runner_fails_prior_human_thin_evidence_wrong_institution_invalidation(tmp_path: Path) -> None:
+    input_dir = _write_clean_inputs(tmp_path)
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    accepted = review["academic_year"].eq(2002)
+    review.loc[accepted, "retrieval_status"] = "retrieved_truncated"
+    review.loc[accepted, "institution_match_confirmed"] = False
+    review.loc[accepted, "campus_or_unitid_match_confirmed"] = False
+    review.loc[accepted, "panel_consistency_confirmed"] = False
+    review.loc[accepted, "review_decision"] = "confirmed_wrong_institution"
+    review.loc[accepted, "review_reason"] = "Thin current evidence did not confirm institution."
+    review.loc[accepted, "candidate_source_type"] = "legacy_input_url"
+    review.loc[accepted, "legacy_input_provenance"] = "validated_human_legacy"
+    review.to_csv(input_dir / "source_review_log.csv", index=False)
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    candidates.loc[candidates["academic_year"].eq(2002), "candidate_source_type"] = "legacy_input_url"
+    candidates.loc[candidates["academic_year"].eq(2002), "legacy_input_provenance"] = "validated_human_legacy"
+    candidates.to_csv(input_dir / "candidate_url_ledger.csv", index=False)
+
+    result = build_step1_production_chunk(
+        tmp_path,
+        input_dir=input_dir,
+        chunk_id="production_chunk_clean_runner_test",
+    )
+
+    assert not result.requirements_pass
+    requirements = pd.read_csv(result.output_dir / "REQUIREMENTS_STATUS.csv")
+    gate = requirements.loc[requirements["requirement_id"].eq("legacy_label_and_prior_human_funnel")].iloc[0]
+    assert gate["status"] == "fail"
+    assert "prior_human_thin_wrong_institution_rows=1" in gate["evidence_column_or_check"]
+
+
 def test_clean_runner_resolves_benchmark_miss_with_alternate_ready_source(tmp_path: Path) -> None:
     input_dir = _write_clean_inputs(tmp_path)
     benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
@@ -391,6 +450,7 @@ def test_clean_runner_counts_accepted_human_legacy_wayback_host_drift_as_recover
     review.loc[accepted, "retrieval_status"] = "retrieved"
     review.loc[accepted, "candidate_generation_method"] = "raw_public_legacy_workbook_url_wayback_recovery"
     review.loc[accepted, "candidate_source_type"] = "human_legacy_url_wayback_recovery"
+    review.loc[accepted, "legacy_input_provenance"] = "validated_human_legacy"
     review.loc[accepted, "url_source_bucket"] = "active_human_legacy_url_wayback_recovery"
     review.loc[accepted, "source_type"] = "catalog_html_or_policy_page"
     review.loc[accepted, "source_year_start"] = 2002
@@ -406,6 +466,7 @@ def test_clean_runner_counts_accepted_human_legacy_wayback_host_drift_as_recover
         candidates["academic_year"].eq(2002),
         "candidate_generation_method",
     ] = "raw_public_legacy_workbook_url_wayback_recovery"
+    candidates.loc[candidates["academic_year"].eq(2002), "legacy_input_provenance"] = "validated_human_legacy"
     candidates.to_csv(input_dir / "candidate_url_ledger.csv", index=False)
     evidence = pd.read_csv(input_dir / "source_evidence_manifest.csv")
     evidence.loc[evidence["academic_year"].eq(2002), "candidate_url"] = wayback_url

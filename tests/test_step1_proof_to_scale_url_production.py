@@ -9,6 +9,7 @@ from course_policy.step1_proof_to_scale_url_production import (
     build_historical_case_precheck,
     build_parser,
     build_step1_inputs,
+    candidate_options_for_row,
     load_excluded_unitids,
     retrieve_candidate_with_wayback_recovery,
     retrieve_url_with_retries,
@@ -33,6 +34,67 @@ def test_cli_accepts_prior_valid_exclusion_file() -> None:
     args = build_parser().parse_args(["--namespace", "n", "--chunk-id", "c", "--exclude-unitids-file", "done.csv"])
 
     assert args.exclude_unitids_file == Path("done.csv")
+
+
+def test_legacy_candidate_uses_neutral_label_and_provenance() -> None:
+    row = pd.Series(
+        {
+            "unitid": 123,
+            "institution_name": "Example University",
+            "sector": "public",
+            "state": "EX",
+            "academic_year": 2002,
+            "homepage_url": "https://example.edu",
+        }
+    )
+    legacy_row = pd.Series(
+        {
+            "candidate_url": "https://legacy.example.edu/catalog-2002.pdf",
+            "candidate_generation_method": "raw_human_legacy_url",
+            "candidate_source_type": "human_legacy_url",
+            "legacy_input_provenance": "prior_programmatic",
+            "catalog_year_start": 2002,
+            "catalog_year_end": 2002,
+        }
+    )
+
+    [option] = candidate_options_for_row(row=row, legacy_row=legacy_row, namespace="n", repo_root=Path.cwd())
+
+    assert option["candidate_generation_method"] == "raw_legacy_input_url"
+    assert option["candidate_source_type"] == "legacy_input_url"
+    assert option["url_source_bucket"] == "legacy_input_url"
+    assert option["legacy_input_provenance"] == "prior_programmatic"
+    label_text = " ".join(str(option[key]) for key in ["candidate_generation_method", "candidate_source_type", "url_source_bucket"])
+    assert "human" not in label_text
+
+
+def test_imported_llm_legacy_candidate_is_not_labeled_human() -> None:
+    row = pd.Series(
+        {
+            "unitid": 124,
+            "institution_name": "LLM Candidate University",
+            "sector": "private",
+            "state": "EX",
+            "academic_year": 2004,
+            "homepage_url": "https://llm.example.edu",
+        }
+    )
+    legacy_row = pd.Series(
+        {
+            "candidate_url": "https://llm-lead.example.edu/catalog-2004.pdf",
+            "candidate_generation_method": "imported_llm_candidate_lead",
+            "candidate_source_type": "human_legacy_url",
+            "catalog_year_start": 2004,
+            "catalog_year_end": 2004,
+        }
+    )
+
+    [option] = candidate_options_for_row(row=row, legacy_row=legacy_row, namespace="n", repo_root=Path.cwd())
+
+    assert option["candidate_generation_method"] == "imported_llm_candidate_lead"
+    assert option["candidate_source_type"] == "legacy_input_url"
+    assert option["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert "human" not in option["candidate_source_type"]
 
 
 def test_retrieve_url_with_retries_has_wall_clock_guard(monkeypatch) -> None:
@@ -452,6 +514,325 @@ def test_build_step1_inputs_closes_rows_when_source_review_budget_exceeded(monke
     assert len(budget_rows) == 1
     assert budget_rows.iloc[0]["retrieval_status"] == "not_retrieved_source_review_budget_exceeded"
     assert "after reviewing 1 candidate(s)" in budget_rows.iloc[0]["review_reason"]
+
+
+def test_validated_prior_human_thin_evidence_routes_to_text_validation(monkeypatch, tmp_path: Path) -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 901,
+                "institution_name": "Prior Human University",
+                "sector": "public",
+                "state": "PH",
+                "academic_year": 2002,
+                "homepage_url": "https://priorhuman.edu",
+                "has_human_legacy_source": True,
+            }
+        ]
+    )
+    raw_legacy = pd.DataFrame(
+        [
+            {
+                "unitid": 901,
+                "institution_name": "Prior Human University",
+                "sector": "public",
+                "candidate_url": "https://legacy-cdn.example.org/catalog-2002.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "legacy_input_provenance": "validated_human_legacy",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved_truncated",
+                "body": b"",
+                "content_type": "application/pdf",
+                "page_title": "Catalog 2002",
+                "final_url": args[0],
+                "sha256": "thin",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["public"],
+        namespace="prior_human_thin",
+        chunk_id="prior_human_thin_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=raw_legacy,
+        include_raw_legacy_candidates=True,
+    )
+
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    row = review.iloc[0]
+    assert row["review_decision"] == "needs_text_validation"
+    assert row["legacy_input_provenance"] == "validated_human_legacy"
+    assert row["source_type_confirmed"] == True
+    assert row["year_coverage_confirmed"] == True
+    assert "Step 2 text extraction/final validation" in row["review_reason"]
+
+
+def test_historical_valid_human_priority_enriches_raw_legacy_for_text_validation(monkeypatch, tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "unitid": 903,
+                "institution_name": "Production Prior Human University",
+                "priority_bucket": "valid_human_legacy",
+                "valid_human_legacy_rows": 1,
+                "prior_programmatic_accepted_rows": 0,
+                "imported_llm_candidate_lead_rows": 0,
+            }
+        ]
+    ).to_csv(inventory_dir / "institution_priority_buckets.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 903,
+                "institution_name": "Production Prior Human University",
+                "sector": "private",
+                "state": "PH",
+                "academic_year": 2002,
+                "homepage_url": "https://priorhuman.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_legacy = pd.DataFrame(
+        [
+            {
+                "unitid": 903,
+                "institution_name": "Production Prior Human University",
+                "sector": "private",
+                "candidate_url": "https://legacy-source.invalid/catalog-2002.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "candidate_generation_method": "raw_private_legacy_workbook_url",
+                "candidate_source_type": "legacy_input_url",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved_truncated",
+                "body": b"",
+                "content_type": "application/pdf",
+                "page_title": "Catalog 2002",
+                "final_url": args[0],
+                "sha256": "thin-valid-human",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["private"],
+        namespace="historical_valid_human_thin",
+        chunk_id="historical_valid_human_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=raw_legacy,
+        include_raw_legacy_candidates=True,
+    )
+
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    candidate = pd.read_csv(input_dir / "candidate_url_ledger.csv").iloc[0]
+    row = review.iloc[0]
+    assert candidate["legacy_input_provenance"] == "validated_human_legacy"
+    assert candidate["candidate_source_type"] == "legacy_input_url"
+    assert "human" not in candidate["candidate_generation_method"]
+    assert row["review_decision"] == "needs_text_validation"
+    assert row["legacy_input_provenance"] == "validated_human_legacy"
+
+
+def test_imported_llm_priority_does_not_presume_prior_human_text_validation(monkeypatch, tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "unitid": 904,
+                "institution_name": "Production LLM Lead University",
+                "priority_bucket": "imported_llm_candidate_lead_overlay",
+                "valid_human_legacy_rows": 0,
+                "prior_programmatic_accepted_rows": 0,
+                "imported_llm_candidate_lead_rows": 1,
+            }
+        ]
+    ).to_csv(inventory_dir / "institution_priority_buckets.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 904,
+                "institution_name": "Production LLM Lead University",
+                "sector": "private",
+                "state": "LL",
+                "academic_year": 2003,
+                "homepage_url": "https://llmlead.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_legacy = pd.DataFrame(
+        [
+            {
+                "unitid": 904,
+                "institution_name": "Production LLM Lead University",
+                "sector": "private",
+                "candidate_url": "https://legacy-source.invalid/catalog-2003.pdf",
+                "catalog_year_start": 2003,
+                "catalog_year_end": 2003,
+                "candidate_generation_method": "raw_private_legacy_workbook_url",
+                "candidate_source_type": "legacy_input_url",
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved_truncated",
+                "body": b"",
+                "content_type": "application/pdf",
+                "page_title": "Catalog 2003",
+                "final_url": args[0],
+                "sha256": "thin-llm",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["private"],
+        namespace="historical_llm_thin",
+        chunk_id="historical_llm_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=raw_legacy,
+        include_raw_legacy_candidates=True,
+    )
+
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    candidate = pd.read_csv(input_dir / "candidate_url_ledger.csv").iloc[0]
+    row = review.iloc[0]
+    assert candidate["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert row["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert row["review_decision"] != "needs_text_validation"
+    assert row["review_decision"] == "institution_not_confirmed_from_current_evidence"
+
+
+def test_wrong_institution_evidence_is_confirmed_wrong_institution(monkeypatch, tmp_path: Path) -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 902,
+                "institution_name": "Target College",
+                "sector": "private",
+                "state": "TC",
+                "academic_year": 2002,
+                "homepage_url": "https://target.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_legacy = pd.DataFrame(
+        [
+            {
+                "unitid": 902,
+                "institution_name": "Target College",
+                "sector": "private",
+                "candidate_url": "https://other.edu/catalog-2002.html",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "legacy_input_provenance": "unknown_legacy_input",
+            }
+        ]
+    )
+    wrong_text = (
+        "Other State University Undergraduate Catalog 2002. "
+        "Other State University policies, academic rules, course catalog, and degree requirements. "
+        "This source repeatedly identifies Other State University and no other campus. "
+    ) * 3
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved",
+                "body": wrong_text.encode("utf-8"),
+                "content_type": "text/html",
+                "page_title": "Other State University Catalog",
+                "final_url": args[0],
+                "sha256": "wrong",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["private"],
+        namespace="wrong_institution",
+        chunk_id="wrong_institution_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=raw_legacy,
+        include_raw_legacy_candidates=True,
+    )
+
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    assert review.iloc[0]["review_decision"] == "confirmed_wrong_institution"
 
 
 def test_write_discovery_inputs_materializes_year_targets_from_target_panel(tmp_path: Path) -> None:
