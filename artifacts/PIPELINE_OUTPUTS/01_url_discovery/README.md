@@ -18,6 +18,8 @@ production_chunk_step1_prior_valid_reverification_test_batch_020
 
 Packet 017-020 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
 
+The next packet should start from `origin/main` at or after `17ed0c7`, which merged the reviewed legacy-label/provenance funnel fix. The stopped partial 021-024 attempt should not be reused.
+
 ## Current Reporting
 
 - Current status and next action: `../CURRENT_STATUS_AND_NEXT_STEPS.md`

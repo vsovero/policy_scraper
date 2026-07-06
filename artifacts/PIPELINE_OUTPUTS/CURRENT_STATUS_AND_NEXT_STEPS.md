@@ -24,6 +24,8 @@ Packet 017-020 is the latest Step 1 URL-stage prior-discovery source reconstruct
 
 No source/test commits were produced by packet 017-020; it ran from `origin/main` at `b64d90f`.
 
+After packet 017-020, a reviewed Step 1 source fix was merged and pushed as `17ed0c7` (`Fix Step 1 legacy label provenance funnel`). It replaces misleading raw-human legacy labels with neutral legacy-input labeling, carries `legacy_input_provenance`, and routes validated prior-human thin current evidence to Step 2 text validation instead of wrong-institution invalidation.
+
 ## Current Production-Construction Totals
 
 - Accepted batches: 20 (001-020)
@@ -42,7 +44,7 @@ Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery
 
 ## Next Action
 
-Run the next managed testing packet, `step1_prior_discovery_source_reconstruction_packet_021_024`, from clean `origin/main` after this packet-status update. The testing packet should run batches 021-024 sequentially, preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
+Restart the next managed testing packet, `step1_prior_discovery_source_reconstruction_packet_021_024`, from clean `origin/main` at or after `17ed0c7`. The earlier partial 021-024 attempt was stopped and discarded; do not reuse its partial outputs. The testing packet should run batches 021-024 sequentially, preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
 
 Project management should update this file only after the packet-level process review reaches acceptance.
 
