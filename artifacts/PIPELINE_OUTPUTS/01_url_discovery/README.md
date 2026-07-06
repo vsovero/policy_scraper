@@ -9,14 +9,14 @@ Use `prior-discovery source reconstruction` for the current Step 1 lane. Existin
 Latest reviewed URL-stage packet:
 
 ```text
-step1_prior_discovery_source_reconstruction_packet_013_016
-production_chunk_step1_prior_valid_reverification_test_batch_013
-production_chunk_step1_prior_valid_reverification_test_batch_014
-production_chunk_step1_prior_valid_reverification_test_batch_015
-production_chunk_step1_prior_valid_reverification_test_batch_016
+step1_prior_discovery_source_reconstruction_packet_017_020
+production_chunk_step1_prior_valid_reverification_test_batch_017
+production_chunk_step1_prior_valid_reverification_test_batch_018
+production_chunk_step1_prior_valid_reverification_test_batch_019
+production_chunk_step1_prior_valid_reverification_test_batch_020
 ```
 
-Packet 013-016 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
+Packet 017-020 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
 
 ## Current Reporting
 
@@ -24,7 +24,7 @@ Packet 013-016 is the current accepted Step 1 URL-stage prior-discovery source r
 - Batch rollup table: `reports/prior_discovery_source_reconstruction_rollup/README.md`
 - Historical pilot/drill/regression log: `../../PILOTS/url_discovery/historical_testing_log/README.md`
 
-Current accepted totals are 16 batches, 448 institutions, 6,550 target institution-years, 3,226 accepted source-ledger rows, 3,324 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
+Current accepted totals are 20 batches, 560 institutions, 8,081 target institution-years, 4,026 accepted source-ledger rows, 4,055 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
 
 ## Step 2 Handoff Decision
 
