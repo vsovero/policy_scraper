@@ -639,6 +639,70 @@ def test_automated_llm_lead_inputs_never_become_legacy_benchmark_or_human_proven
     assert bool(option["counts_as_legacy_coverage"]) is False
 
 
+def test_workbook_default_coverage_true_does_not_override_imported_llm_priority() -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 199184,
+                "institution_name": "North Carolina School of the Arts",
+                "sector": "public",
+                "state": "NC",
+                "academic_year": 2003,
+                "homepage_url": "https://uncsa.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 199184,
+                "institution_name": "North Carolina School of the Arts",
+                "sector_stream": "public",
+                "state": "NC",
+                "academic_year": 2003,
+                "webaddr": "https://uncsa.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_inputs = pd.DataFrame(
+        [
+            {
+                "unitid": 199184,
+                "institution_name": "North Carolina School of the Arts",
+                "sector": "public",
+                "candidate_url": "https://www.uncsa.edu/bulletin/archived-bulletins/2003-combined-bulletin.pdf",
+                "catalog_year_start": 2003,
+                "catalog_year_end": 2004,
+                "candidate_generation_method": "raw_public_legacy_workbook_url",
+                "candidate_source_type": "legacy_input_url",
+                "legacy_input_provenance": "unknown_legacy_input",
+                "counts_as_legacy_coverage": True,
+                "source_query_or_root": "Sheet1",
+            }
+        ]
+    )
+    historical_memory = pd.DataFrame(
+        [
+            {
+                "unitid": 199184,
+                "historical_priority_bucket": "imported_llm_candidate_lead_overlay",
+                "imported_llm_candidate_lead_rows": 18,
+            }
+        ]
+    )
+
+    enriched = enrich_raw_legacy_with_historical_provenance(raw_inputs, historical_memory)
+    candidates = raw_legacy_candidates_for_target(target_panel, enriched)
+    coverage = raw_legacy_coverage_summary(target_universe, enriched)
+
+    assert enriched.iloc[0]["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert bool(enriched.iloc[0]["counts_as_legacy_coverage"]) is False
+    assert coverage.loc[coverage["unitid"].eq(199184), "legacy_covered_years"].iloc[0] == 0
+    assert benchmark_rows_for_legacy_candidates(candidates) == []
+
+
 def test_curated_private_legacy_inputs_still_select_prior_valid_reverification() -> None:
     target_universe = pd.DataFrame(
         [
