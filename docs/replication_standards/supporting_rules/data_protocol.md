@@ -55,14 +55,33 @@ For the private workbook, sheet-level precedence must be explicit before rows ar
 
 Private workbook example/training rows are not public-institution source evidence. They may be useful for training or documentation, but should be excluded from public catalog-discovery pilots unless a later reviewed protocol explicitly says otherwise.
 
-For the private workflow, use the same catalog-first process as the public workflow with one private-only Step 0: URLs from the private workbook's automated missing-private sheet may be inserted as LLM-suggested source candidates before ordinary root/archive expansion. These Step 0 URLs are not human verified. They must be marked as unverified, excluded from automatic prior-evidence selection, and routed to closer review until official institution-wide undergraduate scope and catalog-year coverage are confirmed.
+For the private workflow, use the same catalog-first process as the public workflow. URLs from the private workbook's automated missing-private sheet may be retained as LLM/programmatic source candidates before ordinary root/archive expansion. These Step 0 URLs are not human verified. They must be marked as unverified historical leads, excluded from automatic prior-evidence or legacy selection, and routed to current recovery/source review until official institution-wide undergraduate scope and catalog-year coverage are confirmed.
 
 Private workbook sheet roles:
 
 - `private`: main human-coded private legacy evidence and discovery leads.
-- `(Automated, 0121) Missing priva`: Step 0 LLM-suggested URL leads only; review required.
+- `(Automated, 0121) Missing priva`: imported LLM/programmatic URL leads only; not legacy evidence; review required.
 - `LLM Training Set`: training/evaluation context only; exclude from prior-evidence selection.
 - `example`: documentation/examples only; exclude from prior-evidence selection.
+
+Public Claude/LLM suggestion pools, public fresh-AI archive pages, public fresh-AI cases, and public fresh-AI triage files have the same role as private automated/LLM workbook tabs: they are imported historical leads, not human legacy evidence.
+
+Canonical Step 1 source roles:
+
+| Input type | Source role | Legacy evidence? | Use in Step 1 |
+|---|---|---:|---|
+| Human/curated public workbook URL row | `validated_human_legacy` after review | yes | Legacy reconstruction and source review |
+| Human/curated private workbook `private` sheet URL row | `validated_human_legacy` after review | yes | Legacy reconstruction and source review |
+| Prior accepted programmatic discovery | `prior_programmatic` | no | Reverification target; must be recovered and reviewed in current run |
+| Private `(Automated, 0121) Missing priva` URL | `imported_llm_candidate_lead` | no | Search hint in historical-lead reconstruction only |
+| Private `LLM Training Set` URL | `imported_llm_candidate_lead` or training context | no | Search hint or test context only |
+| Public Claude/LLM/API suggestion output | `imported_llm_candidate_lead` | no | Search hint in historical-lead reconstruction only |
+| Failed historical attempt | `failed_programmatic_attempt` | no | Failure-pattern diagnostic; not source evidence |
+
+Automated/LLM lead inputs must not create or increase `legacy_covered_years`,
+`valid_human_legacy_rows`, human legacy provenance, or legacy benchmark
+denominators. A lead can become accepted source evidence only if the current run
+recovers the source and source review accepts it under the URL-source standard.
 
 ## Source Preservation
 

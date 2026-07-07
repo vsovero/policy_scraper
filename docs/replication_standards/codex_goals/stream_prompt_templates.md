@@ -64,6 +64,25 @@ PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale
 When reviewing a commit, run this check from a clean checkout/worktree of the
 commit being reviewed, not from a dirty project-management or testing worktree.
 
+## Source Taxonomy Guard
+
+Every Step 1 stream must preserve the difference between human legacy evidence
+and historical programmatic/LLM leads.
+
+Binding rule:
+
+```text
+Automated, LLM, Claude, training, suggestion-pool, or private missing-sheet tabs
+are historical leads only. They are not human legacy evidence, must not count as
+legacy_covered_years, must not satisfy prior_valid_legacy_reverification, and
+must not enter a legacy benchmark denominator.
+```
+
+Imported LLM/programmatic leads may still be useful. They belong in a separate
+historical-lead reconstruction lane and may become accepted source evidence only
+after current-run recovery and source review. A stream must stop and report a
+blocker if it finds automated/LLM material being treated as legacy coverage.
+
 ## Testing Stream Template
 
 ```text
@@ -91,9 +110,10 @@ Tasks:
 1. Run or generate only the requested testing output.
 2. For any command that imports `course_policy` or runs Step 1 code, use `PYTHONPATH=src ../.venv/bin/python ...`.
 3. If the command works only without `PYTHONPATH=src`, stop and report runtime contamination.
-4. If a status, standards, source-code, or review change appears necessary, write that need into the run-local report and stop.
-5. Do not update current status or process reviews.
-6. Before reporting done, run:
+4. If automated/LLM/training/suggestion material appears to be counted as legacy coverage, write that finding into the run-local report and stop.
+5. If a status, standards, source-code, or review change appears necessary, write that need into the run-local report and stop.
+6. Do not update current status or process reviews.
+7. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope testing --baseline /private/tmp/codex_scope_testing_<short_task>.json
 
@@ -144,14 +164,15 @@ PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale
    `docs/replication_standards/codex_goals/step_1_url_discovery_run_contract.md`.
    Do not use a salvage-worktree artifact folder as the historical source.
 3. Run a focused clean-runtime preflight before the production attempt.
-4. Build the requested `production_chunk_*` and matching `production_release_*` from explicit production inputs.
-5. If the production path fails because source/test code needs a fix, make a general fix, add or update regression tests, commit the fix narrowly, and rerun from clean committed code.
-6. Do not hard-code institutions, years, URLs, rows, or benchmark answers into source logic.
-7. Keep a run-local `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` listing each code fix commit, failed command, fix summary, tests, rerun command, and remaining risk.
-8. Stop only when either:
+4. Confirm the selected lane does not treat automated/LLM/training/suggestion material as legacy coverage or legacy benchmark evidence.
+5. Build the requested `production_chunk_*` and matching `production_release_*` from explicit production inputs.
+6. If the production path fails because source/test code needs a fix, make a general fix, add or update regression tests, commit the fix narrowly, and rerun from clean committed code.
+7. Do not hard-code institutions, years, URLs, rows, or benchmark answers into source logic.
+8. Keep a run-local `BUILD_LOG.md` or `SUPERVISOR_RUN_REPORT.md` listing each code fix commit, failed command, fix summary, tests, rerun command, and remaining risk.
+9. Stop only when either:
    - a coherent chunk/release package exists and is ready for review; or
    - a real blocker remains that cannot be fixed inside the build scope.
-9. Before reporting done, run:
+10. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build_<short_task>.json
 
@@ -194,10 +215,11 @@ Tasks:
 PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production"
 
 3. If reviewing Step 1 production-runner code, rerun the focused tests with `PYTHONPATH=src`. A PASS decision is forbidden if clean-runtime import or focused clean-runtime tests fail.
-4. State PASS / FAIL / NEEDS FIXES with observed values and controlling criteria.
-5. If the review implies a current-status update, include a "Recommended project-management update" section, but do not edit current status.
-6. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
-7. Before reporting done, run:
+4. Check that automated/LLM/training/suggestion material is not counted as legacy coverage, legacy provenance, `prior_valid_legacy_reverification` eligibility, or a legacy benchmark denominator.
+5. State PASS / FAIL / NEEDS FIXES with observed values and controlling criteria.
+6. If the review implies a current-status update, include a "Recommended project-management update" section, but do not edit current status.
+7. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
+8. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review_<short_task>.json
 
@@ -247,11 +269,12 @@ Tasks:
 PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale_url_production"
 
 5. If the import check fails because a committed module depends on a missing helper, stale API, or dirty-worktree-only file, fix the dependency generally inside the approved integration scope or stop and report the exact extra files needed.
-6. Fix only issues inside the allowed slice.
-7. Run the focused tests for the allowed slice with `PYTHONPATH=src`.
-8. If tests pass and the clean-runtime import check passes, commit only the allowed slice.
-9. If the slice requires files outside the allowed scope, stop and report the exact extra files needed. Do not edit them.
-10. Before reporting done, run:
+6. Preserve the source taxonomy guard: automated/LLM/training/suggestion material may be historical leads, but not legacy coverage or legacy benchmark evidence.
+7. Fix only issues inside the allowed slice.
+8. Run the focused tests for the allowed slice with `PYTHONPATH=src`.
+9. If tests pass and the clean-runtime import check passes, commit only the allowed slice.
+10. If the slice requires files outside the allowed scope, stop and report the exact extra files needed. Do not edit them.
+11. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration_<short_task>.json
 

@@ -52,6 +52,27 @@ runtime contract. Old pilot outputs can teach the code, supply regression tests,
 and define benchmark answers. They should not be required input files for the
 normal journal-facing production runner.
 
+## Source Taxonomy In Benchmark Reports
+
+Benchmark and production reports must not collapse historical leads into legacy
+evidence. The following roles are distinct:
+
+- `validated_human_legacy`: reviewed human/curated legacy source evidence.
+- `prior_programmatic`: a previously accepted programmatic discovery that must
+  be recovered and reviewed by the current run before source-ledger acceptance.
+- `imported_llm_candidate_lead`: imported LLM, Claude, automated workbook,
+  training-set, suggestion-pool, or AI/API lead. This is a search hint only.
+- `failed_programmatic_attempt`: prior attempt evidence that no valid source was
+  found by the old process.
+
+Private automated missing-sheet URLs, private LLM training-set URLs, public
+Claude/LLM suggestion outputs, public fresh-AI archive pages, and similar lead
+artifacts are not human legacy evidence. They must not be counted as
+`validated_human_legacy`, must not satisfy legacy coverage, and must not enter a
+legacy benchmark denominator. They may be selected in a historical-lead
+construction lane and may enter the source ledger only after current-run
+recovery and source review.
+
 ## 1. Rebuild The Existing Dataset
 
 This is a production recovery task.
@@ -63,6 +84,7 @@ Allowed evidence:
 - archived versions of legacy URLs;
 - previous valid programmatic discoveries as diagnostics or rule-development
   aids, not as automatic source-ledger promotions;
+- imported LLM/programmatic leads as search hints only, not as legacy evidence;
 - legacy excerpts and classifications as debugging aids;
 - manual leads;
 - API or browser rescue;
@@ -127,6 +149,7 @@ test fixtures, but not as the runtime spine of a journal release.
 | Lane | Human legacy URLs allowed? | Counts as clean no-legacy benchmark? | Required for final rebuild? | Target |
 |---|---:|---:|---:|---:|
 | `legacy_assisted_rebuild` | yes | no | no | maximize recovered usable panel |
+| `historical_lead_source_reconstruction` | no, except separately labeled rows | no | no | recover/review useful public and private historical leads |
 | `known_url_execution_diagnostic` | yes | no | no | 90-100 percent among valid URLs |
 | `clean_no_legacy_benchmark` | no | yes | no | 90 percent diagnostic target |
 | `source_ledger_replication_build` | yes, if frozen in ledger | no | yes | 100 percent ledger closure, then regenerate final dataset |
@@ -174,6 +197,8 @@ All streams should eventually use the same retrieval, extraction, policy search,
 classification, and audit engine. They differ only in admission rules:
 
 - human legacy streams enter the execution diagnostic through valid human URLs;
+- historical-lead streams may use imported LLM/programmatic leads as search
+  hints, but they are neither human legacy evidence nor clean no-legacy inputs;
 - no-legacy streams enter only after independent source discovery and source
   validation;
 - legacy-assisted rebuild and source-ledger replication can use all frozen,

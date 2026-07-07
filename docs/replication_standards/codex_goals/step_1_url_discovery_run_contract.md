@@ -155,6 +155,42 @@ evidence, not clean benchmark evidence. The final claim is reproducibility of
 the committed code, explicit inputs, source evidence, manifests, and source
 ledger, not autonomous scraper performance on untouched data.
 
+### Source Taxonomy For Legacy And Historical Leads
+
+Step 1 source selection must separate human legacy evidence from historical
+programmatic or LLM leads. This rule is binding for all production chunks,
+release packages, benchmarks, and stream prompts.
+
+Allowed source roles:
+
+| Role | Meaning | May satisfy legacy selection? | May guide search? | May enter source ledger? |
+|---|---|---:|---:|---:|
+| `validated_human_legacy` | Human/curated public or private legacy URL/source evidence | yes | yes | yes, after current review |
+| `prior_programmatic` | Earlier programmatic discovery accepted by review | no | yes | yes, only after current-run recovery and review |
+| `imported_llm_candidate_lead` | Imported LLM, Claude, automated workbook, or suggestion-pool lead | no | yes | yes, only after current-run recovery and review |
+| `failed_programmatic_attempt` | Historical attempt with no valid accepted discovery | no | yes, as diagnostics | no, unless current run finds and reviews evidence |
+
+Hard rule:
+
+```text
+Automated, LLM, Claude, training, suggestion-pool, or private missing-sheet tabs
+are not human legacy evidence. They must not contribute to legacy_covered_years,
+valid_human_legacy rows, human legacy provenance, legacy benchmark denominators,
+or prior_valid_legacy_reverification eligibility.
+```
+
+These leads should remain usable. They belong in a separate
+`historical_lead_source_reconstruction` lane that selects public and private
+historical lead cases symmetrically, labels them as lead reconstruction, and
+requires current-run recovery plus source review before any source-ledger
+acceptance.
+
+Existing accepted source evidence is not automatically invalidated by a
+taxonomy correction if the current run recovered and reviewed the source.
+However, any row or institution that entered through an automated/LLM-as-legacy
+path must be relabeled or audited before it is reported as legacy
+reconstruction evidence.
+
 ### Journal-Ready Step 1 Successful Test Batch Goal
 
 The active Step 1 goal is not satisfied by a smoke test, mini batch, generated

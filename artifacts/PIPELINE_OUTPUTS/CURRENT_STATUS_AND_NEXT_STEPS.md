@@ -10,6 +10,12 @@ The active Step 1 lane is `prior-discovery source reconstruction`: rebuild URL/s
 
 This lane is not a clean no-legacy benchmark. It is also not a journal-ready release because downstream text extraction, policy classification, adjudication, final panel construction, and final replication packaging are later-stage work.
 
+## Taxonomy Correction Status
+
+Project-management finding: the old selector allowed some private automated/LLM workbook-tab URLs to enter the legacy reconstruction lane through `legacy_covered_years > 0`. That was incorrect. Automated/LLM tabs are historical lead/search-hint material, not human legacy evidence, and they must not satisfy `prior_valid_legacy_reverification`.
+
+The source/test fix has passed review and is merged in main as `31428db`. The fixed path separates true legacy reconstruction from `historical_lead_source_reconstruction`. Already reviewed source evidence is not automatically invalidated, but any accepted row that entered through the automated/LLM-as-legacy path needs provenance relabeling or audit before it is used as legacy reconstruction evidence or final Step 2/journal-stage input.
+
 ## Latest Reviewed URL-Stage Packet
 
 ```text
@@ -50,9 +56,9 @@ Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery
 
 ## Next Action
 
-Run the next managed testing packet, `step1_prior_discovery_source_reconstruction_packet_025_028`, from clean `origin/main` at or after `607276f`. The testing packet should run batches 025-028 sequentially, preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
+Allow the already-started managed testing packet, `step1_prior_discovery_source_reconstruction_packet_025_028`, to finish only if it stays within true public `valid_human_legacy` selection. The testing packet should preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
 
-Project management should update this file only after the packet-level process review reaches acceptance.
+The next packet after 025-028 should run from main at or after `31428db`, so automated/LLM workbook tabs cannot be treated as legacy coverage. If the next work targets imported LLM/programmatic leads, it should use the explicit `historical_lead_source_reconstruction` lane rather than `prior_valid_legacy_reverification`.
 
 ## Step 2 Handoff Decision
 
@@ -62,6 +68,8 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 
 - Do not claim clean no-legacy benchmark success from this lane.
 - Do not claim journal-release readiness from Step 1 URL-stage artifacts alone.
+- Do not treat automated/LLM workbook tabs as human legacy evidence or legacy coverage.
+- Do not let imported LLM/programmatic leads satisfy `prior_valid_legacy_reverification`; they belong in a separate historical-lead reconstruction lane.
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
