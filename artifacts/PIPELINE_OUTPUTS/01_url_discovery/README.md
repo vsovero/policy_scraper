@@ -9,16 +9,16 @@ Use `prior-discovery source reconstruction` for the current Step 1 lane. Existin
 Latest reviewed URL-stage packet:
 
 ```text
-step1_prior_discovery_source_reconstruction_packet_017_020
-production_chunk_step1_prior_valid_reverification_test_batch_017
-production_chunk_step1_prior_valid_reverification_test_batch_018
-production_chunk_step1_prior_valid_reverification_test_batch_019
-production_chunk_step1_prior_valid_reverification_test_batch_020
+step1_prior_discovery_source_reconstruction_packet_021_024
+production_chunk_step1_prior_valid_reverification_test_batch_021
+production_chunk_step1_prior_valid_reverification_test_batch_022
+production_chunk_step1_prior_valid_reverification_test_batch_023
+production_chunk_step1_prior_valid_reverification_test_batch_024
 ```
 
-Packet 017-020 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
+Packet 021-024 is the current accepted Step 1 URL-stage prior-discovery source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
 
-The next packet should start from `origin/main` at or after `17ed0c7`, which merged the reviewed legacy-label/provenance funnel fix. The stopped partial 021-024 attempt should not be reused.
+The next packet should start from `origin/main` at or after `607276f`.
 
 ## Current Reporting
 
@@ -26,7 +26,7 @@ The next packet should start from `origin/main` at or after `17ed0c7`, which mer
 - Batch rollup table: `reports/prior_discovery_source_reconstruction_rollup/README.md`
 - Historical pilot/drill/regression log: `../../PILOTS/url_discovery/historical_testing_log/README.md`
 
-Current accepted totals are 20 batches, 560 institutions, 8,081 target institution-years, 4,026 accepted source-ledger rows, 4,055 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
+Current accepted totals are 24 batches, 660 institutions, 9,384 target institution-years, 4,552 accepted source-ledger rows, 4,832 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
 
 ## Step 2 Handoff Decision
 
