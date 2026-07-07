@@ -19,28 +19,28 @@ The source/test fix has passed review and is merged in main as `31428db`. The fi
 ## Latest Reviewed URL-Stage Packet
 
 ```text
-step1_prior_discovery_source_reconstruction_packet_021_024
-production_chunk_step1_prior_valid_reverification_test_batch_021
-production_chunk_step1_prior_valid_reverification_test_batch_022
-production_chunk_step1_prior_valid_reverification_test_batch_023
-production_chunk_step1_prior_valid_reverification_test_batch_024
+step1_prior_discovery_source_reconstruction_packet_025_028
+production_chunk_step1_prior_valid_reverification_test_batch_025
+production_chunk_step1_prior_valid_reverification_test_batch_026
+production_chunk_step1_prior_valid_reverification_test_batch_027
+production_chunk_step1_prior_valid_reverification_test_batch_028
 ```
 
-Packet 021-024 is the latest Step 1 URL-stage prior-discovery source reconstruction packet accepted by process review. It adds 100 institutions, 1,303 target institution-years, 526 accepted source-ledger rows, 777 explicit unresolved rows, 161 benchmark rows, 145 current-run benchmark recoveries, 16 benchmark rows invalidated by review, 0 benchmark rows resolved by other source-ledger evidence, and 0 unresolved benchmark misses.
+Packet 025-028 is the latest Step 1 URL-stage prior-discovery source reconstruction packet accepted by process review. It adds 82 public institutions, 1,206 target institution-years, 457 accepted source-ledger rows, 749 explicit unresolved rows, 87 benchmark rows, 81 current-run benchmark recoveries, 6 benchmark rows invalidated by review, 0 benchmark rows resolved by other source-ledger evidence, and 0 unresolved benchmark misses.
 
-No source/test commits were produced by packet 021-024; it ran from `origin/main` at `607276f`.
+Packet 025-028 was built at pre-taxonomy commit `ee064e5`, but process review applied the current taxonomy externally and found no blocker: all selected institutions were public `valid_human_legacy`, with no automated/LLM/training/suggestion/private-missing material counted as legacy coverage. Future packets should run from main at or after `b6da151`.
 
 ## Current Production-Construction Totals
 
-- Accepted batches: 24 (001-024)
-- Institutions covered: 660
-- Institution-years targeted: 9,384
-- Accepted source-ledger rows ready for Step 2 text extraction: 4,552
-- Explicit unresolved rows: 4,832
-- Overall ready/source-ledger rate: 48.5%
-- Benchmark rows: 2,811
-- Current-run benchmark recovered: 2,445
-- Benchmark rows invalidated by review: 365
+- Accepted batches: 28 (001-028)
+- Institutions covered: 742
+- Institution-years targeted: 10,590
+- Accepted source-ledger rows ready for Step 2 text extraction: 5,009
+- Explicit unresolved rows: 5,581
+- Overall ready/source-ledger rate: 47.3%
+- Benchmark rows: 2,898
+- Current-run benchmark recovered: 2,526
+- Benchmark rows invalidated by review: 371
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
 
@@ -48,17 +48,17 @@ Accepted-batch sector split:
 
 | Sector | Institutions | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
 |---|---:|---:|---:|---:|
-| Public | 221 | 3,137 | 1,531 | 48.8% |
+| Public | 303 | 4,343 | 1,988 | 45.8% |
 | Private nonprofit | 439 | 6,247 | 3,021 | 48.4% |
-| Total | 660 | 9,384 | 4,552 | 48.5% |
+| Total | 742 | 10,590 | 5,009 | 47.3% |
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Allow the already-started managed testing packet, `step1_prior_discovery_source_reconstruction_packet_025_028`, to finish only if it stays within true public `valid_human_legacy` selection. The testing packet should preserve run-local artifacts, avoid project-management docs, and hand off to a packet-level process review.
+Packet 025-028 has passed process review. The next packet should start from main at or after `b6da151`.
 
-The next packet after 025-028 should run from main at or after `31428db`, so automated/LLM workbook tabs cannot be treated as legacy coverage. If the next work targets imported LLM/programmatic leads, it should use the explicit `historical_lead_source_reconstruction` lane rather than `prior_valid_legacy_reverification`.
+Recommended next move: start the first full `historical_lead_source_reconstruction` packet for imported LLM/programmatic leads. If complete true-legacy closure is preferred first, run a small cleanup/preview for the remaining `valid_human_legacy` public institutions instead.
 
 ## Step 2 Handoff Decision
 
@@ -73,7 +73,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
-- Review records for batches 001-024 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
+- Review records for batches 001-028 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live
 
