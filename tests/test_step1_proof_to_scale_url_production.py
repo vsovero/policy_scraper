@@ -6,14 +6,20 @@ import pytest
 
 from course_policy.step1_proof_to_scale_url_production import (
     INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT,
+    benchmark_rows_for_legacy_candidates,
     build_historical_case_precheck,
     build_parser,
     build_step1_inputs,
     candidate_options_for_row,
+    enrich_raw_legacy_with_historical_provenance,
     load_excluded_unitids,
+    load_raw_legacy_url_rows,
+    raw_legacy_candidates_for_target,
+    raw_legacy_coverage_summary,
     retrieve_candidate_with_wayback_recovery,
     retrieve_url_with_retries,
     run_proof_to_scale,
+    select_historical_lead_source_reconstruction_institutions,
     select_high_legacy_coverage_institutions,
     select_prior_valid_legacy_reverification_institutions,
     write_discovery_inputs,
@@ -34,6 +40,14 @@ def test_cli_accepts_prior_valid_exclusion_file() -> None:
     args = build_parser().parse_args(["--namespace", "n", "--chunk-id", "c", "--exclude-unitids-file", "done.csv"])
 
     assert args.exclude_unitids_file == Path("done.csv")
+
+
+def test_cli_accepts_historical_lead_source_reconstruction_mode() -> None:
+    args = build_parser().parse_args(
+        ["--namespace", "n", "--chunk-id", "c", "--selection-mode", "historical_lead_source_reconstruction"]
+    )
+
+    assert args.selection_mode == "historical_lead_source_reconstruction"
 
 
 def test_legacy_candidate_uses_neutral_label_and_provenance() -> None:
@@ -92,9 +106,62 @@ def test_imported_llm_legacy_candidate_is_not_labeled_human() -> None:
     [option] = candidate_options_for_row(row=row, legacy_row=legacy_row, namespace="n", repo_root=Path.cwd())
 
     assert option["candidate_generation_method"] == "imported_llm_candidate_lead"
-    assert option["candidate_source_type"] == "legacy_input_url"
+    assert option["candidate_source_type"] == "imported_llm_candidate_lead"
+    assert option["url_source_bucket"] == "historical_lead_input_url"
     assert option["legacy_input_provenance"] == "imported_llm_candidate_lead"
     assert "human" not in option["candidate_source_type"]
+
+
+def test_loader_labels_automated_and_llm_private_tabs_as_historical_leads(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    public_path = tmp_path / "Ipeds raw Data files" / "Course repetition data.xlsx"
+    private_path = tmp_path / "Stata Files" / "Data" / "gfprivatelist.xlsx"
+    public_path.parent.mkdir(parents=True)
+    private_path.parent.mkdir(parents=True)
+    public_path.write_bytes(b"")
+    private_path.write_bytes(b"")
+
+    def fake_read_excel(path: Path, sheet_name: str):
+        if sheet_name == "(Automated, 0121) Missing priva":
+            return pd.DataFrame(
+                [
+                    {
+                        "unitid": 31,
+                        "instnm": "Automated Tab College",
+                        "bulletin": "https://automated.invalid/catalog-2002.pdf",
+                    }
+                ]
+            )
+        if sheet_name == "LLM Training Set":
+            return pd.DataFrame(
+                [
+                    {
+                        "unitid": 32,
+                        "instnm": "LLM Tab College",
+                        "bulletin": "https://llm.invalid/catalog-2003.pdf",
+                    }
+                ]
+            )
+        if sheet_name == "private":
+            return pd.DataFrame(columns=["unitid", "instnm", "bulletin"])
+        return pd.DataFrame(columns=["unitid", "institution name", "bulletin", "Earliest Bulletin", "Current Bulletin"])
+
+    monkeypatch.setattr("course_policy.step1_proof_to_scale_url_production.pd.read_excel", fake_read_excel)
+
+    loaded = load_raw_legacy_url_rows(repo_root)
+
+    by_unitid = {int(row["unitid"]): row for _, row in loaded.iterrows()}
+    automated = by_unitid[31]
+    llm = by_unitid[32]
+    assert automated["candidate_generation_method"] == "historical_programmatic_lead"
+    assert automated["candidate_source_type"] == "historical_programmatic_lead"
+    assert automated["legacy_input_provenance"] == "historical_programmatic_lead"
+    assert bool(automated["counts_as_legacy_coverage"]) is False
+    assert llm["candidate_generation_method"] == "imported_llm_candidate_lead"
+    assert llm["candidate_source_type"] == "imported_llm_candidate_lead"
+    assert llm["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert bool(llm["counts_as_legacy_coverage"]) is False
 
 
 def test_retrieve_url_with_retries_has_wall_clock_guard(monkeypatch) -> None:
@@ -334,6 +401,287 @@ def test_prior_valid_legacy_selection_excludes_completed_unitids() -> None:
     )
 
     assert selected["unitid"].tolist() == [2]
+
+
+def test_private_automated_and_llm_tabs_do_not_create_prior_valid_legacy_eligibility() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "institution_name": "Automated Lead College",
+                "sector_stream": "private",
+                "state": "AL",
+                "academic_year": 2002,
+                "webaddr": "https://automated.example.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 10,
+                "institution_name": "Automated Lead College",
+                "sector_stream": "private",
+                "state": "AL",
+                "academic_year": 2003,
+                "webaddr": "https://automated.example.edu",
+                "has_human_legacy_source": False,
+            },
+        ]
+    )
+    raw_inputs = pd.DataFrame(
+        [
+            {
+                "unitid": 10,
+                "institution_name": "Automated Lead College",
+                "sector": "private",
+                "candidate_url": "https://lead.invalid/catalog-2002-2003.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2003,
+                "candidate_generation_method": "historical_programmatic_lead",
+                "candidate_source_type": "historical_programmatic_lead",
+                "legacy_input_provenance": "historical_programmatic_lead",
+                "source_query_or_root": "(Automated, 0121) Missing priva",
+            },
+            {
+                "unitid": 10,
+                "institution_name": "Automated Lead College",
+                "sector": "private",
+                "candidate_url": "https://llm-lead.invalid/catalog-2003.pdf",
+                "catalog_year_start": 2003,
+                "catalog_year_end": 2003,
+                "candidate_generation_method": "imported_llm_candidate_lead",
+                "candidate_source_type": "imported_llm_candidate_lead",
+                "legacy_input_provenance": "imported_llm_candidate_lead",
+                "source_query_or_root": "LLM Training Set",
+            },
+        ]
+    )
+
+    coverage = raw_legacy_coverage_summary(target_universe, raw_inputs)
+
+    assert coverage.loc[coverage["unitid"].eq(10), "legacy_covered_years"].iloc[0] == 0
+    with pytest.raises(RuntimeError, match="Prior-valid-legacy reverification selection found no eligible"):
+        select_prior_valid_legacy_reverification_institutions(
+            target_universe,
+            pd.DataFrame(),
+            raw_inputs,
+            public_count=0,
+            private_count=1,
+            min_target_rows=1,
+            max_target_rows=10,
+        )
+
+
+def test_private_automated_and_llm_tabs_can_enter_historical_lead_reconstruction_lane() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 11,
+                "institution_name": "Lead Reconstruction College",
+                "sector_stream": "private",
+                "state": "LR",
+                "academic_year": 2002,
+                "webaddr": "https://leadrecon.example.edu",
+                "has_human_legacy_source": False,
+            },
+            {
+                "unitid": 11,
+                "institution_name": "Lead Reconstruction College",
+                "sector_stream": "private",
+                "state": "LR",
+                "academic_year": 2003,
+                "webaddr": "https://leadrecon.example.edu",
+                "has_human_legacy_source": False,
+            },
+        ]
+    )
+    raw_inputs = pd.DataFrame(
+        [
+            {
+                "unitid": 11,
+                "institution_name": "Lead Reconstruction College",
+                "sector": "private",
+                "candidate_url": "https://lead.invalid/catalog-2002-2003.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2003,
+                "candidate_generation_method": "historical_programmatic_lead",
+                "candidate_source_type": "historical_programmatic_lead",
+                "legacy_input_provenance": "historical_programmatic_lead",
+                "source_query_or_root": "(Automated, 0121) Missing priva",
+            }
+        ]
+    )
+
+    selected = select_historical_lead_source_reconstruction_institutions(
+        target_universe,
+        pd.DataFrame(),
+        raw_inputs,
+        public_count=0,
+        private_count=1,
+        min_target_rows=1,
+        max_target_rows=10,
+    )
+
+    assert selected["unitid"].tolist() == [11]
+    assert selected.iloc[0]["selection_mode"] == "historical_lead_source_reconstruction"
+    assert selected.iloc[0]["historical_lead_bucket"] == "raw_historical_lead_input"
+    assert selected.iloc[0]["historical_lead_covered_years"] == 2
+
+
+def test_public_imported_llm_priority_bucket_can_enter_historical_lead_reconstruction_lane() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 12,
+                "institution_name": "Public LLM Lead University",
+                "sector_stream": "public",
+                "state": "PL",
+                "academic_year": 2002,
+                "webaddr": "https://publicllm.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    historical_priority = pd.DataFrame(
+        [
+            {
+                "unitid": 12,
+                "priority_bucket": "imported_llm_candidate_lead_overlay",
+                "imported_llm_candidate_lead_rows": 1,
+                "valid_human_legacy_rows": 0,
+                "prior_programmatic_accepted_rows": 0,
+            }
+        ]
+    )
+
+    selected = select_historical_lead_source_reconstruction_institutions(
+        target_universe,
+        historical_priority,
+        pd.DataFrame(),
+        public_count=1,
+        private_count=0,
+        min_target_rows=1,
+        max_target_rows=10,
+    )
+
+    assert selected["unitid"].tolist() == [12]
+    assert selected.iloc[0]["selection_mode"] == "historical_lead_source_reconstruction"
+    assert selected.iloc[0]["historical_lead_bucket"] == "imported_llm_candidate_lead_overlay"
+
+
+def test_automated_llm_lead_inputs_never_become_legacy_benchmark_or_human_provenance() -> None:
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 13,
+                "institution_name": "LLM Lead Guard College",
+                "sector": "private",
+                "state": "LG",
+                "academic_year": 2002,
+                "homepage_url": "https://llmguard.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 13,
+                "institution_name": "LLM Lead Guard College",
+                "sector_stream": "private",
+                "state": "LG",
+                "academic_year": 2002,
+                "webaddr": "https://llmguard.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_inputs = pd.DataFrame(
+        [
+            {
+                "unitid": 13,
+                "institution_name": "LLM Lead Guard College",
+                "sector": "private",
+                "candidate_url": "https://llm-lead.invalid/catalog-2002.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "candidate_generation_method": "imported_llm_candidate_lead",
+                "candidate_source_type": "imported_llm_candidate_lead",
+                "source_query_or_root": "LLM Training Set",
+            }
+        ]
+    )
+    historical_memory = pd.DataFrame(
+        [
+            {
+                "unitid": 13,
+                "historical_priority_bucket": "valid_human_legacy",
+                "valid_human_legacy_rows": 1,
+            }
+        ]
+    )
+
+    enriched = enrich_raw_legacy_with_historical_provenance(raw_inputs, historical_memory)
+    candidates = raw_legacy_candidates_for_target(target_panel, enriched)
+    [option] = candidate_options_for_row(
+        row=target_panel.iloc[0],
+        legacy_row=candidates.iloc[0],
+        namespace="n",
+        repo_root=Path.cwd(),
+    )
+    coverage = raw_legacy_coverage_summary(target_universe, enriched)
+
+    assert enriched.iloc[0]["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert bool(enriched.iloc[0]["counts_as_legacy_coverage"]) is False
+    assert coverage.loc[coverage["unitid"].eq(13), "legacy_covered_years"].iloc[0] == 0
+    assert benchmark_rows_for_legacy_candidates(candidates) == []
+    assert option["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert option["candidate_source_type"] == "imported_llm_candidate_lead"
+    assert option["url_source_bucket"] == "historical_lead_input_url"
+    assert bool(option["counts_as_legacy_coverage"]) is False
+
+
+def test_curated_private_legacy_inputs_still_select_prior_valid_reverification() -> None:
+    target_universe = pd.DataFrame(
+        [
+            {
+                "unitid": 14,
+                "institution_name": "Curated Legacy College",
+                "sector_stream": "private",
+                "state": "CL",
+                "academic_year": 2002,
+                "webaddr": "https://curated.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    raw_inputs = pd.DataFrame(
+        [
+            {
+                "unitid": 14,
+                "institution_name": "Curated Legacy College",
+                "sector": "private",
+                "candidate_url": "https://curated.example.edu/catalog-2002.pdf",
+                "catalog_year_start": 2002,
+                "catalog_year_end": 2002,
+                "candidate_generation_method": "raw_private_legacy_workbook_url",
+                "candidate_source_type": "legacy_input_url",
+            }
+        ]
+    )
+
+    coverage = raw_legacy_coverage_summary(target_universe, raw_inputs)
+    selected = select_prior_valid_legacy_reverification_institutions(
+        target_universe,
+        pd.DataFrame(),
+        raw_inputs,
+        public_count=0,
+        private_count=1,
+        min_target_rows=1,
+        max_target_rows=10,
+    )
+
+    assert coverage.loc[coverage["unitid"].eq(14), "legacy_covered_years"].iloc[0] == 1
+    assert selected["unitid"].tolist() == [14]
+    assert selected.iloc[0]["historical_priority_bucket"] == "valid_human_legacy"
 
 
 def test_load_excluded_unitids_reads_unitid_column(tmp_path: Path) -> None:

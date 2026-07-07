@@ -70,19 +70,32 @@ RETRIEVED_STATUSES = {"retrieved", "retrieved_truncated"}
 VALIDATED_HUMAN_LEGACY_PROVENANCE = "validated_human_legacy"
 PRIOR_PROGRAMMATIC_PROVENANCE = "prior_programmatic"
 IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE = "imported_llm_candidate_lead"
+HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE = "historical_programmatic_lead"
 UNKNOWN_LEGACY_INPUT_PROVENANCE = "unknown_legacy_input"
 LEGACY_INPUT_URL_LABEL = "legacy_input_url"
+HISTORICAL_LEAD_INPUT_URL_LABEL = "historical_lead_input_url"
 RAW_LEGACY_INPUT_URL_LABEL = "raw_legacy_input_url"
 NEEDS_TEXT_VALIDATION_DECISION = "needs_text_validation"
 VALID_HUMAN_LEGACY_BUCKET = "valid_human_legacy"
 PRIOR_PROGRAMMATIC_REVERIFICATION_BUCKET = "prior_programmatic_accepted_needs_current_reverification"
 IMPORTED_LLM_CANDIDATE_LEAD_BUCKET = "imported_llm_candidate_lead_overlay"
+RAW_HISTORICAL_LEAD_INPUT_BUCKET = "raw_historical_lead_input"
+UNREVIEWED_PRIOR_PROGRAMMATIC_LEAD_BUCKET = "unreviewed_prior_programmatic_candidate_lead"
+UNREVIEWED_HUMAN_LEGACY_LEAD_BUCKET = "unreviewed_human_legacy_candidate_lead"
+PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET = "programmatic_attempt_no_valid_discovery"
 PRIOR_VALID_REVERIFICATION_BUCKETS = (
     PRIOR_PROGRAMMATIC_REVERIFICATION_BUCKET,
     VALID_HUMAN_LEGACY_BUCKET,
 )
+HISTORICAL_LEAD_RECONSTRUCTION_BUCKETS = (
+    IMPORTED_LLM_CANDIDATE_LEAD_BUCKET,
+    UNREVIEWED_PRIOR_PROGRAMMATIC_LEAD_BUCKET,
+    UNREVIEWED_HUMAN_LEGACY_LEAD_BUCKET,
+    PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET,
+    RAW_HISTORICAL_LEAD_INPUT_BUCKET,
+)
 NO_HUMAN_LEGACY_HOLDOUT_BUCKETS = {
-    "programmatic_attempt_no_valid_discovery",
+    PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET,
     "no_historical_programmatic_attempt_found",
 }
 
@@ -215,6 +228,7 @@ def legacy_input_provenance(row: pd.Series | dict[str, object]) -> str:
         VALIDATED_HUMAN_LEGACY_PROVENANCE,
         PRIOR_PROGRAMMATIC_PROVENANCE,
         IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+        HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
     }:
         return explicit
     evidence_class = clean_text(row.get("evidence_class")).lower()
@@ -228,6 +242,14 @@ def legacy_input_provenance(row: pd.Series | dict[str, object]) -> str:
         return VALIDATED_HUMAN_LEGACY_PROVENANCE
     if IMPORTED_LLM_CANDIDATE_LEAD_BUCKET in source_text or "llm" in source_text or "claude" in source_text:
         return IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE
+    if (
+        HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE in source_text
+        or UNREVIEWED_PRIOR_PROGRAMMATIC_LEAD_BUCKET in source_text
+        or UNREVIEWED_HUMAN_LEGACY_LEAD_BUCKET in source_text
+        or PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET in source_text
+        or "automated" in source_query_or_root
+    ):
+        return HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE
     if "prior_programmatic" in source_text or "programmatic_accepted" in source_text:
         return PRIOR_PROGRAMMATIC_PROVENANCE
     historical_provenance = historical_priority_legacy_input_provenance(row)
@@ -273,15 +295,66 @@ def historical_priority_legacy_input_provenance(row: pd.Series | dict[str, objec
         return VALIDATED_HUMAN_LEGACY_PROVENANCE
     if bucket == IMPORTED_LLM_CANDIDATE_LEAD_BUCKET:
         return IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE
+    if bucket in {
+        UNREVIEWED_PRIOR_PROGRAMMATIC_LEAD_BUCKET,
+        UNREVIEWED_HUMAN_LEGACY_LEAD_BUCKET,
+        PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET,
+    }:
+        return HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE
     if bucket == PRIOR_PROGRAMMATIC_REVERIFICATION_BUCKET:
         return PRIOR_PROGRAMMATIC_PROVENANCE
     if count_value(row, "valid_human_legacy_rows") > 0:
         return VALIDATED_HUMAN_LEGACY_PROVENANCE
     if count_value(row, "imported_llm_candidate_lead_rows") > 0:
         return IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE
+    if count_value(row, "unreviewed_prior_programmatic_lead_rows") > 0:
+        return HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE
+    if count_value(row, "unreviewed_human_legacy_candidate_lead_rows") > 0:
+        return HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE
+    if count_value(row, "failed_attempt_rows") > 0:
+        return HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE
     if count_value(row, "prior_programmatic_accepted_rows") > 0:
         return PRIOR_PROGRAMMATIC_PROVENANCE
     return UNKNOWN_LEGACY_INPUT_PROVENANCE
+
+
+def optional_bool(value: object) -> bool | None:
+    text = clean_text(value).lower()
+    if text in {"1", "1.0", "true", "yes", "y"}:
+        return True
+    if text in {"0", "0.0", "false", "no", "n"}:
+        return False
+    return None
+
+
+def is_historical_lead_provenance(provenance: object) -> bool:
+    return clean_text(provenance).lower() in {
+        IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+        HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+    }
+
+
+def raw_input_counts_as_legacy_coverage(row: pd.Series | dict[str, object]) -> bool:
+    explicit = optional_bool(row.get("counts_as_legacy_coverage"))
+    if explicit is not None:
+        return explicit
+    provenance = legacy_input_provenance(row)
+    if is_historical_lead_provenance(provenance):
+        return False
+    source_text = " ".join(
+        [
+            clean_text(row.get("candidate_generation_method")).lower(),
+            clean_text(row.get("candidate_source_type")).lower(),
+            clean_text(row.get("source_query_or_root")).lower(),
+        ]
+    )
+    if "llm" in source_text or "claude" in source_text or "automated" in source_text:
+        return False
+    return True
+
+
+def raw_input_is_historical_lead(row: pd.Series | dict[str, object]) -> bool:
+    return not raw_input_counts_as_legacy_coverage(row) and is_historical_lead_provenance(legacy_input_provenance(row))
 
 
 def load_historical_priority_buckets(repo_root: Path) -> pd.DataFrame:
@@ -565,6 +638,9 @@ def load_raw_legacy_url_rows(repo_root: Path) -> pd.DataFrame:
             "name_column": "institution name",
             "sector_hint": "public",
             "source_type": "raw_public_legacy_workbook_url",
+            "candidate_source_type": LEGACY_INPUT_URL_LABEL,
+            "legacy_input_provenance": UNKNOWN_LEGACY_INPUT_PROVENANCE,
+            "counts_as_legacy_coverage": True,
         },
         {
             "path": repo_root.parent / "Stata Files" / "Data" / "gfprivatelist.xlsx",
@@ -573,6 +649,9 @@ def load_raw_legacy_url_rows(repo_root: Path) -> pd.DataFrame:
             "name_column": "instnm",
             "sector_hint": "private",
             "source_type": "raw_private_legacy_workbook_url",
+            "candidate_source_type": LEGACY_INPUT_URL_LABEL,
+            "legacy_input_provenance": UNKNOWN_LEGACY_INPUT_PROVENANCE,
+            "counts_as_legacy_coverage": True,
         },
         {
             "path": repo_root.parent / "Stata Files" / "Data" / "gfprivatelist.xlsx",
@@ -580,7 +659,10 @@ def load_raw_legacy_url_rows(repo_root: Path) -> pd.DataFrame:
             "url_columns": ["bulletin"],
             "name_column": "instnm",
             "sector_hint": "private",
-            "source_type": "raw_private_legacy_workbook_url",
+            "source_type": HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+            "candidate_source_type": HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+            "legacy_input_provenance": HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+            "counts_as_legacy_coverage": False,
         },
         {
             "path": repo_root.parent / "Stata Files" / "Data" / "gfprivatelist.xlsx",
@@ -588,7 +670,10 @@ def load_raw_legacy_url_rows(repo_root: Path) -> pd.DataFrame:
             "url_columns": ["bulletin"],
             "name_column": "instnm",
             "sector_hint": "private",
-            "source_type": "raw_private_legacy_workbook_url",
+            "source_type": IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+            "candidate_source_type": IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+            "legacy_input_provenance": IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+            "counts_as_legacy_coverage": False,
         },
     ]
     rows: list[dict[str, object]] = []
@@ -620,8 +705,9 @@ def load_raw_legacy_url_rows(repo_root: Path) -> pd.DataFrame:
                         "catalog_year_start": int(inferred[0]),
                         "catalog_year_end": int(inferred[1]),
                         "candidate_generation_method": spec["source_type"],
-                        "candidate_source_type": LEGACY_INPUT_URL_LABEL,
-                        "legacy_input_provenance": UNKNOWN_LEGACY_INPUT_PROVENANCE,
+                        "candidate_source_type": spec["candidate_source_type"],
+                        "legacy_input_provenance": spec["legacy_input_provenance"],
+                        "counts_as_legacy_coverage": bool(spec["counts_as_legacy_coverage"]),
                         "candidate_source_file": repo_relative(path, repo_root),
                         "source_query_or_root": str(spec["sheet"]),
                     }
@@ -656,8 +742,10 @@ def enrich_raw_legacy_with_historical_provenance(raw_legacy: pd.DataFrame, histo
     out["legacy_input_provenance"] = out.apply(legacy_input_provenance, axis=1)
     existing = out["legacy_input_provenance"].map(clean_text).str.lower()
     historical = out["historical_legacy_input_provenance"].map(clean_text).str.lower()
+    legacy_input = out.apply(raw_input_counts_as_legacy_coverage, axis=1)
     replaceable = existing.eq("") | existing.eq(UNKNOWN_LEGACY_INPUT_PROVENANCE)
-    out.loc[replaceable & historical.ne(""), "legacy_input_provenance"] = historical
+    out.loc[replaceable & historical.ne("") & legacy_input, "legacy_input_provenance"] = historical
+    out["counts_as_legacy_coverage"] = out.apply(raw_input_counts_as_legacy_coverage, axis=1)
     out = out.drop(columns=["historical_legacy_input_provenance"])
     return out
 
@@ -688,7 +776,10 @@ def raw_legacy_candidates_for_target(target_panel: pd.DataFrame, raw_legacy: pd.
 
 def raw_legacy_coverage_summary(target_universe: pd.DataFrame, raw_legacy: pd.DataFrame) -> pd.DataFrame:
     target_panel = target_panel_for_selection(target_universe, institution_summary(target_universe))
-    candidates = raw_legacy_candidates_for_target(target_panel, raw_legacy)
+    raw = raw_legacy.copy()
+    if not raw.empty:
+        raw = raw.loc[raw.apply(raw_input_counts_as_legacy_coverage, axis=1)].copy()
+    candidates = raw_legacy_candidates_for_target(target_panel, raw)
     target_counts = (
         target_panel.groupby(["unitid", "institution_name", "sector"], dropna=False)
         .agg(target_rows=("academic_year", "nunique"))
@@ -705,6 +796,35 @@ def raw_legacy_coverage_summary(target_universe: pd.DataFrame, raw_legacy: pd.Da
         target_counts = target_counts.merge(covered, on="unitid", how="left")
         target_counts["legacy_covered_years"] = target_counts["legacy_covered_years"].fillna(0).astype(int)
     target_counts["legacy_coverage_rate"] = target_counts["legacy_covered_years"] / target_counts["target_rows"]
+    return target_counts
+
+
+def raw_historical_lead_coverage_summary(target_universe: pd.DataFrame, raw_legacy: pd.DataFrame) -> pd.DataFrame:
+    target_panel = target_panel_for_selection(target_universe, institution_summary(target_universe))
+    raw = raw_legacy.copy()
+    if not raw.empty:
+        raw = raw.loc[raw.apply(raw_input_is_historical_lead, axis=1)].copy()
+    candidates = raw_legacy_candidates_for_target(target_panel, raw)
+    target_counts = (
+        target_panel.groupby(["unitid", "institution_name", "sector"], dropna=False)
+        .agg(target_rows=("academic_year", "nunique"))
+        .reset_index()
+    )
+    if candidates.empty:
+        target_counts["historical_lead_covered_years"] = 0
+    else:
+        covered = (
+            candidates.groupby("unitid", dropna=False)
+            .agg(historical_lead_covered_years=("academic_year", "nunique"))
+            .reset_index()
+        )
+        target_counts = target_counts.merge(covered, on="unitid", how="left")
+        target_counts["historical_lead_covered_years"] = (
+            target_counts["historical_lead_covered_years"].fillna(0).astype(int)
+        )
+    target_counts["historical_lead_coverage_rate"] = (
+        target_counts["historical_lead_covered_years"] / target_counts["target_rows"]
+    )
     return target_counts
 
 
@@ -745,6 +865,9 @@ def prior_valid_priority_summary(
                 "priority_bucket",
                 "valid_human_legacy_rows",
                 "prior_programmatic_accepted_rows",
+                "imported_llm_candidate_lead_rows",
+                "unreviewed_prior_programmatic_lead_rows",
+                "unreviewed_human_legacy_candidate_lead_rows",
                 "unreviewed_candidate_lead_rows",
                 "failed_attempt_rows",
             ]
@@ -754,6 +877,9 @@ def prior_valid_priority_summary(
     for column in [
         "valid_human_legacy_rows",
         "prior_programmatic_accepted_rows",
+        "imported_llm_candidate_lead_rows",
+        "unreviewed_prior_programmatic_lead_rows",
+        "unreviewed_human_legacy_candidate_lead_rows",
         "unreviewed_candidate_lead_rows",
         "failed_attempt_rows",
     ]:
@@ -839,6 +965,112 @@ def select_prior_valid_legacy_reverification_institutions(
             f"not in [{min_target_rows}, {max_target_rows}]"
         )
     selected["selection_mode"] = "prior_valid_legacy_reverification"
+    return selected.sort_values(sort_columns, ascending=ascending).reset_index(drop=True)
+
+
+def historical_lead_reconstruction_summary(
+    target_universe: pd.DataFrame,
+    historical_priority: pd.DataFrame,
+    raw_legacy: pd.DataFrame,
+) -> pd.DataFrame:
+    summary = prior_valid_priority_summary(target_universe, historical_priority, raw_legacy)
+    coverage = raw_historical_lead_coverage_summary(target_universe, raw_legacy)
+    if not coverage.empty:
+        summary = summary.merge(
+            coverage[["unitid", "historical_lead_covered_years", "historical_lead_coverage_rate"]],
+            on="unitid",
+            how="left",
+        )
+    for column in ["historical_lead_covered_years", "historical_lead_coverage_rate"]:
+        if column not in summary.columns:
+            summary[column] = 0
+    summary["historical_lead_covered_years"] = (
+        pd.to_numeric(summary["historical_lead_covered_years"], errors="coerce").fillna(0).astype(int)
+    )
+    summary["historical_lead_coverage_rate"] = pd.to_numeric(
+        summary["historical_lead_coverage_rate"], errors="coerce"
+    ).fillna(0.0)
+    lead_bucket = summary["historical_priority_bucket"].where(
+        summary["historical_priority_bucket"].isin(HISTORICAL_LEAD_RECONSTRUCTION_BUCKETS),
+        "",
+    )
+    summary["historical_lead_bucket"] = lead_bucket.where(
+        lead_bucket.ne(""),
+        summary["historical_lead_covered_years"].gt(0).map({True: RAW_HISTORICAL_LEAD_INPUT_BUCKET, False: ""}),
+    )
+    lead_rank_map = {bucket: index for index, bucket in enumerate(HISTORICAL_LEAD_RECONSTRUCTION_BUCKETS)}
+    summary["historical_lead_priority_rank"] = summary["historical_lead_bucket"].map(lead_rank_map).fillna(99).astype(int)
+    return summary
+
+
+def select_historical_lead_source_reconstruction_institutions(
+    target_universe: pd.DataFrame,
+    historical_priority: pd.DataFrame,
+    raw_legacy: pd.DataFrame,
+    *,
+    public_count: int,
+    private_count: int,
+    min_target_rows: int,
+    max_target_rows: int,
+    exclude_unitids: set[int] | None = None,
+) -> pd.DataFrame:
+    summary = historical_lead_reconstruction_summary(target_universe, historical_priority, raw_legacy)
+    eligible = summary.loc[
+        summary["historical_lead_bucket"].isin(HISTORICAL_LEAD_RECONSTRUCTION_BUCKETS)
+        | summary["historical_lead_covered_years"].gt(0)
+    ].copy()
+    if exclude_unitids:
+        eligible = eligible.loc[~eligible["unitid"].isin(exclude_unitids)].copy()
+    if eligible.empty:
+        raise RuntimeError(
+            "Historical-lead source reconstruction selection found no eligible institutions; "
+            "supply imported/programmatic lead buckets or raw historical lead workbook inputs."
+        )
+
+    sort_columns = [
+        "historical_lead_priority_rank",
+        "imported_llm_candidate_lead_rows",
+        "unreviewed_prior_programmatic_lead_rows",
+        "unreviewed_human_legacy_candidate_lead_rows",
+        "failed_attempt_rows",
+        "historical_lead_covered_years",
+        "historical_lead_coverage_rate",
+        "target_year_count",
+        "institution_name",
+        "unitid",
+    ]
+    ascending = [True, False, False, False, False, False, False, False, True, True]
+    selected_frames: list[pd.DataFrame] = []
+    for sector, count in [("public", public_count), ("private", private_count)]:
+        if count <= 0:
+            continue
+        sector_frame = eligible.loc[eligible["sector"].eq(sector)].copy()
+        sector_frame = sector_frame.sort_values(sort_columns, ascending=ascending).head(count)
+        selected_frames.append(sector_frame)
+    selected = pd.concat(selected_frames, ignore_index=True, sort=False) if selected_frames else pd.DataFrame()
+    selected = selected.drop_duplicates("unitid", keep="first")
+
+    target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+    if len(target_rows) < min_target_rows:
+        remaining = eligible.loc[~eligible["unitid"].isin(selected["unitid"])].copy()
+        remaining = remaining.sort_values(sort_columns, ascending=ascending)
+        for _, row in remaining.iterrows():
+            selected = pd.concat([selected, row.to_frame().T], ignore_index=True)
+            selected = selected.drop_duplicates("unitid", keep="first")
+            target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+            if len(target_rows) >= min_target_rows:
+                break
+    if len(target_rows) > max_target_rows:
+        selected = selected.sort_values(sort_columns, ascending=ascending).copy()
+        while len(target_rows) > max_target_rows and len(selected) > 1:
+            selected = selected.iloc[:-1].copy()
+            target_rows = target_universe.loc[target_universe["unitid"].isin(selected["unitid"])].copy()
+    if selected.empty or not min_target_rows <= len(target_rows) <= max_target_rows:
+        raise RuntimeError(
+            f"Historical-lead source reconstruction target rows outside proof-to-scale bounds: {len(target_rows)} "
+            f"not in [{min_target_rows}, {max_target_rows}]"
+        )
+    selected["selection_mode"] = "historical_lead_source_reconstruction"
     return selected.sort_values(sort_columns, ascending=ascending).reset_index(drop=True)
 
 
@@ -1199,6 +1431,14 @@ def candidate_options_for_row(
     legacy_candidate = clean_text(legacy_row.get("candidate_url"))
     if legacy_candidate:
         provenance = legacy_input_provenance(legacy_row)
+        historical_lead = raw_input_is_historical_lead(legacy_row)
+        input_label = HISTORICAL_LEAD_INPUT_URL_LABEL if historical_lead else LEGACY_INPUT_URL_LABEL
+        generated_at = "historical_lead_workbook" if historical_lead else "raw_legacy_workbook"
+        link_text = (
+            "historical lead URL matched to target year by inferred catalog span; requires current-run recovery/source review"
+            if historical_lead
+            else "raw legacy input URL matched to target year by inferred catalog span"
+        )
         add_unique_candidate_option(
             options,
             {
@@ -1214,14 +1454,15 @@ def candidate_options_for_row(
                     legacy_row.get("candidate_source_file"),
                     default="raw_legacy_input_workbook",
                 ),
-                "candidate_source_type": LEGACY_INPUT_URL_LABEL,
+                "candidate_source_type": provenance if historical_lead else LEGACY_INPUT_URL_LABEL,
                 "legacy_input_provenance": provenance,
+                "counts_as_legacy_coverage": raw_input_counts_as_legacy_coverage(legacy_row),
                 "source_query_or_root": clean_text(legacy_row.get("source_query_or_root")),
-                "candidate_generated_at": "raw_legacy_workbook",
-                "url_source_bucket": LEGACY_INPUT_URL_LABEL,
+                "candidate_generated_at": generated_at,
+                "url_source_bucket": input_label,
                 "catalog_year_start": legacy_row.get("catalog_year_start"),
                 "catalog_year_end": legacy_row.get("catalog_year_end"),
-                "candidate_link_text": "raw legacy input URL matched to target year by inferred catalog span",
+                "candidate_link_text": link_text,
                 "candidate_evidence_source": legacy_candidate,
             },
         )
@@ -1641,6 +1882,7 @@ def step1_run_config(
     api_web_rescue_reason: str,
     archive_expansion_completed: bool,
     raw_legacy_input_candidate_rows: int,
+    historical_lead_input_candidate_rows: int,
     source_review_row_timeout_seconds: float | None,
     excluded_unitid_count: int = 0,
     excluded_unitids_source: str = "",
@@ -1666,6 +1908,7 @@ def step1_run_config(
         "api_web_rescue_reason": api_web_rescue_reason,
         "archive_expansion_completed": archive_expansion_completed,
         "raw_legacy_input_candidate_rows": raw_legacy_input_candidate_rows,
+        "historical_lead_input_candidate_rows": historical_lead_input_candidate_rows,
         "source_review_row_timeout_seconds": (
             source_review_row_timeout_seconds if source_review_row_timeout_seconds is not None else "disabled"
         ),
@@ -1679,6 +1922,8 @@ def benchmark_rows_for_legacy_candidates(legacy_candidates: pd.DataFrame) -> lis
     if legacy_candidates.empty:
         return benchmark_rows
     for _, benchmark in legacy_candidates.iterrows():
+        if not raw_input_counts_as_legacy_coverage(benchmark):
+            continue
         benchmark_rows.append(
             {
                 "benchmark_group": RAW_LEGACY_INPUT_URL_LABEL,
@@ -1729,6 +1974,7 @@ def write_initial_step1_input_snapshot(
     api_web_rescue_required_for_unresolved: bool = False,
     archive_expansion_completed: bool = False,
     raw_legacy_input_candidate_rows: int = 0,
+    historical_lead_input_candidate_rows: int = 0,
     source_review_row_timeout_seconds: float | None = None,
     excluded_unitid_count: int = 0,
     excluded_unitids_source: str = "",
@@ -1747,6 +1993,7 @@ def write_initial_step1_input_snapshot(
         api_web_rescue_reason=api_web_rescue_reason,
         archive_expansion_completed=archive_expansion_completed,
         raw_legacy_input_candidate_rows=raw_legacy_input_candidate_rows,
+        historical_lead_input_candidate_rows=historical_lead_input_candidate_rows,
         source_review_row_timeout_seconds=source_review_row_timeout_seconds,
         excluded_unitid_count=excluded_unitid_count,
         excluded_unitids_source=excluded_unitids_source,
@@ -1901,6 +2148,16 @@ def build_step1_inputs(
         for _, legacy_row in legacy_candidates.iterrows():
             legacy_lookup[(int(legacy_row["unitid"]), int(legacy_row["academic_year"]))] = legacy_row
     benchmark_rows = benchmark_rows_for_legacy_candidates(legacy_candidates)
+    raw_legacy_candidate_rows = (
+        int(legacy_candidates.apply(raw_input_counts_as_legacy_coverage, axis=1).sum())
+        if not legacy_candidates.empty
+        else 0
+    )
+    historical_lead_candidate_rows = (
+        int(legacy_candidates.apply(raw_input_is_historical_lead, axis=1).sum())
+        if not legacy_candidates.empty
+        else 0
+    )
     config = step1_run_config(
         chunk_id=chunk_id,
         release_id=release_id,
@@ -1913,7 +2170,8 @@ def build_step1_inputs(
         api_web_rescue_status=api_web_rescue_status,
         api_web_rescue_reason=api_web_rescue_reason,
         archive_expansion_completed=archive_expansion_completed,
-        raw_legacy_input_candidate_rows=len(legacy_candidates),
+        raw_legacy_input_candidate_rows=raw_legacy_candidate_rows,
+        historical_lead_input_candidate_rows=historical_lead_candidate_rows,
         source_review_row_timeout_seconds=source_review_row_timeout_seconds,
         excluded_unitid_count=excluded_unitid_count,
         excluded_unitids_source=excluded_unitids_source,
@@ -2403,6 +2661,17 @@ def run_proof_to_scale(
                 min_target_rows=min_target_rows,
                 max_target_rows=max_target_rows,
             )
+        elif selection_mode == "historical_lead_source_reconstruction":
+            selected = select_historical_lead_source_reconstruction_institutions(
+                target_universe,
+                historical_priority,
+                raw_legacy,
+                public_count=public_institution_count,
+                private_count=private_institution_count,
+                min_target_rows=min_target_rows,
+                max_target_rows=max_target_rows,
+                exclude_unitids=excluded_unitids,
+            )
         else:
             selected = select_prior_valid_legacy_reverification_institutions(
                 target_universe,
@@ -2422,9 +2691,19 @@ def run_proof_to_scale(
         write_discovery_inputs(repo_root, target_panel, sectors)
         if input_dir.exists():
             shutil.rmtree(input_dir)
-        initial_raw_legacy_candidate_rows = (
-            len(raw_legacy_candidates_for_target(target_panel, raw_legacy))
+        initial_raw_candidates = (
+            raw_legacy_candidates_for_target(target_panel, raw_legacy)
             if include_raw_legacy_candidates and not raw_legacy.empty
+            else pd.DataFrame()
+        )
+        initial_raw_legacy_candidate_rows = (
+            int(initial_raw_candidates.apply(raw_input_counts_as_legacy_coverage, axis=1).sum())
+            if not initial_raw_candidates.empty
+            else 0
+        )
+        initial_historical_lead_candidate_rows = (
+            int(initial_raw_candidates.apply(raw_input_is_historical_lead, axis=1).sum())
+            if not initial_raw_candidates.empty
             else 0
         )
         write_initial_step1_input_snapshot(
@@ -2442,6 +2721,7 @@ def run_proof_to_scale(
             api_web_rescue_required_for_unresolved=run_ai_year_gap_rescue,
             archive_expansion_completed=False,
             raw_legacy_input_candidate_rows=initial_raw_legacy_candidate_rows,
+            historical_lead_input_candidate_rows=initial_historical_lead_candidate_rows,
             source_review_row_timeout_seconds=source_review_row_timeout_seconds,
             excluded_unitid_count=len(excluded_unitids),
             excluded_unitids_source=excluded_unitids_source,
@@ -2591,7 +2871,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--release-id", default=None)
     parser.add_argument(
         "--selection-mode",
-        choices=["prior_valid_legacy_reverification", "representative", "high_legacy_coverage"],
+        choices=[
+            "prior_valid_legacy_reverification",
+            "historical_lead_source_reconstruction",
+            "representative",
+            "high_legacy_coverage",
+        ],
         default="prior_valid_legacy_reverification",
     )
     parser.add_argument("--institution-count", type=int, default=32)
