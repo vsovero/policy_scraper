@@ -16,7 +16,8 @@ Every stream prompt must include:
 3. forbidden edit scope;
 4. guard init command at the start;
 5. guard check command before reporting done;
-6. instruction that no guard pass means no done claim.
+6. instruction that no guard pass means no done claim;
+7. worktree disposition rule for active, passed, failed, and abandoned streams.
 ```
 
 Use a unique baseline path for each stream so two streams do not overwrite each
@@ -41,6 +42,27 @@ This does not weaken review. Build streams must not update current status,
 front-door docs, process reviews, standards, or protected-doc manifest rows.
 Generated reports remain evidence, not authority. A final PASS still requires a
 separate review stream and then a project-management status update.
+
+## Worktree Disposition Rule
+
+Top-level sibling worktrees are temporary active workspaces. They should not
+remain at the project root after the relevant work is reviewed and accepted.
+
+Binding disposition:
+
+```text
+active/running worktree: may remain top-level while the stream is still running;
+done and awaiting review: may remain top-level until review completes;
+review PASS accepted by project management: move to policy_scraper_worktrees/completed/;
+failed, abandoned, superseded, or stopped worktree: move to policy_scraper_worktrees/archived/;
+never delete a worktree or generated artifacts unless the user explicitly approves deletion.
+```
+
+Every stream final report must include a `Worktree disposition` line with the
+current worktree path and the recommended next disposition. Testing/build streams
+usually report `awaiting review`; review streams report whether the reviewed
+worktree is eligible for `completed/` or should stay active/archived; project
+management performs the final move after a review-supported status update.
 
 ## Clean Runtime Rule
 
@@ -113,7 +135,8 @@ Tasks:
 4. If automated/LLM/training/suggestion material appears to be counted as legacy coverage, write that finding into the run-local report and stop.
 5. If a status, standards, source-code, or review change appears necessary, write that need into the run-local report and stop.
 6. Do not update current status or process reviews.
-7. Before reporting done, run:
+7. Include `Worktree disposition: awaiting review` in the final report when test output is ready for review. If the run is failed, stopped, or superseded, recommend `policy_scraper_worktrees/archived/`.
+8. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope testing --baseline /private/tmp/codex_scope_testing_<short_task>.json
 
@@ -172,7 +195,8 @@ PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale
 9. Stop only when either:
    - a coherent chunk/release package exists and is ready for review; or
    - a real blocker remains that cannot be fixed inside the build scope.
-10. Before reporting done, run:
+10. Include `Worktree disposition: awaiting review` in the final report when a chunk/release is ready for review. If the run is failed, stopped, or superseded, recommend `policy_scraper_worktrees/archived/`.
+11. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope build --baseline /private/tmp/codex_scope_build_<short_task>.json
 
@@ -218,8 +242,11 @@ PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale
 4. Check that automated/LLM/training/suggestion material is not counted as legacy coverage, legacy provenance, `prior_valid_legacy_reverification` eligibility, or a legacy benchmark denominator.
 5. State PASS / FAIL / NEEDS FIXES with observed values and controlling criteria.
 6. If the review implies a current-status update, include a "Recommended project-management update" section, but do not edit current status.
-7. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
-8. Before reporting done, run:
+7. Include a `Worktree disposition` recommendation:
+   - PASS and no further run-local edits needed: eligible for `policy_scraper_worktrees/completed/` after project-management status update.
+   - FAIL / NEEDS FIXES / incomplete evidence: keep active if the stream will continue, otherwise archive under `policy_scraper_worktrees/archived/`.
+8. If you edit a protected process-review file under ignored artifacts, update its manifest hash.
+9. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope review --baseline /private/tmp/codex_scope_review_<short_task>.json
 
@@ -274,7 +301,8 @@ PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_proof_to_scale
 8. Run the focused tests for the allowed slice with `PYTHONPATH=src`.
 9. If tests pass and the clean-runtime import check passes, commit only the allowed slice.
 10. If the slice requires files outside the allowed scope, stop and report the exact extra files needed. Do not edit them.
-11. Before reporting done, run:
+11. Include a `Worktree disposition` recommendation in the final report: awaiting review after a completed integration commit, or archived if the integration stream is stopped/superseded.
+12. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope integration --baseline /private/tmp/codex_scope_integration_<short_task>.json
 
@@ -311,7 +339,8 @@ Tasks:
 1. Use review decisions and binding standards to update planning/status docs.
 2. Do not make a pass/ready claim unless the relevant review file supports it.
 3. If source/test work is needed, define an integration task instead of editing code.
-4. Before reporting done, run:
+4. After a review-supported PASS is recorded in status docs, move the reviewed completed worktree from the project root to `policy_scraper_worktrees/completed/` unless it is still actively needed. Move failed, abandoned, stopped, or superseded worktrees to `policy_scraper_worktrees/archived/`. Do not delete worktrees or generated artifacts without explicit user approval.
+5. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope project_management --baseline /private/tmp/codex_scope_project_management_<short_task>.json
 

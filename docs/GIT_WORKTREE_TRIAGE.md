@@ -55,6 +55,25 @@ Commit only one coherent group at a time. Do not use `git add .`, `git clean`,
 or broad restore commands in this worktree. Several remaining files look like
 active or recently active stream work.
 
+Top-level sibling worktrees are temporary active workspaces. Keep active or
+awaiting-review streams at the project root only while they are genuinely active.
+After review PASS is accepted by project management, move the worktree to:
+
+```text
+policy_scraper_worktrees/completed/
+```
+
+Move failed, abandoned, stopped, or superseded worktrees to:
+
+```text
+policy_scraper_worktrees/archived/
+```
+
+Do not delete a worktree or generated artifacts without explicit user approval.
+Every stream final report should include a `Worktree disposition` line so
+project management can tell whether a top-level worktree is active, awaiting
+review, ready for `completed/`, or ready for `archived/`.
+
 For active streams, use the baseline guard:
 
 Start new streams from the copy/paste templates in:
