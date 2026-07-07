@@ -38,6 +38,14 @@ No source/test commits were produced by packet 021-024; it ran from `origin/main
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
 
+Accepted-batch sector split:
+
+| Sector | Institutions | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
+|---|---:|---:|---:|---:|
+| Public | 221 | 3,137 | 1,531 | 48.8% |
+| Private nonprofit | 439 | 6,247 | 3,021 | 48.4% |
+| Total | 660 | 9,384 | 4,552 | 48.5% |
+
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
