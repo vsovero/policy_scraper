@@ -1,6 +1,82 @@
 # Step 1 Attrition Audit 001-040 Review
 
-Decision: FAIL
+Current decision after URL-evidence fix: PASS
+
+Reviewed fix commit: `d02548fb33f5d5759793eb19d18dfbbbeba76a68`
+
+Prior failed review commit: `c49b81efbd384d9d9a7ba317fff150ed73ea80b5`
+
+Review worktree:
+`/Users/verosovero/Dropbox/Course repetition IPEDS/policy_scraper`
+
+## Fix Re-Review
+
+The prior FAIL finding is resolved. The fixed audit now separates historical records from URL-bearing historical evidence:
+
+- no-URL `programmatic_attempt_no_valid_discovery` rows remain visible as failed historical attempts;
+- no-URL failed attempts no longer set `has_historical_url_evidence`;
+- no-URL failed attempts no longer create secondary `dropped_historical_url_evidence`;
+- URL-bearing historical evidence can still create `candidate_materialization_failure` with secondary `dropped_historical_url_evidence` when no current candidate or benchmark row materialized.
+
+The revised audit outputs match the expected counts:
+
+- `accepted_source_row`: 16,345
+- `candidate_materialization_failure`: 1,736
+- `candidate_retrieval_failure`: 822
+- `provenance_taxonomy_conflict`: 125
+- `source_review_rejected_insufficient_evidence`: 6
+- `source_review_rejected_wrong_institution`: 20
+- `source_review_rejected_wrong_scope_or_year`: 23
+- `true_no_upstream_url_evidence`: 4,776
+- secondary `dropped_historical_url_evidence`: 1,736
+
+The Step 1 target universe still matches the required denominator:
+
+- Public: 577 institutions, 7,941 complete institution-years, 427 old collected, 150 never collected
+- Private nonprofit: 1,233 institutions, 15,918 complete institution-years, 243 old collected, 990 never collected
+- Total: 1,810 sector-institution memberships, 23,853 de-duplicated complete institution-years, 670 old collected, 1,140 never collected
+
+Columbus State University, `unitid=139366`, remains correctly classified:
+
+- 15 target rows
+- all 15 rows are `candidate_materialization_failure`
+- all 15 rows carry secondary `dropped_historical_url_evidence`
+- all 15 rows have historical URL evidence present
+- zero current candidate rows, zero benchmark rows, zero source-ledger rows
+- zero rows are `true_no_upstream_url_evidence`
+
+Independent trace checks against the normalized historical inventory found:
+
+- 1,736 dropped-historical rows;
+- 1,736/1,736 have non-empty values in historical URL-bearing fields;
+- 0/1,736 dropped rows lack external historical URL-field values;
+- 0 duplicate unitid-year rows in the dropped set;
+- no-URL failed-attempt-only rows have 0 dropped-historical rows and 0 `has_historical_url_evidence` rows.
+
+The taxonomy fields remain distinct in the ledger for:
+
+- valid human legacy;
+- prior programmatic accepted;
+- imported LLM candidate lead;
+- failed historical attempt;
+- unreviewed prior/human historical lead.
+
+PM can now use the fixed outputs for planning the next correction path. The audit distinguishes dropped historical URL-field evidence, true no-upstream URL evidence, retrieval/review failures, provenance taxonomy conflicts, and accepted source rows. Step 2 handoff should remain held for unresolved, provenance-conflicted, and materialization-failure rows until the appropriate Step 1 correction/rerun path is complete.
+
+Residual risk: the helper requires a non-empty value in a URL-bearing field, not a strict `http(s)` URL parse. In the current dropped-historical set, 26 rows have legacy filename/title-style values rather than directly fetchable `http(s)` strings. These are not failed no-URL programmatic attempts and do not reopen the prior blocker, but PM should describe the 1,736 count as historical URL-field/evidence values unless a later stricter fetchable-URL-only split is required.
+
+Checks run for the fix re-review:
+
+- `PYTHONPATH=src ../.venv/bin/python -c "import course_policy.step1_attrition_audit; print('import ok')"`: pass
+- `PYTHONPATH=src ../.venv/bin/python -m pytest tests/test_step1_attrition_audit.py -q`: pass, `9 passed`, 1 known Stata Unicode warning
+- `git diff --check`: pass before review-file edits
+- no-URL failed historical attempt sample: reviewed; no rows became `dropped_historical_url_evidence`
+- URL-bearing historical evidence sample: reviewed; rows still become `dropped_historical_url_evidence`
+- Columbus State trace: reviewed
+
+## Prior Failed Review
+
+Prior decision: FAIL, superseded by the PASS re-review above.
 
 Reviewed commit: `c49b81efbd384d9d9a7ba317fff150ed73ea80b5`
 
