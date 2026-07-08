@@ -335,9 +335,6 @@ def is_historical_lead_provenance(provenance: object) -> bool:
 
 
 def raw_input_counts_as_legacy_coverage(row: pd.Series | dict[str, object]) -> bool:
-    explicit = optional_bool(row.get("counts_as_legacy_coverage"))
-    if explicit is not None:
-        return explicit
     provenance = legacy_input_provenance(row)
     if is_historical_lead_provenance(provenance):
         return False
@@ -350,6 +347,9 @@ def raw_input_counts_as_legacy_coverage(row: pd.Series | dict[str, object]) -> b
     )
     if "llm" in source_text or "claude" in source_text or "automated" in source_text:
         return False
+    explicit = optional_bool(row.get("counts_as_legacy_coverage"))
+    if explicit is not None:
+        return explicit
     return True
 
 
