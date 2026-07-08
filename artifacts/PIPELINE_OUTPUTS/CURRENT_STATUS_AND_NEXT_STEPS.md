@@ -1,6 +1,6 @@
 # Current Status And Next Steps
 
-Updated: 2026-07-07
+Updated: 2026-07-08
 
 This is the current human-facing status register for the policy pipeline. It is intentionally short. Historical pilot, drill, and regression notes live in `artifacts/PILOTS/url_discovery/historical_testing_log/README.md`. Current Step 1 production-construction reporting lives in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
@@ -54,13 +54,48 @@ Accepted-batch sector split:
 | Private nonprofit | 562 | 361 | 201 | 7,624 | 3,094 | 40.6% |
 | Total | 1,048 | 617 | 431 | 14,269 | 5,513 | 38.6% |
 
+Important counting note: the sector split above is a packet-sum construction status table. It is useful for batch throughput, but it is not the right table for deciding whether the human-legacy URL universe, especially the public four-year floor, has been recovered.
+
+## Human-Legacy URL Recovery Check
+
+The human-legacy benchmark did not disappear, but the current headline totals were too broad. Packets 029-040 are historical/programmatic/LLM-lead reconstruction packets with benchmark denominator `0`, so they do not test recovery of human legacy URLs. The table below uses accepted batches 001-028 and classifies institutions by the accepted batch selection metadata. It excludes historical/programmatic/LLM lead packets.
+
+| Sector | Valid-human-legacy institutions targeted | Institutions with accepted source row | Target institution-years | Accepted source rows | Benchmark institutions | Benchmark rows | Current-run recovered | Invalidated by review | Other evidence | Unresolved benchmark misses | Raw benchmark recovery | Closure after invalidation/review |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Public | 301 | 212 | 4,313 | 1,988 | 170 | 417 | 380 | 37 | 0 | 0 | 91.1% | 100.0% |
+| Private nonprofit | 254 | 188 | 3,748 | 1,737 | 176 | 1,326 | 1,136 | 189 | 1 | 0 | 85.7% | 100.0% |
+| Total | 555 | 400 | 8,061 | 3,725 | 346 | 1,743 | 1,516 | 226 | 1 | 0 | 87.0% | 100.0% |
+
+Public floor check: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public floor. They include 268 institutions from the old floor and 33 public institutions outside that baseline-2002 representativeness set. The old 411 floor therefore has to be reconciled directly:
+
+| Old 411 public-floor disposition | Institutions |
+|---|---:|
+| Valid-human-legacy lane, accepted source row | 185 |
+| Valid-human-legacy lane, targeted but no accepted source row | 83 |
+| Historical/programmatic lead lane, accepted source row | 2 |
+| Historical/programmatic lead lane, targeted but no accepted source row | 3 |
+| Not yet selected in accepted Step 1 packets | 138 |
+| Total old public floor | 411 |
+
+Interpretation: the reviewed public benchmark rows themselves have `0` unresolved misses and raw row recovery above 90%, but that does not establish recovery of the 411-institution public floor. Within the old 411 public floor, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-floor institutions have not yet been selected in accepted Step 1 packets.
+
+The older generated artifacts still require a provenance relabel/audit before journal-stage use because some pre-taxonomy outputs have blank row-level `legacy_input_provenance`; the table above uses the batch selection metadata to classify the accepted artifacts for management reporting.
+
+## Candidate Materialization Audit Required
+
+Columbus State University (`unitid=139366`) shows a real Step 1 process flaw that must be audited before treating the accepted batches as final Step 1 production output. The raw public legacy and historical inventory contain usable Columbus State catalog URL evidence, including validated human legacy and prior programmatic accepted rows, but batch 005 produced `0` `benchmark_key.csv` rows and `0` `candidate_url_ledger.csv` rows for the institution. Its target rows were therefore marked `no_candidate_found`.
+
+Interpretation: at least some unresolved rows may reflect candidate materialization failure, not true source failure. A selected institution with eligible historical URL evidence should not be able to enter source review with an empty candidate ledger unless the run records an explicit, provenance-specific exclusion reason.
+
+The next Step 1 control task is a forensic attrition audit over accepted batches 001-040. The audit should trace each target institution and institution-year from raw legacy, historical inventory, normalized historical attempts, selection, benchmark key, candidate ledger, source review, release ledger, and Step 2 eligibility. It must separate true source failures from pipeline failures such as dropped historical URLs, misleading provenance labels, and unresolved rows that should have gone to text validation.
+
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
 Packet 037-040 has passed process review. No source/test commits were produced by this packet.
 
-Recommended next move: continue with packet 041-044 in the `historical_lead_source_reconstruction` lane, starting from current `origin/main`.
+Recommended next move: pause additional historical-lead packets until the forensic attrition audit is built and reviewed. The audit should include the old 411 public ever-collected floor, the valid-human-legacy lane, the historical/programmatic lead lane, and Columbus State as a required regression example. Do not interpret additional batch pass/fail results as final Step 1 production readiness until this audit explains the unresolved/no-candidate attrition.
 
 ## Step 2 Handoff Decision
 
@@ -73,6 +108,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not treat automated/LLM workbook tabs as human legacy evidence or legacy coverage.
 - Do not let imported LLM/programmatic leads satisfy `prior_valid_legacy_reverification`; they belong in a separate historical-lead reconstruction lane.
 - Do not use unresolved rows as if they were accepted source evidence.
+- Do not treat `no_candidate_found` as true source failure when eligible historical URL evidence exists upstream and was not materialized into the current candidate ledger.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
 - Review records for batches 001-040 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.

@@ -1,6 +1,6 @@
 # Step 1 Prior-Discovery Source Reconstruction Rollup
 
-Updated: 2026-07-07
+Updated: 2026-07-08
 
 This is the current production-construction reporting table for Step 1 URL/source discovery. It covers reviewed prior-discovery source reconstruction batches only. It does not include old pilot/drill metrics, and it does not claim clean no-legacy benchmark success or journal-release readiness.
 
@@ -17,6 +17,29 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 - Benchmark rows invalidated by review: 371
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
+
+## Human-Legacy URL Recovery Check
+
+This table separates the human-legacy recovery question from the broader Step 1 construction totals. It uses accepted batches 001-028 and accepted batch selection metadata. Historical/programmatic/LLM-lead packets 029-040 are excluded because their benchmark denominator is `0`.
+
+| Sector | Valid-human-legacy institutions targeted | Institutions with accepted source row | Target institution-years | Accepted source rows | Benchmark institutions | Benchmark rows | Current-run recovered | Invalidated by review | Other evidence | Unresolved benchmark misses | Raw benchmark recovery | Closure after invalidation/review |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Public | 301 | 212 | 4,313 | 1,988 | 170 | 417 | 380 | 37 | 0 | 0 | 91.1% | 100.0% |
+| Private nonprofit | 254 | 188 | 3,748 | 1,737 | 176 | 1,326 | 1,136 | 189 | 1 | 0 | 85.7% | 100.0% |
+| Total | 555 | 400 | 8,061 | 3,725 | 346 | 1,743 | 1,516 | 226 | 1 | 0 | 87.0% | 100.0% |
+
+Public floor check: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public floor. They include 268 institutions from the old floor and 33 public institutions outside that baseline-2002 representativeness set. The old 411 floor therefore has to be reconciled directly:
+
+| Old 411 public-floor disposition | Institutions |
+|---|---:|
+| Valid-human-legacy lane, accepted source row | 185 |
+| Valid-human-legacy lane, targeted but no accepted source row | 83 |
+| Historical/programmatic lead lane, accepted source row | 2 |
+| Historical/programmatic lead lane, targeted but no accepted source row | 3 |
+| Not yet selected in accepted Step 1 packets | 138 |
+| Total old public floor | 411 |
+
+Interpretation: the reviewed public benchmark rows have `0` unresolved misses and raw row recovery above 90%, but the accepted artifacts do not yet establish recovery of the 411-institution public floor. Within the old 411 public floor, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-floor institutions have not yet been selected in accepted Step 1 packets.
 
 ## Packet Rollup
 
@@ -86,9 +109,17 @@ These batches are source reconstruction over institutions with prior discovery e
 
 The accepted source-ledger rows are the rows that can eventually feed Step 2 text retrieval/extraction. The unresolved rows remain visible in the Step 1 output and should not be silently filled. A source-ledger-resolved-by-other-evidence benchmark row is not counted as current-run benchmark recovered.
 
+## Required Attrition Audit
+
+The unresolved rows in this rollup are not yet proven to be true source failures. Columbus State University (`unitid=139366`) is the required regression example: raw public legacy and historical inventory contain catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its target rows `no_candidate_found`.
+
+Before using this rollup as a final Step 1 handoff basis, an integration/audit stream must build a forensic attrition ledger over batches 001-040. The ledger should trace every target institution and institution-year from raw legacy and historical URL evidence through selection, benchmark key, candidate materialization, source review, release ledger, and Step 2 eligibility. It must classify attrition as true source failure, dropped historical URL evidence, provenance/taxonomy conflict, retrieval/review failure, text-validation handoff, not-yet-selected, or another explicit reason.
+
+Required hard-gate implication: a selected institution with eligible historical URL evidence cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
+
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after more Step 1 batches receive process-review acceptance.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the attrition audit and any required candidate-materialization/provenance corrections are reviewed.
 
 ## Release Locations
 
