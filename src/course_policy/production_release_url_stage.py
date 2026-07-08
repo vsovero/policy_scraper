@@ -421,6 +421,7 @@ def copy_ai_year_gap_bundle(
         for source in copied_sources
         if source.name.startswith("ai_year_gap_") or source.name in {"archive_expansion_year_panel.csv"}
     }
+    stream_dirs.update(ai_year_gap_stream_dirs_from_run_config(repo_root=repo_root, release_dir=release_dir))
     for stream_dir in sorted(stream_dirs):
         try:
             stream_relative = stream_dir.resolve().relative_to(
@@ -467,6 +468,29 @@ def copy_ai_year_gap_bundle(
                     rows=rows,
                     reference_map=reference_map,
                 )
+
+
+def ai_year_gap_stream_dirs_from_run_config(*, repo_root: Path, release_dir: Path) -> set[Path]:
+    config_path = release_dir / "audit/production_inputs/run_config.json"
+    config = read_json_object(config_path)
+    namespace = clean_text(config.get("run_namespace"))
+    rescue_text = " ".join(
+        [
+            clean_text(config.get("api_web_rescue_mode")),
+            clean_text(config.get("api_web_rescue_status")),
+            clean_text(config.get("api_web_rescue_reason")),
+        ]
+    ).lower()
+    if not namespace or not any(marker in rescue_text for marker in ("ai", "api", "web")):
+        return set()
+    streams_root = repo_root / "artifacts/policy_data_internal/review/streams"
+    if not streams_root.exists():
+        return set()
+    return {
+        path
+        for path in streams_root.glob(f"*/{namespace}")
+        if path.is_dir() and any((path / name).exists() for name in AI_YEAR_GAP_AUDIT_FILES)
+    }
 
 
 def rewrite_csv_references(path: Path, reference_map: dict[str, str]) -> None:

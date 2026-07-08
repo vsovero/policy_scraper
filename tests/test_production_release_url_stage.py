@@ -398,6 +398,47 @@ def test_release_package_handles_headerless_empty_source_ledger(tmp_path: Path) 
     assert (release_dir / "source_evidence_manifest.csv").exists()
 
 
+def test_release_package_keeps_ai_provenance_when_source_ledger_empty(tmp_path: Path) -> None:
+    _write_chunk(tmp_path, include_ai_provenance=True)
+    chunk_dir = tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/production_chunk_test"
+    input_dir = tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_inputs/production_test"
+    input_dir.mkdir(parents=True)
+    (input_dir / "run_config.json").write_text(
+        json.dumps(
+            {
+                "run_namespace": "test_namespace",
+                "api_web_rescue_mode": "live_or_cached_ai_year_gap_rescue",
+                "api_web_rescue_status": "attempted_by_current_production_command",
+                "api_web_rescue_reason": "configured AI/web rescue ran before handoff",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (chunk_dir / "OUTPUT_source_ledger_delta.csv").write_text("\n", encoding="utf-8")
+    handoff = pd.read_csv(chunk_dir / "OUTPUT_urls_for_text_extraction.csv")
+    handoff["ready_for_text_extraction"] = False
+    handoff["url_status"] = "no_candidate_found"
+    handoff["candidate_generation_method"] = "no_candidate_after_current_production_search"
+    handoff["candidate_source_file"] = "current_production_discovery_output"
+    handoff.to_csv(chunk_dir / "OUTPUT_urls_for_text_extraction.csv", index=False)
+
+    result = build_url_stage_release_package(
+        tmp_path,
+        chunk_id="production_chunk_test",
+        release_id="production_release_test",
+    )
+
+    assert result.package_pass
+    release_dir = result.release_dir
+    ai_manifest = pd.read_csv(release_dir / "ai_model_output_manifest.csv")
+    ai_rows = ai_manifest.loc[ai_manifest["task_type"].eq("clean_no_legacy_year_gap_web_discovery")]
+    assert len(ai_rows) == 1
+    assert ai_rows.iloc[0]["triage_path"].startswith("audit/ai_api_provenance/")
+    status = pd.read_csv(release_dir / "release_status.csv").set_index("check")
+    assert status.loc["ai_api_provenance_packaged", "status"] == "pass"
+
+
 def test_release_package_handles_dry_run_ai_provenance_without_response_artifacts(tmp_path: Path) -> None:
     _write_chunk(tmp_path, include_ai_provenance=True)
     triage_path = (
