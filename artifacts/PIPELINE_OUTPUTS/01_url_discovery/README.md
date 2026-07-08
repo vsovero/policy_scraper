@@ -9,16 +9,16 @@ Use `prior-discovery source reconstruction` for the current Step 1 lane. Existin
 Latest reviewed URL-stage packet:
 
 ```text
-step1_historical_lead_source_reconstruction_packet_029_032
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_029
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_030
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_031
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_032
+step1_historical_lead_source_reconstruction_packet_033_036
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_033
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_034
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_035
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_036
 ```
 
-Packet 029-032 is the current accepted Step 1 URL-stage historical-lead source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
+Packet 033-036 is the current accepted Step 1 URL-stage historical-lead source reconstruction packet. It does not claim clean no-legacy benchmark success or full journal-release readiness.
 
-The next packet should start from `origin/main` at or after `a298899`. Continue `historical_lead_source_reconstruction` for imported LLM/programmatic leads unless project management explicitly changes the active selection objective.
+The next packet should start from `origin/main` at or after `e9fea9f`. Continue `historical_lead_source_reconstruction` for imported LLM/programmatic leads unless project management explicitly changes the active selection objective.
 
 ## Current Reporting
 
@@ -26,7 +26,7 @@ The next packet should start from `origin/main` at or after `a298899`. Continue 
 - Batch rollup table: `reports/prior_discovery_source_reconstruction_rollup/README.md`
 - Historical pilot/drill/regression log: `../../PILOTS/url_discovery/historical_testing_log/README.md`
 
-Current accepted totals are 32 batches, 839 institutions, 11,818 target institution-years, 5,308 accepted source-ledger rows, 6,510 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
+Current accepted totals are 36 batches, 942 institutions, 13,049 target institution-years, 5,374 accepted source-ledger rows, 7,675 explicit unresolved rows, 1 benchmark row source-ledger-resolved by other evidence, and 0 unresolved benchmark misses.
 
 ## Step 2 Handoff Decision
 
