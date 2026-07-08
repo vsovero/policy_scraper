@@ -14,30 +14,30 @@ This lane is not a clean no-legacy benchmark. It is also not a journal-ready rel
 
 Project-management finding: the old selector allowed some private automated/LLM workbook-tab URLs to enter the legacy reconstruction lane through `legacy_covered_years > 0`. That was incorrect. Automated/LLM tabs are historical lead/search-hint material, not human legacy evidence, and they must not satisfy `prior_valid_legacy_reverification`.
 
-The source/test fix has passed review and is merged in main as `31428db`. The fixed path separates true legacy reconstruction from `historical_lead_source_reconstruction`. Already reviewed source evidence is not automatically invalidated, but any accepted row that entered through the automated/LLM-as-legacy path needs provenance relabeling or audit before it is used as legacy reconstruction evidence or final Step 2/journal-stage input.
+The source/test fix has passed review and is merged in main as `31428db`. The fixed path separates true legacy reconstruction from `historical_lead_source_reconstruction`. The additional historical-lead benchmark guard fix has passed review and is merged in main as `a298899`. Already reviewed source evidence is not automatically invalidated, but any accepted row that entered through the automated/LLM-as-legacy path needs provenance relabeling or audit before it is used as legacy reconstruction evidence or final Step 2/journal-stage input.
 
 ## Latest Reviewed URL-Stage Packet
 
 ```text
-step1_prior_discovery_source_reconstruction_packet_025_028
-production_chunk_step1_prior_valid_reverification_test_batch_025
-production_chunk_step1_prior_valid_reverification_test_batch_026
-production_chunk_step1_prior_valid_reverification_test_batch_027
-production_chunk_step1_prior_valid_reverification_test_batch_028
+step1_historical_lead_source_reconstruction_packet_029_032
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_029
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_030
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_031
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_032
 ```
 
-Packet 025-028 is the latest Step 1 URL-stage prior-discovery source reconstruction packet accepted by process review. It adds 82 public institutions, 1,206 target institution-years, 457 accepted source-ledger rows, 749 explicit unresolved rows, 87 benchmark rows, 81 current-run benchmark recoveries, 6 benchmark rows invalidated by review, 0 benchmark rows resolved by other source-ledger evidence, and 0 unresolved benchmark misses.
+Packet 029-032 is the latest Step 1 URL-stage historical-lead source reconstruction packet accepted by process review. It adds 97 institutions, 1,228 target institution-years, 299 accepted source-ledger rows, 929 explicit unresolved rows, 0 benchmark denominator rows, and 0 unresolved benchmark misses.
 
-Packet 025-028 was built at pre-taxonomy commit `ee064e5`, but process review applied the current taxonomy externally and found no blocker: all selected institutions were public `valid_human_legacy`, with no automated/LLM/training/suggestion/private-missing material counted as legacy coverage. Future packets should run from main at or after `b6da151`.
+Packet 029-032 uses `historical_lead_source_reconstruction`: imported LLM/programmatic leads are search hints only, not human legacy evidence or legacy benchmark rows. Process review confirmed `legacy_covered_years=0`, benchmark denominator `0`, no validated-human legacy in the source ledger, no unresolved rows treated as accepted evidence, and release-local verification passing for all four releases.
 
 ## Current Production-Construction Totals
 
-- Accepted batches: 28 (001-028)
-- Institutions covered: 742
-- Institution-years targeted: 10,590
-- Accepted source-ledger rows ready for Step 2 text extraction: 5,009
-- Explicit unresolved rows: 5,581
-- Overall ready/source-ledger rate: 47.3%
+- Accepted batches: 32 (001-032)
+- Institutions covered: 839
+- Institution-years targeted: 11,818
+- Accepted source-ledger rows ready for Step 2 text extraction: 5,308
+- Explicit unresolved rows: 6,510
+- Overall ready/source-ledger rate: 44.9%
 - Benchmark rows: 2,898
 - Current-run benchmark recovered: 2,526
 - Benchmark rows invalidated by review: 371
@@ -48,17 +48,17 @@ Accepted-batch sector split:
 
 | Sector | Institutions | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
 |---|---:|---:|---:|---:|
-| Public | 303 | 4,343 | 1,988 | 45.8% |
-| Private nonprofit | 439 | 6,247 | 3,021 | 48.4% |
-| Total | 742 | 10,590 | 5,009 | 47.3% |
+| Public | 362 | 5,124 | 2,238 | 43.7% |
+| Private nonprofit | 477 | 6,694 | 3,070 | 45.9% |
+| Total | 839 | 11,818 | 5,308 | 44.9% |
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 025-028 has passed process review. The next packet should start from main at or after `b6da151`.
+Packet 029-032 has passed process review. The reviewed source/test fix `a298899` is merged into main.
 
-Recommended next move: start the first full `historical_lead_source_reconstruction` packet for imported LLM/programmatic leads. If complete true-legacy closure is preferred first, run a small cleanup/preview for the remaining `valid_human_legacy` public institutions instead.
+Recommended next move: continue with the next `historical_lead_source_reconstruction` packet for imported LLM/programmatic leads, starting from main at or after `a298899`.
 
 ## Step 2 Handoff Decision
 
@@ -73,7 +73,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
-- Review records for batches 001-028 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
+- Review records for batches 001-032 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live
 
