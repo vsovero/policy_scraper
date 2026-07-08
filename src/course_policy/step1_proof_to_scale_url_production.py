@@ -61,6 +61,9 @@ URL_DISCOVERY_ROOT = PIPELINE_ROOT / "01_url_discovery"
 PRODUCTION_INPUTS_ROOT = URL_DISCOVERY_ROOT / "production_inputs"
 PRODUCTION_SELECTION_ROOT = URL_DISCOVERY_ROOT / "production_selection"
 HISTORICAL_PRIORITY_BUCKETS = Path("artifacts/AUDIT_TRAILS/url_discovery_historical_inventory/institution_priority_buckets.csv")
+HISTORICAL_INVENTORY_ROOT = HISTORICAL_PRIORITY_BUCKETS.parent
+HISTORICAL_ATTEMPTS_FILE = "normalized_historical_url_attempts.csv"
+HISTORICAL_DISCOVERIES_FILE = "normalized_historical_discoveries.csv"
 
 INSTITUTION_UNIVERSE = Path("artifacts/policy_data_internal/interim/institution_universe.csv")
 INSTITUTION_YEAR_TARGETS_RUNTIME_INPUT = Path("artifacts/policy_data_internal/interim/institution_year_targets.csv")
@@ -189,6 +192,37 @@ HISTORICAL_CASE_PRECHECK_COLUMNS = [
     "precheck_created_by",
     "precheck_created_at",
 ]
+HISTORICAL_URL_VALUE_COLUMNS = [
+    "url",
+    "candidate_url",
+    "final_url",
+    "accepted_source_url",
+    "benchmark_url",
+    "legacy_url",
+    "source_url",
+]
+HISTORICAL_MATERIALIZATION_DECISION_COLUMNS = [
+    "unitid",
+    "institution_name",
+    "sector",
+    "state",
+    "academic_year",
+    "prior_attrition_class",
+    "historical_evidence_class",
+    "historical_evidence_value",
+    "materialization_decision",
+    "candidate_url",
+    "provenance_label",
+    "exclusion_reason",
+    "historical_source_table",
+    "historical_source_file_path",
+    "historical_inventory_row_id",
+    "candidate_generation_method",
+    "candidate_source_type",
+    "catalog_year_start",
+    "catalog_year_end",
+    "counts_as_legacy_coverage",
+]
 
 
 @dataclass(frozen=True)
@@ -280,7 +314,10 @@ def repo_relative(path_text: object, repo_root: Path) -> str:
     try:
         return path.resolve().relative_to(repo_root.resolve()).as_posix()
     except ValueError:
-        return path.name
+        try:
+            return path.resolve().relative_to(repo_root.parent.resolve()).as_posix()
+        except ValueError:
+            return path.as_posix()
 
 
 def count_value(row: pd.Series, column: str) -> int:
@@ -758,6 +795,10 @@ def raw_legacy_candidates_for_target(target_panel: pd.DataFrame, raw_legacy: pd.
     target["academic_year"] = pd.to_numeric(target["academic_year"], errors="coerce").astype("Int64")
     raw = raw_legacy.copy()
     raw["unitid"] = pd.to_numeric(raw["unitid"], errors="coerce").astype("Int64")
+    raw["candidate_materialization_priority"] = pd.to_numeric(
+        raw.get("candidate_materialization_priority", pd.Series(50, index=raw.index)),
+        errors="coerce",
+    ).fillna(50)
     merged = target.merge(raw, on=["unitid", "sector"], how="inner", suffixes=("", "_legacy"))
     merged = merged.loc[
         pd.to_numeric(merged["catalog_year_start"], errors="coerce").le(merged["academic_year"])
@@ -768,7 +809,7 @@ def raw_legacy_candidates_for_target(target_panel: pd.DataFrame, raw_legacy: pd.
     merged["candidate_rank"] = 0
     merged["candidate_generated_at"] = "raw_legacy_workbook"
     return (
-        merged.sort_values(["unitid", "academic_year", "catalog_year_start", "candidate_url"])
+        merged.sort_values(["unitid", "academic_year", "candidate_materialization_priority", "catalog_year_start", "candidate_url"])
         .drop_duplicates(["unitid", "academic_year"], keep="first")
         .reset_index(drop=True)
     )
@@ -1503,6 +1544,303 @@ def int_or_none(value: object) -> int | None:
     return int(parsed)
 
 
+def has_urlish_value(value: object) -> bool:
+    text = clean_text(value)
+    return bool(text) and text.lower() not in {"nan", "none", "null", "<na>"}
+
+
+def first_historical_url_value(row: pd.Series | dict[str, object]) -> tuple[str, str]:
+    for column in HISTORICAL_URL_VALUE_COLUMNS:
+        value = clean_text(row.get(column))
+        if has_urlish_value(value):
+            return value, column
+    return "", ""
+
+
+def historical_inventory_dir(repo_root: Path) -> Path:
+    return repo_root / HISTORICAL_INVENTORY_ROOT
+
+
+def load_historical_url_evidence_rows(repo_root: Path, inventory_dir: Path | None = None) -> pd.DataFrame:
+    inventory_root = inventory_dir if inventory_dir is not None else historical_inventory_dir(repo_root)
+    inventory_root = inventory_root if inventory_root.is_absolute() else repo_root / inventory_root
+    frames: list[pd.DataFrame] = []
+    for source_table, filename in [
+        ("historical_attempt", HISTORICAL_ATTEMPTS_FILE),
+        ("historical_discovery", HISTORICAL_DISCOVERIES_FILE),
+    ]:
+        path = inventory_root / filename
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path, low_memory=False)
+        except pd.errors.EmptyDataError:
+            continue
+        frame["historical_source_table"] = source_table
+        frame["historical_inventory_file"] = repo_relative(path, repo_root)
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    evidence = pd.concat(frames, ignore_index=True, sort=False)
+    if "unitid" not in evidence.columns:
+        return pd.DataFrame()
+    evidence["unitid"] = pd.to_numeric(evidence["unitid"], errors="coerce").astype("Int64")
+    if "academic_year" in evidence.columns:
+        evidence["academic_year"] = pd.to_numeric(evidence["academic_year"], errors="coerce").astype("Int64")
+    else:
+        evidence["academic_year"] = pd.NA
+    for column in HISTORICAL_URL_VALUE_COLUMNS:
+        if column not in evidence.columns:
+            evidence[column] = ""
+    url_values = evidence.apply(
+        lambda row: pd.Series(first_historical_url_value(row), index=["historical_evidence_value", "historical_url_column"]),
+        axis=1,
+    )
+    evidence = pd.concat([evidence, url_values], axis=1)
+    return evidence.loc[evidence["unitid"].notna()].copy()
+
+
+def historical_evidence_materialization_rule(evidence_class: object) -> dict[str, object]:
+    evidence = clean_text(evidence_class).lower()
+    if evidence == VALID_HUMAN_LEGACY_BUCKET:
+        return {
+            "materialization_decision": "materialized_candidate",
+            "provenance_label": VALIDATED_HUMAN_LEGACY_PROVENANCE,
+            "candidate_source_type": LEGACY_INPUT_URL_LABEL,
+            "counts_as_legacy_coverage": True,
+            "priority": 0,
+            "exclusion_reason": "",
+        }
+    if evidence == PRIOR_PROGRAMMATIC_REVERIFICATION_BUCKET:
+        return {
+            "materialization_decision": "materialized_candidate",
+            "provenance_label": PRIOR_PROGRAMMATIC_PROVENANCE,
+            "candidate_source_type": LEGACY_INPUT_URL_LABEL,
+            "counts_as_legacy_coverage": True,
+            "priority": 1,
+            "exclusion_reason": "",
+        }
+    if evidence == IMPORTED_LLM_CANDIDATE_LEAD_BUCKET:
+        return {
+            "materialization_decision": "materialized_historical_lead_candidate",
+            "provenance_label": IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE,
+            "candidate_source_type": HISTORICAL_LEAD_INPUT_URL_LABEL,
+            "counts_as_legacy_coverage": False,
+            "priority": 2,
+            "exclusion_reason": "",
+        }
+    if evidence in {UNREVIEWED_PRIOR_PROGRAMMATIC_LEAD_BUCKET, UNREVIEWED_HUMAN_LEGACY_LEAD_BUCKET}:
+        return {
+            "materialization_decision": "materialized_unreviewed_historical_lead_candidate",
+            "provenance_label": HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+            "candidate_source_type": HISTORICAL_LEAD_INPUT_URL_LABEL,
+            "counts_as_legacy_coverage": False,
+            "priority": 3,
+            "exclusion_reason": "",
+        }
+    if evidence == PROGRAMMATIC_ATTEMPT_NO_VALID_DISCOVERY_BUCKET:
+        return {
+            "materialization_decision": "not_materialized",
+            "provenance_label": HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE,
+            "candidate_source_type": "",
+            "counts_as_legacy_coverage": False,
+            "priority": 90,
+            "exclusion_reason": "excluded_failed_historical_attempt",
+        }
+    return {
+        "materialization_decision": "not_materialized",
+        "provenance_label": UNKNOWN_LEGACY_INPUT_PROVENANCE,
+        "candidate_source_type": "",
+        "counts_as_legacy_coverage": False,
+        "priority": 99,
+        "exclusion_reason": "excluded_unknown_historical_evidence_class",
+    }
+
+
+def evidence_year_span(row: pd.Series) -> tuple[int | None, int | None]:
+    url = clean_text(row.get("historical_evidence_value"))
+    inferred = infer_catalog_coverage_years(url)
+    if inferred:
+        return int(inferred[0]), int(inferred[1])
+    year = int_or_none(row.get("academic_year"))
+    if year is None:
+        return None, None
+    return year, year
+
+
+def historical_source_file_path(row: pd.Series, repo_root: Path) -> str:
+    source_path = clean_text(row.get("source_file_path"))
+    if source_path:
+        return repo_relative(Path(source_path), repo_root)
+    return clean_text(row.get("historical_inventory_file"))
+
+
+def historical_url_materialization_decisions_for_target(
+    target_panel: pd.DataFrame,
+    historical_evidence: pd.DataFrame,
+    *,
+    repo_root: Path,
+    prior_attrition_lookup: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    if target_panel.empty:
+        return pd.DataFrame(columns=HISTORICAL_MATERIALIZATION_DECISION_COLUMNS)
+    target = target_panel.copy()
+    target["unitid"] = pd.to_numeric(target["unitid"], errors="coerce").astype("Int64")
+    target["academic_year"] = pd.to_numeric(target["academic_year"], errors="coerce").astype("Int64")
+    target = target.loc[target["unitid"].notna() & target["academic_year"].notna()].copy()
+    evidence = historical_evidence.copy()
+    if not evidence.empty:
+        evidence["unitid"] = pd.to_numeric(evidence["unitid"], errors="coerce").astype("Int64")
+        evidence["academic_year"] = pd.to_numeric(evidence.get("academic_year"), errors="coerce").astype("Int64")
+        evidence = evidence.loc[evidence["unitid"].notna()].copy()
+    if prior_attrition_lookup is not None and not prior_attrition_lookup.empty:
+        attrition = prior_attrition_lookup.copy()
+        attrition["unitid"] = pd.to_numeric(attrition["unitid"], errors="coerce").astype("Int64")
+        attrition["academic_year"] = pd.to_numeric(attrition["academic_year"], errors="coerce").astype("Int64")
+        attrition = attrition[["unitid", "academic_year", "attrition_class"]].drop_duplicates(["unitid", "academic_year"])
+        target = target.merge(attrition, on=["unitid", "academic_year"], how="left")
+    elif "attrition_class" not in target.columns:
+        target["attrition_class"] = ""
+
+    expanded_rows: list[dict[str, object]] = []
+    if not evidence.empty:
+        target_years = (
+            target.groupby("unitid", dropna=False)["academic_year"]
+            .apply(lambda values: sorted({int(value) for value in values if pd.notna(value)}))
+            .to_dict()
+        )
+        for _, historical in evidence.iterrows():
+            unitid = int(historical["unitid"])
+            available_years = target_years.get(unitid, [])
+            if not available_years:
+                continue
+            start, end = evidence_year_span(historical)
+            if start is None or end is None:
+                candidate_years = [int(historical["academic_year"])] if pd.notna(historical.get("academic_year")) else []
+            else:
+                candidate_years = [year for year in available_years if start <= year <= end]
+            evidence_url = clean_text(historical.get("historical_evidence_value"))
+            rule = historical_evidence_materialization_rule(historical.get("evidence_class"))
+            if not evidence_url:
+                rule = {
+                    **rule,
+                    "materialization_decision": "not_materialized",
+                    "candidate_source_type": "",
+                    "counts_as_legacy_coverage": False,
+                    "priority": min(int(rule["priority"]), 95),
+                    "exclusion_reason": "excluded_no_url_value",
+                }
+            if not candidate_years and pd.notna(historical.get("academic_year")):
+                candidate_years = [int(historical["academic_year"])]
+            for year in candidate_years:
+                expanded_rows.append(
+                    {
+                        "unitid": unitid,
+                        "academic_year": year,
+                        "historical_evidence_class": clean_text(historical.get("evidence_class")),
+                        "historical_evidence_value": evidence_url,
+                        "materialization_decision": rule["materialization_decision"],
+                        "candidate_url": evidence_url if clean_text(rule["materialization_decision"]).startswith("materialized") else "",
+                        "provenance_label": rule["provenance_label"],
+                        "exclusion_reason": rule["exclusion_reason"],
+                        "historical_source_table": clean_text(historical.get("historical_source_table")),
+                        "historical_source_file_path": historical_source_file_path(historical, repo_root),
+                        "historical_inventory_row_id": clean_text(historical.get("inventory_row_id"))
+                        or clean_text(historical.get("inventory_discovery_id")),
+                        "candidate_generation_method": "historical_url_evidence_materialization",
+                        "candidate_source_type": rule["candidate_source_type"],
+                        "catalog_year_start": start if start is not None else year,
+                        "catalog_year_end": end if end is not None else year,
+                        "counts_as_legacy_coverage": bool(rule["counts_as_legacy_coverage"]),
+                        "_priority": int(rule["priority"]),
+                        "_exact_year_match": int_or_none(historical.get("academic_year")) == year,
+                    }
+                )
+    expanded = pd.DataFrame(expanded_rows)
+    rows: list[dict[str, object]] = []
+    for _, target_row in target.sort_values(["unitid", "academic_year"]).iterrows():
+        unitid = int(target_row["unitid"])
+        year = int(target_row["academic_year"])
+        matches = (
+            expanded.loc[expanded["unitid"].eq(unitid) & expanded["academic_year"].eq(year)].copy()
+            if not expanded.empty
+            else pd.DataFrame()
+        )
+        if matches.empty:
+            selected = {
+                "historical_evidence_class": "",
+                "historical_evidence_value": "",
+                "materialization_decision": "not_materialized",
+                "candidate_url": "",
+                "provenance_label": "",
+                "exclusion_reason": "no_historical_url_evidence_for_target_year",
+                "historical_source_table": "",
+                "historical_source_file_path": "",
+                "historical_inventory_row_id": "",
+                "candidate_generation_method": "",
+                "candidate_source_type": "",
+                "catalog_year_start": "",
+                "catalog_year_end": "",
+                "counts_as_legacy_coverage": False,
+            }
+        else:
+            matches = matches.sort_values(
+                [
+                    "_priority",
+                    "_exact_year_match",
+                    "materialization_decision",
+                    "historical_evidence_value",
+                    "historical_inventory_row_id",
+                ],
+                ascending=[True, False, True, True, True],
+            )
+            selected = matches.iloc[0].drop(labels=["_priority", "_exact_year_match"], errors="ignore").to_dict()
+        rows.append(
+            {
+                "unitid": unitid,
+                "institution_name": clean_text(target_row.get("institution_name")),
+                "sector": clean_text(target_row.get("sector")),
+                "state": clean_text(target_row.get("state")),
+                "academic_year": year,
+                "prior_attrition_class": clean_text(target_row.get("attrition_class")),
+                **selected,
+            }
+        )
+    return pd.DataFrame(rows, columns=HISTORICAL_MATERIALIZATION_DECISION_COLUMNS)
+
+
+def historical_materialized_candidates_from_decisions(decisions: pd.DataFrame) -> pd.DataFrame:
+    if decisions.empty:
+        return pd.DataFrame()
+    materialized = decisions.loc[decisions["candidate_url"].map(clean_text).ne("")].copy()
+    if materialized.empty:
+        return pd.DataFrame()
+    return pd.DataFrame(
+        {
+            "unitid": materialized["unitid"],
+            "institution_name": materialized["institution_name"],
+            "sector": materialized["sector"],
+            "candidate_url": materialized["candidate_url"],
+            "catalog_year_start": materialized["catalog_year_start"],
+            "catalog_year_end": materialized["catalog_year_end"],
+            "candidate_generation_method": materialized["candidate_generation_method"],
+            "candidate_source_type": materialized["candidate_source_type"],
+            "legacy_input_provenance": materialized["provenance_label"],
+            "counts_as_legacy_coverage": materialized["counts_as_legacy_coverage"],
+            "candidate_source_file": materialized["historical_source_file_path"],
+            "source_query_or_root": materialized["historical_source_table"],
+            "candidate_materialization_priority": materialized["provenance_label"].map(
+                {
+                    VALIDATED_HUMAN_LEGACY_PROVENANCE: 0,
+                    PRIOR_PROGRAMMATIC_PROVENANCE: 1,
+                    IMPORTED_LLM_CANDIDATE_LEAD_PROVENANCE: 2,
+                    HISTORICAL_PROGRAMMATIC_LEAD_PROVENANCE: 3,
+                }
+            ).fillna(9),
+        }
+    )
+
+
 def source_family_gap_fill_lookup(
     *,
     merged: pd.DataFrame,
@@ -2137,6 +2475,25 @@ def build_step1_inputs(
     raw_legacy = raw_legacy if raw_legacy is not None else pd.DataFrame()
     historical_case_precheck = build_historical_case_precheck(repo_root, target_panel, namespace)
     raw_legacy = enrich_raw_legacy_with_historical_provenance(raw_legacy, historical_case_precheck)
+    historical_materialization_decisions = pd.DataFrame(columns=HISTORICAL_MATERIALIZATION_DECISION_COLUMNS)
+    if include_raw_legacy_candidates:
+        historical_evidence = load_historical_url_evidence_rows(repo_root)
+        historical_materialization_decisions = historical_url_materialization_decisions_for_target(
+            target_panel,
+            historical_evidence,
+            repo_root=repo_root,
+        )
+        historical_materialized_candidates = historical_materialized_candidates_from_decisions(
+            historical_materialization_decisions
+        )
+        if not historical_materialized_candidates.empty:
+            raw_legacy = pd.concat([raw_legacy, historical_materialized_candidates], ignore_index=True, sort=False)
+    write_csv(historical_materialization_decisions, input_dir / "historical_materialization_decisions.csv")
+    historical_materialization_lookup = {
+        (int(row["unitid"]), int(row["academic_year"])): row
+        for _, row in historical_materialization_decisions.iterrows()
+        if pd.notna(row.get("unitid")) and pd.notna(row.get("academic_year"))
+    }
     panel = current_panel_for_targets(repo_root, target_panel, sectors)
     legacy_candidates = (
         raw_legacy_candidates_for_target(target_panel, raw_legacy)
@@ -2249,6 +2606,14 @@ def build_step1_inputs(
         for gap_option in gap_fill_lookup.get((unitid, year), []):
             add_unique_candidate_option(candidate_options, gap_option)
         if not candidate_options:
+            materialization_decision = historical_materialization_lookup.get((unitid, year), pd.Series(dtype=object))
+            materialization_exclusion = clean_text(materialization_decision.get("exclusion_reason"))
+            materialization_note = (
+                f" historical_materialization_exclusion={materialization_exclusion}; "
+                "see historical_materialization_decisions.csv."
+                if materialization_exclusion
+                else ""
+            )
             review_rows.append(
                 {
                     "unitid": unitid,
@@ -2281,6 +2646,7 @@ def build_step1_inputs(
                         "Current production discovery produced no candidate URL for this target row; "
                         f"archive_expansion_completed={archive_expansion_completed}; "
                         f"api_web_rescue_status={api_web_rescue_status or 'not_run'}."
+                        f"{materialization_note}"
                     ),
                     "reviewed_by": "codex_current_run_source_review_from_retrieval_evidence",
                     "reviewed_at": namespace,

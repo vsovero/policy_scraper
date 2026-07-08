@@ -1175,6 +1175,236 @@ def test_imported_llm_priority_does_not_presume_prior_human_text_validation(monk
     assert row["review_decision"] == "institution_not_confirmed_from_current_evidence"
 
 
+def test_historical_prior_programmatic_evidence_materializes_candidate(monkeypatch, tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "inventory_row_id": 1,
+                "source_file_path": tmp_path / "old_source.csv",
+                "file_role": "llm_suggestion_candidate",
+                "evidence_class": "imported_llm_candidate_lead_overlay",
+                "unitid": 139366,
+                "institution_name": "Columbus State University",
+                "sector": "public",
+                "state": "GA",
+                "academic_year": 2002,
+                "candidate_url": "https://archived.columbusstate.edu/catalogs/2002-2003/",
+            },
+            {
+                "inventory_row_id": 2,
+                "source_file_path": tmp_path / "old_source.csv",
+                "file_role": "source_review",
+                "evidence_class": "prior_programmatic_accepted_needs_current_reverification",
+                "unitid": 139366,
+                "institution_name": "Columbus State University",
+                "sector": "public",
+                "state": "GA",
+                "academic_year": 2002,
+                "candidate_url": "https://catalog.columbusstate.edu/catalogs/2002-2003/index.html",
+                "review_decision": "accept_current_run_source_review",
+            },
+        ]
+    ).to_csv(inventory_dir / "normalized_historical_url_attempts.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 139366,
+                "institution_name": "Columbus State University",
+                "sector": "public",
+                "state": "GA",
+                "academic_year": 2002,
+                "homepage_url": "https://www.columbusstate.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved",
+                "body": b"Columbus State University Undergraduate Catalog 2002-2003 academic policies.",
+                "content_type": "text/html",
+                "page_title": "Columbus State University Catalog 2002-2003",
+                "final_url": args[0],
+                "sha256": "columbus",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["public"],
+        namespace="historical_materialization_prior_programmatic",
+        chunk_id="historical_materialization_prior_programmatic_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=pd.DataFrame(),
+        include_raw_legacy_candidates=True,
+    )
+
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    decisions = pd.read_csv(input_dir / "historical_materialization_decisions.csv")
+    benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
+    assert len(candidates) == 1
+    assert candidates.iloc[0]["candidate_url"] == "https://catalog.columbusstate.edu/catalogs/2002-2003/index.html"
+    assert candidates.iloc[0]["legacy_input_provenance"] == "prior_programmatic"
+    assert decisions.iloc[0]["historical_evidence_class"] == "prior_programmatic_accepted_needs_current_reverification"
+    assert decisions.iloc[0]["materialization_decision"] == "materialized_candidate"
+    assert len(benchmark) == 1
+    assert benchmark.iloc[0]["legacy_input_provenance"] == "prior_programmatic"
+
+
+def test_historical_llm_lead_materializes_only_as_lead_not_benchmark(monkeypatch, tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "inventory_row_id": 1,
+                "source_file_path": tmp_path / "llm_source.csv",
+                "file_role": "llm_suggestion_candidate",
+                "evidence_class": "imported_llm_candidate_lead_overlay",
+                "unitid": 777001,
+                "institution_name": "LLM Lead College",
+                "sector": "private",
+                "state": "LL",
+                "academic_year": 2003,
+                "candidate_url": "https://catalog.llmlead.example.edu/2003-2004/catalog.html",
+            }
+        ]
+    ).to_csv(inventory_dir / "normalized_historical_url_attempts.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 777001,
+                "institution_name": "LLM Lead College",
+                "sector": "private",
+                "state": "LL",
+                "academic_year": 2003,
+                "homepage_url": "https://llmlead.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.retrieve_candidate_with_wayback_recovery",
+        lambda *args, **kwargs: (
+            args[0],
+            {
+                "retrieval_status": "retrieved_truncated",
+                "body": b"",
+                "content_type": "text/html",
+                "page_title": "LLM Lead Catalog 2003-2004",
+                "final_url": args[0],
+                "sha256": "llm-lead",
+                "link_records": [],
+            },
+            "direct_retrieval",
+            "",
+        ),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["private"],
+        namespace="historical_materialization_llm",
+        chunk_id="historical_materialization_llm_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=pd.DataFrame(),
+        include_raw_legacy_candidates=True,
+    )
+
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    decisions = pd.read_csv(input_dir / "historical_materialization_decisions.csv")
+    benchmark = pd.read_csv(input_dir / "benchmark_key.csv")
+    assert candidates.iloc[0]["legacy_input_provenance"] == "imported_llm_candidate_lead"
+    assert candidates.iloc[0]["candidate_source_type"] == "imported_llm_candidate_lead"
+    assert decisions.iloc[0]["materialization_decision"] == "materialized_historical_lead_candidate"
+    assert benchmark.empty
+
+
+def test_failed_historical_attempt_without_url_records_exclusion(monkeypatch, tmp_path: Path) -> None:
+    inventory_dir = tmp_path / "artifacts/AUDIT_TRAILS/url_discovery_historical_inventory"
+    inventory_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "inventory_row_id": 1,
+                "source_file_path": tmp_path / "failed_source.csv",
+                "file_role": "source_review",
+                "evidence_class": "programmatic_attempt_no_valid_discovery",
+                "unitid": 888001,
+                "institution_name": "Failed Attempt University",
+                "sector": "public",
+                "state": "FA",
+                "academic_year": 2004,
+                "candidate_url": "",
+            }
+        ]
+    ).to_csv(inventory_dir / "normalized_historical_url_attempts.csv", index=False)
+    target_panel = pd.DataFrame(
+        [
+            {
+                "unitid": 888001,
+                "institution_name": "Failed Attempt University",
+                "sector": "public",
+                "state": "FA",
+                "academic_year": 2004,
+                "homepage_url": "https://failed.example.edu",
+                "has_human_legacy_source": False,
+            }
+        ]
+    )
+    monkeypatch.setattr(
+        "course_policy.step1_proof_to_scale_url_production.current_panel_for_targets",
+        lambda *args, **kwargs: pd.DataFrame(columns=["unitid", "target_year", "best_url", "sector"]),
+    )
+
+    input_dir = build_step1_inputs(
+        tmp_path,
+        target_panel=target_panel,
+        sectors=["public"],
+        namespace="historical_materialization_failed",
+        chunk_id="historical_materialization_failed_chunk",
+        release_id=None,
+        input_dir=tmp_path / "inputs",
+        timeout_seconds=1,
+        max_source_bytes=1000,
+        raw_legacy=pd.DataFrame(),
+        include_raw_legacy_candidates=True,
+    )
+
+    candidates = pd.read_csv(input_dir / "candidate_url_ledger.csv")
+    decisions = pd.read_csv(input_dir / "historical_materialization_decisions.csv")
+    review = pd.read_csv(input_dir / "source_review_log.csv")
+    assert candidates.empty
+    assert decisions.iloc[0]["materialization_decision"] == "not_materialized"
+    assert decisions.iloc[0]["exclusion_reason"] == "excluded_no_url_value"
+    assert "historical_materialization_exclusion=excluded_no_url_value" in review.iloc[0]["review_reason"]
+
+
 def test_wrong_institution_evidence_is_confirmed_wrong_institution(monkeypatch, tmp_path: Path) -> None:
     target_panel = pd.DataFrame(
         [
