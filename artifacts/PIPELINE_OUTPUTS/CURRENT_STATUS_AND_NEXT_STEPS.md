@@ -93,25 +93,37 @@ Interpretation: the reviewed public benchmark rows themselves have `0` unresolve
 
 The older generated artifacts still require a provenance relabel/audit before journal-stage use because some pre-taxonomy outputs have blank row-level `legacy_input_provenance`; the table above uses the batch selection metadata to classify the accepted artifacts for management reporting.
 
-## Candidate Materialization Audit Required
+## Reviewed Attrition Audit Findings
 
-Columbus State University (`unitid=139366`) shows a real Step 1 process flaw that must be audited before treating the accepted batches as final Step 1 production output. The raw public legacy and historical inventory contain usable Columbus State catalog URL evidence, including validated human legacy and prior programmatic accepted rows, but batch 005 produced `0` `benchmark_key.csv` rows and `0` `candidate_url_ledger.csv` rows for the institution. Its target rows were therefore marked `no_candidate_found`.
+The Step 1 attrition audit over the primary target universe and accepted batches 001-040 has passed process review after the URL-evidence fix. The audit distinguishes rows that are accepted, rows where historical URL-field/evidence values failed to materialize into current candidates, rows with no upstream URL evidence, retrieval/review failures, and provenance conflicts.
 
-Interpretation: at least some unresolved rows may reflect candidate materialization failure, not true source failure. A selected institution with eligible historical URL evidence should not be able to enter source review with an empty candidate ledger unless the run records an explicit, provenance-specific exclusion reason.
+| Attrition class | Institution-years |
+|---|---:|
+| Accepted source row | 16,345 |
+| Candidate materialization failure | 1,736 |
+| Candidate retrieval failure | 822 |
+| Provenance taxonomy conflict | 125 |
+| Source review rejected wrong scope/year | 23 |
+| Source review rejected wrong institution | 20 |
+| Source review rejected insufficient evidence | 6 |
+| True no upstream URL evidence | 4,776 |
+| Total target institution-years | 23,853 |
 
-The next Step 1 control task is a forensic attrition audit over the primary target universe and accepted batches 001-040. The audit should trace each target institution and institution-year from the 2002-2016 complete-outcome/control universe through old collected-policy status, raw legacy, historical inventory, normalized historical attempts, selection, benchmark key, candidate ledger, source review, release ledger, and Step 2 eligibility. It must separate true source failures from pipeline failures such as dropped historical URLs, misleading provenance labels, and unresolved rows that should have gone to text validation.
+The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) remains the required regression example: its 15 target rows are candidate materialization failures with historical URL evidence upstream and zero current candidate, benchmark, or source-ledger rows.
+
+Planning interpretation: candidate materialization failure is a real Step 1 process flaw and must be fixed before Step 2 handoff. Failed historical attempts with no URL are no longer counted as dropped URL evidence; they are now part of the true no-upstream-evidence path unless another URL-bearing source exists.
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 037-040 has passed process review. No source/test commits were produced by this packet.
+Packet 037-040 has passed process review. The Step 1 attrition audit 001-040 has also passed process review after the URL-evidence fix.
 
-Recommended next move: pause additional historical-lead packets until the forensic attrition audit is built and reviewed under the primary target-universe definition. The audit should include all 1,810 target-universe institutions, the 670 old collected-policy institutions, the 1,140 never-collected institutions, the old public 411 as a diagnostic subset, the valid-human-legacy lane, the historical/programmatic lead lane, and Columbus State as a required regression example. Do not interpret additional batch pass/fail results as final Step 1 production readiness until this audit explains the unresolved/no-candidate attrition.
+Recommended next move: build and review the candidate-materialization correction path for the 1,736 historical URL-field/evidence rows that did not materialize into current candidate evidence. Do not resume ordinary historical-lead packet expansion or build the Step 2 handoff until PM decides how those materialization failures, provenance conflicts, and retrieval/review failures will be corrected or explicitly carried forward.
 
 ## Step 2 Handoff Decision
 
-Do not build the unified URL/source dataset for Step 2 until the target-universe attrition audit and any required candidate-materialization/provenance corrections are reviewed. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
+Do not build the unified URL/source dataset for Step 2 until the reviewed attrition audit's candidate-materialization and provenance corrections are resolved. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
 
 ## Current Boundaries
 
@@ -120,9 +132,9 @@ Do not build the unified URL/source dataset for Step 2 until the target-universe
 - Do not treat automated/LLM workbook tabs as human legacy evidence or legacy coverage.
 - Do not let imported LLM/programmatic leads satisfy `prior_valid_legacy_reverification`; they belong in a separate historical-lead reconstruction lane.
 - Do not use unresolved rows as if they were accepted source evidence.
-- Do not treat `no_candidate_found` as true source failure when eligible historical URL evidence exists upstream and was not materialized into the current candidate ledger.
+- Do not treat `no_candidate_found` as true source failure when eligible historical URL-field/evidence values exist upstream and were not materialized into the current candidate ledger.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
-- Do not build the unified Step 2 handoff until the target-universe attrition audit and required corrections are reviewed.
+- Do not build the unified Step 2 handoff until the reviewed attrition audit's materialization/provenance corrections are resolved.
 - Review records for batches 001-040 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live

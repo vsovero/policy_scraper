@@ -121,17 +121,29 @@ These batches are source reconstruction over institutions with prior discovery e
 
 The accepted source-ledger rows are the rows that can eventually feed Step 2 text retrieval/extraction. The unresolved rows remain visible in the Step 1 output and should not be silently filled. A source-ledger-resolved-by-other-evidence benchmark row is not counted as current-run benchmark recovered.
 
-## Required Attrition Audit
+## Reviewed Attrition Audit
 
-The unresolved rows in this rollup are not yet proven to be true source failures. Columbus State University (`unitid=139366`) is the required regression example: raw public legacy and historical inventory contain catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its target rows `no_candidate_found`.
+The Step 1 attrition audit over the primary target universe and accepted batches 001-040 has passed process review after the URL-evidence fix. The unresolved rows in this rollup are now separated into accepted source rows, candidate materialization failures, true no-upstream-evidence rows, retrieval/review failures, and provenance conflicts.
 
-Before using this rollup as a final Step 1 handoff basis, an integration/audit stream must build a forensic attrition ledger over the primary target universe and accepted batches 001-040. The ledger should trace every target institution and institution-year from the 2002-2016 complete-outcome/control universe through old collected-policy status, raw legacy and historical URL evidence, selection, benchmark key, candidate materialization, source review, release ledger, and Step 2 eligibility. It must classify attrition as true source failure, dropped historical URL evidence, provenance/taxonomy conflict, retrieval/review failure, text-validation handoff, not-yet-selected, or another explicit reason.
+| Attrition class | Institution-years |
+|---|---:|
+| Accepted source row | 16,345 |
+| Candidate materialization failure | 1,736 |
+| Candidate retrieval failure | 822 |
+| Provenance taxonomy conflict | 125 |
+| Source review rejected wrong scope/year | 23 |
+| Source review rejected wrong institution | 20 |
+| Source review rejected insufficient evidence | 6 |
+| True no upstream URL evidence | 4,776 |
+| Total target institution-years | 23,853 |
 
-Required hard-gate implication: a selected institution with eligible historical URL evidence cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
+The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) is the required regression example: raw public legacy and historical inventory contain catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its 15 target rows `no_candidate_found`.
+
+Required hard-gate implication: a selected institution with eligible historical URL-field/evidence values cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
 
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the target-universe attrition audit and any required candidate-materialization/provenance corrections are reviewed.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the reviewed attrition audit's candidate-materialization and provenance corrections are resolved.
 
 ## Release Locations
 
