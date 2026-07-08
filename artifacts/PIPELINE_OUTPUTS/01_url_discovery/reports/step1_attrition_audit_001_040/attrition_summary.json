@@ -1,0 +1,58 @@
+{
+  "attrition_class_counts": {
+    "accepted_source_row": 16345,
+    "candidate_materialization_failure": 3293,
+    "candidate_retrieval_failure": 1598,
+    "dropped_historical_url_evidence": 0,
+    "historical_lead_only": 0,
+    "needs_text_validation": 0,
+    "not_selected_yet": 0,
+    "provenance_taxonomy_conflict": 125,
+    "source_review_rejected_insufficient_evidence": 7,
+    "source_review_rejected_wrong_institution": 27,
+    "source_review_rejected_wrong_scope_or_year": 35,
+    "true_no_upstream_url_evidence": 2423,
+    "unresolved_unclassified": 0
+  },
+  "columbus_state_attrition_class": "candidate_materialization_failure",
+  "columbus_state_secondary_attrition_class": "dropped_historical_url_evidence",
+  "columbus_state_unitid": 139366,
+  "institution_rows": 1810,
+  "institution_year_rows": 23853,
+  "output_dir": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040",
+  "secondary_attrition_class_counts": {
+    "dropped_historical_url_evidence": 3293
+  },
+  "target_universe_counts": {
+    "old_public_411_diagnostic": {
+      "accepted_source_in_target": 304,
+      "inside_target_universe": 391,
+      "institutions": 411,
+      "not_selected_in_target": 0,
+      "outside_target_universe": 20,
+      "selected_unresolved_in_target": 87
+    },
+    "private": {
+      "institutions": 1233,
+      "membership_complete_institution_years": 15918,
+      "never_collected_policy_institutions": 990,
+      "old_collected_policy_institutions": 243,
+      "sector_specific_complete_years": 15916
+    },
+    "public": {
+      "institutions": 577,
+      "membership_complete_institution_years": 7941,
+      "never_collected_policy_institutions": 150,
+      "old_collected_policy_institutions": 427,
+      "sector_specific_complete_years": 7937
+    },
+    "total": {
+      "never_collected_policy_institutions": 1140,
+      "old_collected_policy_institutions": 670,
+      "sector_institution_memberships": 1810,
+      "unique_complete_institution_years": 23853,
+      "unique_institutions": 1809
+    }
+  },
+  "target_universe_expected_count_match": true
+}
