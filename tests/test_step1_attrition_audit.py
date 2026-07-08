@@ -87,12 +87,32 @@ def test_columbus_style_upstream_evidence_without_candidates_is_materialization_
     )
     historical = _historical(
         attempts=[
-            {"unitid": 139366, "academic_year": 2002, "evidence_class": "valid_human_legacy"},
-            {"unitid": 139366, "academic_year": 2003, "evidence_class": "valid_human_legacy"},
+            {
+                "unitid": 139366,
+                "academic_year": 2002,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2002-2003/",
+            },
+            {
+                "unitid": 139366,
+                "academic_year": 2003,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2003-2004/",
+            },
         ],
         discoveries=[
-            {"unitid": 139366, "academic_year": 2002, "evidence_class": "valid_human_legacy"},
-            {"unitid": 139366, "academic_year": 2003, "evidence_class": "valid_human_legacy"},
+            {
+                "unitid": 139366,
+                "academic_year": 2002,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2002-2003/",
+            },
+            {
+                "unitid": 139366,
+                "academic_year": 2003,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2003-2004/",
+            },
         ],
         priority=[{"unitid": 139366, "priority_bucket": "valid_human_legacy"}],
     )
@@ -115,6 +135,58 @@ def test_columbus_style_upstream_evidence_without_candidates_is_materialization_
     assert columbus["has_valid_human_legacy"].all()
     institution = build_institution_ledger(ledger, historical["priority"])
     assert institution.iloc[0]["institution_attrition_class"] == "candidate_materialization_failure"
+
+
+def test_failed_historical_attempt_without_url_is_not_dropped_url_evidence() -> None:
+    target = pd.DataFrame(
+        [
+            {
+                "unitid": 100010,
+                "institution_name": "Failed Attempt College",
+                "sector": "private",
+                "state": "CA",
+                "academic_year": 2010,
+                "batch_id": "020",
+            }
+        ]
+    )
+    review = pd.DataFrame(
+        [
+            {"unitid": 100010, "academic_year": 2010, "review_decision": "not_reviewed_no_target_year_candidate"},
+        ]
+    )
+    historical = _historical(
+        attempts=[
+            {
+                "unitid": 100010,
+                "academic_year": 2010,
+                "evidence_class": "programmatic_attempt_no_valid_discovery",
+                "url": "",
+                "candidate_url": "",
+                "final_url": "",
+            }
+        ],
+        priority=[{"unitid": 100010, "priority_bucket": "programmatic_attempt_no_valid_discovery"}],
+    )
+
+    ledger = build_institution_year_ledger(
+        target=target,
+        candidate=pd.DataFrame(),
+        benchmark=pd.DataFrame(),
+        review=review,
+        ledger=pd.DataFrame(),
+        historical=historical,
+        raw_year=pd.DataFrame(),
+    )
+
+    row = ledger.iloc[0]
+    assert row["historical_attempt_failed_attempt_rows"] == 1
+    assert row["historical_attempt_url_value_rows"] == 0
+    assert bool(row["has_failed_historical_attempt"])
+    assert not bool(row["has_historical_url_evidence"])
+    assert not bool(row["has_upstream_url_evidence"])
+    assert row["attrition_class"] == "true_no_upstream_url_evidence"
+    assert row["secondary_attrition_class"] == ""
 
 
 def test_selected_row_without_upstream_evidence_is_true_no_upstream_evidence() -> None:
@@ -198,8 +270,22 @@ def test_attrition_report_includes_columbus_regression_and_hard_gates(tmp_path: 
         ]
     )
     historical = _historical(
-        attempts=[{"unitid": 139366, "academic_year": 2002, "evidence_class": "valid_human_legacy"}],
-        discoveries=[{"unitid": 139366, "academic_year": 2002, "evidence_class": "valid_human_legacy"}],
+        attempts=[
+            {
+                "unitid": 139366,
+                "academic_year": 2002,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2002-2003/",
+            }
+        ],
+        discoveries=[
+            {
+                "unitid": 139366,
+                "academic_year": 2002,
+                "evidence_class": "valid_human_legacy",
+                "url": "https://archived.columbusstate.edu/catalogs/2002-2003/",
+            }
+        ],
         priority=[{"unitid": 139366, "priority_bucket": "valid_human_legacy"}],
     )
     year_ledger = build_institution_year_ledger(

@@ -33,19 +33,19 @@ Diagnostic audit only. Prior accepted releases are read, not rewritten.
 | class | rows |
 |---|---:|
 | accepted_source_row | 16345 |
-| candidate_materialization_failure | 3293 |
-| true_no_upstream_url_evidence | 2423 |
-| candidate_retrieval_failure | 1598 |
+| true_no_upstream_url_evidence | 4776 |
+| candidate_materialization_failure | 1736 |
+| candidate_retrieval_failure | 822 |
 | provenance_taxonomy_conflict | 125 |
-| source_review_rejected_wrong_scope_or_year | 35 |
-| source_review_rejected_wrong_institution | 27 |
-| source_review_rejected_insufficient_evidence | 7 |
+| source_review_rejected_wrong_scope_or_year | 23 |
+| source_review_rejected_wrong_institution | 20 |
+| source_review_rejected_insufficient_evidence | 6 |
 
 ## Secondary Attrition Flags
 
 | class | rows |
 |---|---:|
-| dropped_historical_url_evidence | 3293 |
+| dropped_historical_url_evidence | 1736 |
 
 ## Old Public 411 Diagnostic Subset
 
@@ -69,8 +69,8 @@ Diagnostic audit only. Prior accepted releases are read, not rewritten.
 
 ## Unresolved Cases With Upstream Evidence
 
-- Candidate materialization failures: 3293
-- Dropped historical URL evidence flags: 3293
+- Candidate materialization failures: 1736
+- Dropped historical URL evidence flags: 1736
 - Provenance/taxonomy conflicts: 125
 - Needs text validation: 0
 

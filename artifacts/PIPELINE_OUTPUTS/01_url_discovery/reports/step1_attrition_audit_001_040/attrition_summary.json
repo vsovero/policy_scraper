@@ -1,17 +1,17 @@
 {
   "attrition_class_counts": {
     "accepted_source_row": 16345,
-    "candidate_materialization_failure": 3293,
-    "candidate_retrieval_failure": 1598,
+    "candidate_materialization_failure": 1736,
+    "candidate_retrieval_failure": 822,
     "dropped_historical_url_evidence": 0,
     "historical_lead_only": 0,
     "needs_text_validation": 0,
     "not_selected_yet": 0,
     "provenance_taxonomy_conflict": 125,
-    "source_review_rejected_insufficient_evidence": 7,
-    "source_review_rejected_wrong_institution": 27,
-    "source_review_rejected_wrong_scope_or_year": 35,
-    "true_no_upstream_url_evidence": 2423,
+    "source_review_rejected_insufficient_evidence": 6,
+    "source_review_rejected_wrong_institution": 20,
+    "source_review_rejected_wrong_scope_or_year": 23,
+    "true_no_upstream_url_evidence": 4776,
     "unresolved_unclassified": 0
   },
   "columbus_state_attrition_class": "candidate_materialization_failure",
@@ -21,7 +21,7 @@
   "institution_year_rows": 23853,
   "output_dir": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040",
   "secondary_attrition_class_counts": {
-    "dropped_historical_url_evidence": 3293
+    "dropped_historical_url_evidence": 1736
   },
   "target_universe_counts": {
     "old_public_411_diagnostic": {

@@ -69,6 +69,15 @@ TARGET_CONTROL_COLUMNS = [
     "anyaid",
 ]
 GRAD_OUTCOME_COLUMNS = ["grad4per", "grad5per", "grad6per"]
+HISTORICAL_URL_VALUE_COLUMNS = [
+    "url",
+    "candidate_url",
+    "final_url",
+    "accepted_source_url",
+    "benchmark_url",
+    "legacy_url",
+    "source_url",
+]
 TARGET_PANEL_COLUMNS = [
     "unitid",
     "year",
@@ -506,6 +515,18 @@ def expand_raw_legacy_by_year(raw: pd.DataFrame, min_year: int = 2002, max_year:
     return grouped
 
 
+def has_urlish_value(value: object) -> bool:
+    text = clean_text(value)
+    return bool(text) and text.lower() not in {"nan", "none", "null", "<na>"}
+
+
+def historical_url_value_mask(frame: pd.DataFrame) -> pd.Series:
+    url_columns = [column for column in HISTORICAL_URL_VALUE_COLUMNS if column in frame.columns]
+    if not url_columns:
+        return pd.Series(False, index=frame.index)
+    return frame[url_columns].apply(lambda row: any(has_urlish_value(value) for value in row), axis=1)
+
+
 def evidence_class_counts(frame: pd.DataFrame, group_cols: list[str], prefix: str) -> pd.DataFrame:
     if frame.empty or "evidence_class" not in frame.columns:
         return pd.DataFrame(columns=[*group_cols])
@@ -515,6 +536,7 @@ def evidence_class_counts(frame: pd.DataFrame, group_cols: list[str], prefix: st
     if working.empty:
         return pd.DataFrame(columns=[*group_cols])
     working["evidence_class_clean"] = working["evidence_class"].map(clean_text).str.lower()
+    working["has_url_value"] = historical_url_value_mask(working)
     categories = {
         f"{prefix}_valid_human_legacy_rows": "valid_human_legacy",
         f"{prefix}_prior_programmatic_accepted_rows": "prior_programmatic_accepted_needs_current_reverification",
@@ -524,6 +546,15 @@ def evidence_class_counts(frame: pd.DataFrame, group_cols: list[str], prefix: st
         f"{prefix}_failed_attempt_rows": "programmatic_attempt_no_valid_discovery",
     }
     result = working[group_cols].drop_duplicates().copy()
+    url_counts = (
+        working.loc[working["has_url_value"], group_cols]
+        .drop_duplicates()
+        .groupby(group_cols, dropna=False)
+        .size()
+        .reset_index(name=f"{prefix}_url_value_rows")
+    )
+    result = result.merge(url_counts, on=group_cols, how="left")
+    result[f"{prefix}_url_value_rows"] = pd.to_numeric(result[f"{prefix}_url_value_rows"], errors="coerce").fillna(0).astype(int)
     for column, evidence_class in categories.items():
         counts = (
             working.loc[working["evidence_class_clean"].eq(evidence_class), group_cols]
@@ -534,6 +565,16 @@ def evidence_class_counts(frame: pd.DataFrame, group_cols: list[str], prefix: st
         )
         result = result.merge(counts, on=group_cols, how="left")
         result[column] = pd.to_numeric(result[column], errors="coerce").fillna(0).astype(int)
+        url_column = column.removesuffix("_rows") + "_url_rows"
+        url_class_counts = (
+            working.loc[working["evidence_class_clean"].eq(evidence_class) & working["has_url_value"], group_cols]
+            .drop_duplicates()
+            .groupby(group_cols, dropna=False)
+            .size()
+            .reset_index(name=url_column)
+        )
+        result = result.merge(url_class_counts, on=group_cols, how="left")
+        result[url_column] = pd.to_numeric(result[url_column], errors="coerce").fillna(0).astype(int)
     return result
 
 
@@ -884,8 +925,10 @@ def build_institution_year_ledger(
     out["homepage_url"] = out["homepage_url"].where(out["homepage_url"].ne(""), out["target_universe_homepage_url"])
     out["selected_in_accepted_batch"] = out.get("selected_target_rows", pd.Series(0, index=out.index)).fillna(0).astype(int).gt(0)
     out["has_raw_url_evidence"] = out.get("raw_url_count", pd.Series(0, index=out.index)).fillna(0).astype(int).gt(0)
-    out["has_historical_attempt_evidence"] = out.filter(like="historical_attempt_").sum(axis=1).gt(0)
-    out["has_historical_discovery_evidence"] = out.filter(like="historical_discovery_").sum(axis=1).gt(0)
+    out["has_historical_attempt_record"] = out.filter(like="historical_attempt_").sum(axis=1).gt(0)
+    out["has_historical_discovery_record"] = out.filter(like="historical_discovery_").sum(axis=1).gt(0)
+    out["has_historical_attempt_evidence"] = out.get("historical_attempt_url_value_rows", pd.Series(0, index=out.index)).fillna(0).astype(int).gt(0)
+    out["has_historical_discovery_evidence"] = out.get("historical_discovery_url_value_rows", pd.Series(0, index=out.index)).fillna(0).astype(int).gt(0)
     out["has_historical_url_evidence"] = out["has_historical_attempt_evidence"] | out["has_historical_discovery_evidence"]
     out["has_upstream_url_evidence"] = out["has_raw_url_evidence"] | out["has_historical_url_evidence"]
     out["has_valid_human_legacy"] = (
