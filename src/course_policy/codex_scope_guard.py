@@ -59,12 +59,19 @@ INTEGRATION_CODE_PATTERNS = [
     "src/course_policy/step1_production_runner.py",
     "src/course_policy/step1_production_input_builder.py",
     "src/course_policy/step1_proof_to_scale_url_production.py",
+    "src/course_policy/step1_attrition_audit.py",
     "src/course_policy/production_release_url_stage.py",
     "src/course_policy/production_quality_gate.py",
     "src/course_policy/production_namespace.py",
     "src/course_policy/production_streams.py",
     "tests/test_step1_*.py",
     "tests/test_production_*.py",
+]
+
+INTEGRATION_OUTPUT_PATTERNS = [
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.csv",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.json",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/STEP1_ATTRITION_AUDIT_REPORT.md",
 ]
 
 BUILD_CODE_PATTERNS = [
@@ -243,7 +250,9 @@ def _allowed_for_scope(scope: str, path: str) -> bool:
             path, BUILD_OUTPUT_PATTERNS
         )
     if scope == "integration":
-        return _matches_any(path, INTEGRATION_CODE_PATTERNS)
+        return _matches_any(path, INTEGRATION_CODE_PATTERNS) or _matches_any(
+            path, INTEGRATION_OUTPUT_PATTERNS
+        )
     if scope == "project_management":
         return path == MANIFEST_REL_PATH or _matches_any(
             path, PROJECT_MANAGEMENT_DOC_PATTERNS
@@ -287,9 +296,10 @@ def _scope_message(scope: str) -> str:
     if scope == "integration":
         return (
             "Integration streams may edit only the Step 1 production-runner/"
-            "release-packager source files and matching tests. They must not "
-            "edit status, reviews, standards docs, generated outputs, or "
-            "unrelated discovery/classification modules."
+            "release-packager/audit source files, matching tests, and explicitly "
+            "approved audit outputs. They must not edit status, reviews, "
+            "standards docs, arbitrary generated outputs, or unrelated "
+            "discovery/classification modules."
         )
     if scope == "project_management":
         return (

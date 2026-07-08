@@ -80,12 +80,19 @@ INTEGRATION_CODE_PATTERNS = [
     "src/course_policy/step1_production_runner.py",
     "src/course_policy/step1_production_input_builder.py",
     "src/course_policy/step1_proof_to_scale_url_production.py",
+    "src/course_policy/step1_attrition_audit.py",
     "src/course_policy/production_release_url_stage.py",
     "src/course_policy/production_quality_gate.py",
     "src/course_policy/production_namespace.py",
     "src/course_policy/production_streams.py",
     "tests/test_step1_*.py",
     "tests/test_production_*.py",
+]
+
+INTEGRATION_OUTPUT_PATTERNS = [
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.csv",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.json",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/STEP1_ATTRITION_AUDIT_REPORT.md",
 ]
 
 BUILD_CODE_PATTERNS = [
@@ -298,8 +305,20 @@ def test_write_scope_patterns_protect_status_and_allow_run_local_reports() -> No
         INTEGRATION_CODE_PATTERNS,
     )
     assert _matches_any(
+        "src/course_policy/step1_attrition_audit.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
         "tests/test_production_release_url_stage.py",
         INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/institution_attrition_ledger.csv",
+        INTEGRATION_OUTPUT_PATTERNS,
+    )
+    assert not _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/some_other_audit/report.csv",
+        INTEGRATION_OUTPUT_PATTERNS,
     )
     assert not _matches_any(
         "artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md",
@@ -382,14 +401,16 @@ def test_codex_stream_scope_limits_changed_files() -> None:
             "reviews, standards, front-door docs, or downstream classification files."
         )
     elif scope == "integration":
-        violations = _scope_path_violations(INTEGRATION_CODE_PATTERNS)
+        allowed = [*INTEGRATION_CODE_PATTERNS, *INTEGRATION_OUTPUT_PATTERNS]
+        violations = _scope_path_violations(allowed)
         violations.extend(_protected_artifact_doc_mismatches())
         violations.extend(_manifest_row_violations([]))
         message = (
             "Integration streams may edit only the Step 1 production-runner/"
-            "release-packager source files and matching tests. They may not "
-            "edit status, reviews, standards, generated output, or unrelated "
-            "discovery/classification modules."
+            "release-packager/audit source files, matching tests, and explicitly "
+            "approved audit outputs. They may not edit status, reviews, standards, "
+            "arbitrary generated output, or unrelated discovery/classification "
+            "modules."
         )
     elif scope == "project_management":
         allowed = [*PROJECT_MANAGEMENT_DOC_PATTERNS, MANIFEST_REL_PATH]
