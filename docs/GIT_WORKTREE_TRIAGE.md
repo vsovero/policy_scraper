@@ -63,6 +63,13 @@ After review PASS is accepted by project management, move the worktree to:
 policy_scraper_worktrees/completed/
 ```
 
+For review-PASS handoffs, project management must initialize the
+`project_management` guard before any merge, current-status edit, front-door doc
+edit, manifest edit, or worktree move. If that baseline was not started before
+the handoff actions, the stream may verify changed files with `git diff
+--name-only`, but it must not claim the PM guard passed for the already-completed
+work.
+
 Move failed, abandoned, stopped, or superseded worktrees to:
 
 ```text

@@ -324,6 +324,13 @@ Start by initializing the project-management guard:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard init --scope project_management --baseline /private/tmp/codex_scope_project_management_<short_task>.json
 
+Review-PASS handoff order:
+After receiving a review PASS, initialize the project-management guard before
+doing any merge, current-status edit, front-door doc edit, manifest edit, or
+worktree move. If the guard was not initialized before those actions, say so
+explicitly in the final report and verify scope with `git diff --name-only`;
+do not claim the PM guard passed for that already-completed work.
+
 Allowed edit scope:
 - CURRENT_STATUS_AND_NEXT_STEPS.md
 - front-door README/START_HERE docs
@@ -336,11 +343,13 @@ Do not edit:
 - source code or tests
 
 Tasks:
-1. Use review decisions and binding standards to update planning/status docs.
-2. Do not make a pass/ready claim unless the relevant review file supports it.
-3. If source/test work is needed, define an integration task instead of editing code.
-4. After a review-supported PASS is recorded in status docs, move the reviewed completed worktree from the project root to `policy_scraper_worktrees/completed/` unless it is still actively needed. Move failed, abandoned, stopped, or superseded worktrees to `policy_scraper_worktrees/archived/`. Do not delete worktrees or generated artifacts without explicit user approval.
-5. Before reporting done, run:
+1. Confirm the review decision and the reviewed commit/output paths.
+2. If the review supports merging source/test code, merge only the reviewed commit(s) or branch.
+3. Use review decisions and binding standards to update planning/status docs.
+4. Do not make a pass/ready claim unless the relevant review file supports it.
+5. If source/test work is needed, define an integration task instead of editing code.
+6. After a review-supported PASS is recorded in status docs, move the reviewed completed worktree from the project root to `policy_scraper_worktrees/completed/` unless it is still actively needed. Move failed, abandoned, stopped, or superseded worktrees to `policy_scraper_worktrees/archived/`. Do not delete worktrees or generated artifacts without explicit user approval.
+7. Before reporting done, run:
 
 ../.venv/bin/python -m course_policy.codex_scope_guard check --scope project_management --baseline /private/tmp/codex_scope_project_management_<short_task>.json
 
