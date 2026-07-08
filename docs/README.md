@@ -52,7 +52,7 @@ sources become rows in a frozen source ledger. The final dataset rebuilds from
 that ledger and archived/cached artifacts.
 ```
 
-Human-written process reviews and go/no-go notes live in:
+Process-review records and go/no-go notes live in:
 
 ```text
 policy_scraper/artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/
@@ -76,7 +76,7 @@ artifacts/PIPELINE_OUTPUTS/CURRENT_STATUS_AND_NEXT_STEPS.md
   Current bottom line, current blockers, and next action.
 
 artifacts/PIPELINE_OUTPUTS/<stage>/process_reviews/
-  Human-written review of a run, chunk, or stage.
+  Review-stream review of a run, chunk, or stage.
 
 artifacts/PILOTS/
   Pilot, smoke-test, mini-batch, regression, and superseded run evidence.

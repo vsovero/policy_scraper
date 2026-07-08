@@ -212,7 +212,7 @@ a production_release_* package is built from the chunk
 the release uses package-local relative paths and records exact commands, hashes, environment, inputs, outputs, and caches
 cached source evidence is included or the missing evidence is explicitly labeled optional live retrieval
 the release can be verified without a required live Codex/web repair step
-a human process review crosswalks the run to Gate 1 and Gate 2 requirements
+a review-stream process review crosswalks the run to Gate 1 and Gate 2 requirements
 the process review explicitly says PASS for Gate 1 and Gate 2, or the goal is not complete
 front-door status files are updated only after that review decision
 tests/test_front_door_status_claim_gate.py passes after any front-door status edit

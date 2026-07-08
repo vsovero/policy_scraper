@@ -66,7 +66,7 @@ Pass-claim gate:
 
 ```text
 Generated chunk/release outputs propose evidence.
-Human process reviews decide whether the evidence satisfies binding standards.
+Review-stream process reviews decide whether the evidence satisfies binding standards.
 Front-door status files summarize the process-review decision.
 ```
 

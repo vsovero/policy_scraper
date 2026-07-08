@@ -71,7 +71,7 @@ The Step 1 URL-discovery output folder is:
 artifacts/PIPELINE_OUTPUTS/01_url_discovery/
 ```
 
-The human-written URL-discovery process review is:
+The URL-discovery process-review record is:
 
 ```text
 artifacts/PIPELINE_OUTPUTS/01_url_discovery/process_reviews/url_discovery_pilot_batches_review.md

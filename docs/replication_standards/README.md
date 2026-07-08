@@ -87,7 +87,7 @@ For any front-door pass claim:
 
 1. The relevant binding checklist, run contract, or stage rule must define the
    criterion.
-2. A human process review must cite the controlling criterion, observed value,
+2. A review-stream process review must cite the controlling criterion, observed value,
    and pass/fail result.
 3. The current-status or stage README may summarize `pass` only if the process
    review also says `pass` for the same claim.

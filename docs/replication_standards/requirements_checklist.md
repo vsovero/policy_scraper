@@ -12,7 +12,7 @@ each stage auditable before moving to the next one.
 
 Status-claim rule: generated artifacts can supply evidence, but they cannot
 authorize pass/fail language. A run may be described as `pass`, `production
-ready`, `ready to scale`, or `journal standard` only when a human process review
+ready`, `ready to scale`, or `journal standard` only when a review-stream process review
 crosswalks the generated evidence to the relevant binding checklist/run-contract
 criteria and reaches that same decision. If the review is missing, conflicting,
 or partial, front-door status files must use `under review`, `partial pass`, or
