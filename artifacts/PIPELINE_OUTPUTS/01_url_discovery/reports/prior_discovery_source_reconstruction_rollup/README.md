@@ -141,9 +141,25 @@ The secondary `dropped_historical_url_evidence` count is 1,736. Process review n
 
 Required hard-gate implication: a selected institution with eligible historical URL-field/evidence values cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
 
+## Reviewed Materialization Repair Proof
+
+The Step 1 historical materialization repair proof has passed process review and is preserved in the main repo. It examined all 1,736 candidate-materialization-failure institution-years from the reviewed attrition audit.
+
+| Repair proof class | Institution-years |
+|---|---:|
+| True human legacy materialized | 362 |
+| Prior programmatic accepted materialized | 471 |
+| Imported LLM/programmatic lead only | 893 |
+| No materializable URL after stricter rules | 10 |
+| Total examined | 1,736 |
+
+The proof supports a controlled repair path, not automatic promotion. The 833 true-human/prior-programmatic target-year rows have stronger historical URL evidence that can be materialized with explicit provenance and then rerun through current retrieval/review/release gates. The 893 imported LLM/programmatic lead-only rows remain historical-lead candidates and must not be relabeled as human legacy or prior accepted evidence.
+
+Planning caveat: the materialized candidate ledger has 1,726 target-year materializations, not 1,726 unique URL strings, because some multi-year catalog candidates repeat across affected target years. Columbus State University (`unitid=139366`) is the required regression example: the proof materializes 15 candidate rows with `prior_programmatic` provenance.
+
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the reviewed attrition audit's candidate-materialization and provenance corrections are resolved.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the reviewed attrition audit's candidate-materialization and provenance corrections are resolved through a reviewed repair release or explicitly carried forward.
 
 ## Release Locations
 

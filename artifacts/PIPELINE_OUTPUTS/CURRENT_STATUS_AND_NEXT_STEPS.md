@@ -113,17 +113,33 @@ The secondary `dropped_historical_url_evidence` count is 1,736. Process review n
 
 Planning interpretation: candidate materialization failure is a real Step 1 process flaw and must be fixed before Step 2 handoff. Failed historical attempts with no URL are no longer counted as dropped URL evidence; they are now part of the true no-upstream-evidence path unless another URL-bearing source exists.
 
+## Reviewed Materialization Repair Proof
+
+The Step 1 historical materialization repair proof has passed process review and is now preserved in the main repo. It examined the 1,736 candidate-materialization-failure institution-years from the reviewed attrition audit.
+
+| Repair proof class | Institution-years |
+|---|---:|
+| True human legacy materialized | 362 |
+| Prior programmatic accepted materialized | 471 |
+| Imported LLM/programmatic lead only | 893 |
+| No materializable URL after stricter rules | 10 |
+| Total examined | 1,736 |
+
+Planning interpretation: 833 target-year rows have stronger historical URL evidence that can be fed into a controlled materialization repair release with explicit provenance. The 893 imported LLM/programmatic lead-only rows remain a separate historical-lead lane; they should not be relabeled as human legacy or prior accepted evidence. The materialized candidate ledger has 1,726 target-year materializations, not 1,726 unique URL strings, because some multi-year catalog candidates repeat across affected target years.
+
+Columbus State University (`unitid=139366`) is the required regression example: the proof materializes 15 candidate rows with `prior_programmatic` provenance, not human legacy provenance.
+
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 037-040 has passed process review. The Step 1 attrition audit 001-040 has also passed process review after the URL-evidence fix.
+Packet 037-040 has passed process review. The Step 1 attrition audit 001-040 and the historical materialization repair proof have also passed process review.
 
-Recommended next move: build and review the candidate-materialization correction path for the 1,736 historical URL-field/evidence rows that did not materialize into current candidate evidence. Do not resume ordinary historical-lead packet expansion or build the Step 2 handoff until PM decides how those materialization failures, provenance conflicts, and retrieval/review failures will be corrected or explicitly carried forward.
+Recommended next move: build and review a controlled materialization repair release for the 833 stronger-evidence target-year rows, then decide separately how to queue the 893 imported LLM/programmatic lead-only rows. Do not resume ordinary historical-lead packet expansion or build the Step 2 handoff until PM decides how materialization failures, provenance conflicts, and retrieval/review failures will be corrected or explicitly carried forward.
 
 ## Step 2 Handoff Decision
 
-Do not build the unified URL/source dataset for Step 2 until the reviewed attrition audit's candidate-materialization and provenance corrections are resolved. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
+Do not build the unified URL/source dataset for Step 2 until the reviewed attrition audit's candidate-materialization and provenance corrections are resolved through a reviewed repair release or explicitly carried forward. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
 
 ## Current Boundaries
 
