@@ -796,7 +796,7 @@ def write_url_validation_audit(release_dir: Path) -> None:
 
 
 def write_source_review_log(release_dir: Path) -> None:
-    ledger = pd.read_csv(release_dir / "data/source_ledger.csv", low_memory=False)
+    ledger = read_csv_or_empty(release_dir / "data/source_ledger.csv")
     columns = [
         "unitid",
         "institution_name",
@@ -935,7 +935,7 @@ def write_loss_buckets(release_dir: Path) -> None:
 
 
 def write_source_evidence_manifest(release_dir: Path) -> None:
-    ledger = pd.read_csv(release_dir / "data/source_ledger.csv", low_memory=False)
+    ledger = read_csv_or_empty(release_dir / "data/source_ledger.csv")
     cache_frames = [
         read_csv_or_empty(release_dir / "audit/current_run_reattempt_cached_source_evidence.csv"),
         read_csv_or_empty(release_dir / "audit/source_evidence_manifest.csv"),

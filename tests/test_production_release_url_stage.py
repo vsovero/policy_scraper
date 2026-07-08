@@ -379,6 +379,25 @@ def test_release_package_includes_ai_provenance_and_package_local_lineage(tmp_pa
         assert row["packaged_sha256"] == _sha256(packaged)
 
 
+def test_release_package_handles_headerless_empty_source_ledger(tmp_path: Path) -> None:
+    _write_chunk(tmp_path)
+    chunk_dir = tmp_path / "artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/production_chunk_test"
+    (chunk_dir / "OUTPUT_source_ledger_delta.csv").write_text("\n", encoding="utf-8")
+
+    result = build_url_stage_release_package(
+        tmp_path,
+        chunk_id="production_chunk_test",
+        release_id="production_release_test",
+    )
+
+    assert result.package_pass
+    release_dir = result.release_dir
+    source_review = pd.read_csv(release_dir / "data/source_review_log.csv")
+    assert source_review.empty
+    assert "accepted_source_url" in source_review.columns
+    assert (release_dir / "source_evidence_manifest.csv").exists()
+
+
 def test_release_package_handles_dry_run_ai_provenance_without_response_artifacts(tmp_path: Path) -> None:
     _write_chunk(tmp_path, include_ai_provenance=True)
     triage_path = (
