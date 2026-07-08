@@ -33,7 +33,9 @@ Packet 033-036 uses `historical_lead_source_reconstruction`: imported LLM/progra
 ## Current Production-Construction Totals
 
 - Accepted batches: 36 (001-036)
-- Institutions covered: 942
+- Institutions covered/targeted in accepted packets: 942
+- Institutions with at least one accepted source-ledger row: 599
+- Institutions covered but not yet accepted into the source ledger: 343
 - Institution-years targeted: 13,049
 - Accepted source-ledger rows ready for Step 2 text extraction: 5,374
 - Explicit unresolved rows: 7,675
@@ -46,11 +48,11 @@ Packet 033-036 uses `historical_lead_source_reconstruction`: imported LLM/progra
 
 Accepted-batch sector split:
 
-| Sector | Institutions | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
-|---|---:|---:|---:|---:|
-| Public | 427 | 5,942 | 2,298 | 38.7% |
-| Private nonprofit | 515 | 7,107 | 3,076 | 43.3% |
-| Total | 942 | 13,049 | 5,374 | 41.2% |
+| Sector | Targeted institutions | Institutions with accepted source row | Targeted without accepted source row | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
+|---|---:|---:|---:|---:|---:|---:|
+| Public | 427 | 241 | 186 | 5,942 | 2,298 | 38.7% |
+| Private nonprofit | 515 | 358 | 157 | 7,107 | 3,076 | 43.3% |
+| Total | 942 | 599 | 343 | 13,049 | 5,374 | 41.2% |
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
