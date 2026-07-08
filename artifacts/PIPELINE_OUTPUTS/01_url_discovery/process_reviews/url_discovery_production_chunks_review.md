@@ -945,7 +945,7 @@ manifest.
    process-review decision, update `ready_to_scale_claim` from `under_review` to
    a reviewed pass status after this review is incorporated. The current
    `under_review` status is not a substantive blocker because the status file
-   explicitly defers the final pass/fail decision to human process review.
+   explicitly defers the final pass/fail decision to review-stream process review.
 
 With those limits stated, Drill 12 is acceptable as the Step 1 production-release
 benchmark for the bounded legacy carry-forward/source-review lane and is ready
