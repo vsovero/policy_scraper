@@ -18,9 +18,21 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 - Benchmark rows source-ledger-resolved by other evidence: 1
 - Unresolved benchmark misses: 0
 
-## Human-Legacy URL Recovery Check
+## Primary Step 1 Target Universe
 
-This table separates the human-legacy recovery question from the broader Step 1 construction totals. It uses accepted batches 001-028 and accepted batch selection metadata. Historical/programmatic/LLM-lead packets 029-040 are excluded because their benchmark denominator is `0`.
+Use the 2002-2016 complete-outcome/control panel as the Step 1 target universe. An institution is in this universe if it is public or private nonprofit four-year and has at least two complete institution-years in 2002-2016. A complete year has nonmissing controls and at least one nonmissing graduation outcome among `grad4per`, `grad5per`, and `grad6per`. Required controls are in-state tuition, out-of-state tuition, faculty, revenue, costs, Black share, Hispanic share, White share, and any-aid share.
+
+| Sector | Target-universe institutions | Complete institution-years | Old collected-policy institutions | Never-collected institutions |
+|---|---:|---:|---:|---:|
+| Public | 577 | 7,941 | 427 | 150 |
+| Private nonprofit | 1,233 | 15,918 | 243 | 990 |
+| Total | 1,810 | 23,853 | 670 | 1,140 |
+
+This is the main denominator for Step 1 recovery and expansion planning. The older `411` public count is a baseline-2002 representativeness subset, not the full Step 1 target universe. Of those 411 public baseline institutions, 391 are inside the target universe and 20 are outside it; the target universe also contains 186 public institutions outside the old 411.
+
+## Human-Legacy URL Recovery Diagnostic
+
+This table separates the human-legacy recovery question from the broader Step 1 construction totals. It uses accepted batches 001-028 and accepted batch selection metadata. Historical/programmatic/LLM-lead packets 029-040 are excluded because their benchmark denominator is `0`. Treat this as a diagnostic inside the target-universe audit, not as the main denominator.
 
 | Sector | Valid-human-legacy institutions targeted | Institutions with accepted source row | Target institution-years | Accepted source rows | Benchmark institutions | Benchmark rows | Current-run recovered | Invalidated by review | Other evidence | Unresolved benchmark misses | Raw benchmark recovery | Closure after invalidation/review |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -28,7 +40,7 @@ This table separates the human-legacy recovery question from the broader Step 1 
 | Private nonprofit | 254 | 188 | 3,748 | 1,737 | 176 | 1,326 | 1,136 | 189 | 1 | 0 | 85.7% | 100.0% |
 | Total | 555 | 400 | 8,061 | 3,725 | 346 | 1,743 | 1,516 | 226 | 1 | 0 | 87.0% | 100.0% |
 
-Public floor check: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public floor. They include 268 institutions from the old floor and 33 public institutions outside that baseline-2002 representativeness set. The old 411 floor therefore has to be reconciled directly:
+Old public `411` diagnostic: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public baseline table. They include 268 institutions from the old 411 and 33 public institutions outside that baseline-2002 representativeness set. The old 411 therefore has to be reconciled directly, but it should not be treated as the Step 1 target universe:
 
 | Old 411 public-floor disposition | Institutions |
 |---|---:|
@@ -37,9 +49,9 @@ Public floor check: the `301` public valid-human-legacy targeted institutions ab
 | Historical/programmatic lead lane, accepted source row | 2 |
 | Historical/programmatic lead lane, targeted but no accepted source row | 3 |
 | Not yet selected in accepted Step 1 packets | 138 |
-| Total old public floor | 411 |
+| Total old public baseline subset | 411 |
 
-Interpretation: the reviewed public benchmark rows have `0` unresolved misses and raw row recovery above 90%, but the accepted artifacts do not yet establish recovery of the 411-institution public floor. Within the old 411 public floor, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-floor institutions have not yet been selected in accepted Step 1 packets.
+Interpretation: the reviewed public benchmark rows have `0` unresolved misses and raw row recovery above 90%, but the accepted artifacts do not yet establish recovery of the target universe. Within the old 411 public baseline subset, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-baseline institutions have not yet been selected in accepted Step 1 packets.
 
 ## Packet Rollup
 
@@ -113,13 +125,13 @@ The accepted source-ledger rows are the rows that can eventually feed Step 2 tex
 
 The unresolved rows in this rollup are not yet proven to be true source failures. Columbus State University (`unitid=139366`) is the required regression example: raw public legacy and historical inventory contain catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its target rows `no_candidate_found`.
 
-Before using this rollup as a final Step 1 handoff basis, an integration/audit stream must build a forensic attrition ledger over batches 001-040. The ledger should trace every target institution and institution-year from raw legacy and historical URL evidence through selection, benchmark key, candidate materialization, source review, release ledger, and Step 2 eligibility. It must classify attrition as true source failure, dropped historical URL evidence, provenance/taxonomy conflict, retrieval/review failure, text-validation handoff, not-yet-selected, or another explicit reason.
+Before using this rollup as a final Step 1 handoff basis, an integration/audit stream must build a forensic attrition ledger over the primary target universe and accepted batches 001-040. The ledger should trace every target institution and institution-year from the 2002-2016 complete-outcome/control universe through old collected-policy status, raw legacy and historical URL evidence, selection, benchmark key, candidate materialization, source review, release ledger, and Step 2 eligibility. It must classify attrition as true source failure, dropped historical URL evidence, provenance/taxonomy conflict, retrieval/review failure, text-validation handoff, not-yet-selected, or another explicit reason.
 
 Required hard-gate implication: a selected institution with eligible historical URL evidence cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
 
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the attrition audit and any required candidate-materialization/provenance corrections are reviewed.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the target-universe attrition audit and any required candidate-materialization/provenance corrections are reviewed.
 
 ## Release Locations
 

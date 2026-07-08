@@ -30,6 +30,18 @@ Packet 037-040 is the latest Step 1 URL-stage historical-lead source reconstruct
 
 Packet 037-040 uses `historical_lead_source_reconstruction`: imported LLM/programmatic leads are search hints only, not human legacy evidence or legacy benchmark rows. Process review confirmed `legacy_covered_years=0`, benchmark denominator `0`, no validated-human legacy in the source ledger, no unresolved rows treated as accepted evidence, AI/API provenance packaged for all four releases, and release-local verification passing for all four releases.
 
+## Primary Step 1 Target Universe
+
+Use the 2002-2016 complete-outcome/control panel as the Step 1 target universe. An institution is in this universe if it is public or private nonprofit four-year and has at least two complete institution-years in 2002-2016. A complete year has nonmissing controls and at least one nonmissing graduation outcome among `grad4per`, `grad5per`, and `grad6per`. Required controls are in-state tuition, out-of-state tuition, faculty, revenue, costs, Black share, Hispanic share, White share, and any-aid share.
+
+| Sector | Target-universe institutions | Complete institution-years | Old collected-policy institutions | Never-collected institutions |
+|---|---:|---:|---:|---:|
+| Public | 577 | 7,941 | 427 | 150 |
+| Private nonprofit | 1,233 | 15,918 | 243 | 990 |
+| Total | 1,810 | 23,853 | 670 | 1,140 |
+
+This table is now the main denominator for Step 1 recovery and expansion planning. The older `411` public count is a baseline-2002 representativeness subset, not the full Step 1 target universe. Of those 411 public baseline institutions, 391 are inside the target universe and 20 are outside it; the target universe also contains 186 public institutions outside the old 411.
+
 ## Current Production-Construction Totals
 
 - Accepted batches: 40 (001-040)
@@ -54,11 +66,11 @@ Accepted-batch sector split:
 | Private nonprofit | 562 | 361 | 201 | 7,624 | 3,094 | 40.6% |
 | Total | 1,048 | 617 | 431 | 14,269 | 5,513 | 38.6% |
 
-Important counting note: the sector split above is a packet-sum construction status table. It is useful for batch throughput, but it is not the right table for deciding whether the human-legacy URL universe, especially the public four-year floor, has been recovered.
+Important counting note: the sector split above is a packet-sum construction status table. It is useful for batch throughput, but the primary denominator is the target-universe table above. The old public `411` remains useful only as a baseline-2002 representativeness diagnostic.
 
-## Human-Legacy URL Recovery Check
+## Human-Legacy URL Recovery Diagnostic
 
-The human-legacy benchmark did not disappear, but the current headline totals were too broad. Packets 029-040 are historical/programmatic/LLM-lead reconstruction packets with benchmark denominator `0`, so they do not test recovery of human legacy URLs. The table below uses accepted batches 001-028 and classifies institutions by the accepted batch selection metadata. It excludes historical/programmatic/LLM lead packets.
+The human-legacy benchmark did not disappear, but it is a diagnostic inside the broader target-universe audit. Packets 029-040 are historical/programmatic/LLM-lead reconstruction packets with benchmark denominator `0`, so they do not test recovery of human legacy URLs. The table below uses accepted batches 001-028 and classifies institutions by the accepted batch selection metadata. It excludes historical/programmatic/LLM lead packets.
 
 | Sector | Valid-human-legacy institutions targeted | Institutions with accepted source row | Target institution-years | Accepted source rows | Benchmark institutions | Benchmark rows | Current-run recovered | Invalidated by review | Other evidence | Unresolved benchmark misses | Raw benchmark recovery | Closure after invalidation/review |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -66,7 +78,7 @@ The human-legacy benchmark did not disappear, but the current headline totals we
 | Private nonprofit | 254 | 188 | 3,748 | 1,737 | 176 | 1,326 | 1,136 | 189 | 1 | 0 | 85.7% | 100.0% |
 | Total | 555 | 400 | 8,061 | 3,725 | 346 | 1,743 | 1,516 | 226 | 1 | 0 | 87.0% | 100.0% |
 
-Public floor check: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public floor. They include 268 institutions from the old floor and 33 public institutions outside that baseline-2002 representativeness set. The old 411 floor therefore has to be reconciled directly:
+Old public `411` diagnostic: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public baseline table. They include 268 institutions from the old 411 and 33 public institutions outside that baseline-2002 representativeness set. The old 411 therefore has to be reconciled directly, but it should not be treated as the Step 1 target universe:
 
 | Old 411 public-floor disposition | Institutions |
 |---|---:|
@@ -75,9 +87,9 @@ Public floor check: the `301` public valid-human-legacy targeted institutions ab
 | Historical/programmatic lead lane, accepted source row | 2 |
 | Historical/programmatic lead lane, targeted but no accepted source row | 3 |
 | Not yet selected in accepted Step 1 packets | 138 |
-| Total old public floor | 411 |
+| Total old public baseline subset | 411 |
 
-Interpretation: the reviewed public benchmark rows themselves have `0` unresolved misses and raw row recovery above 90%, but that does not establish recovery of the 411-institution public floor. Within the old 411 public floor, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-floor institutions have not yet been selected in accepted Step 1 packets.
+Interpretation: the reviewed public benchmark rows themselves have `0` unresolved misses and raw row recovery above 90%, but that does not establish recovery of the target universe. Within the old 411 public baseline subset, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-baseline institutions have not yet been selected in accepted Step 1 packets.
 
 The older generated artifacts still require a provenance relabel/audit before journal-stage use because some pre-taxonomy outputs have blank row-level `legacy_input_provenance`; the table above uses the batch selection metadata to classify the accepted artifacts for management reporting.
 
@@ -87,7 +99,7 @@ Columbus State University (`unitid=139366`) shows a real Step 1 process flaw tha
 
 Interpretation: at least some unresolved rows may reflect candidate materialization failure, not true source failure. A selected institution with eligible historical URL evidence should not be able to enter source review with an empty candidate ledger unless the run records an explicit, provenance-specific exclusion reason.
 
-The next Step 1 control task is a forensic attrition audit over accepted batches 001-040. The audit should trace each target institution and institution-year from raw legacy, historical inventory, normalized historical attempts, selection, benchmark key, candidate ledger, source review, release ledger, and Step 2 eligibility. It must separate true source failures from pipeline failures such as dropped historical URLs, misleading provenance labels, and unresolved rows that should have gone to text validation.
+The next Step 1 control task is a forensic attrition audit over the primary target universe and accepted batches 001-040. The audit should trace each target institution and institution-year from the 2002-2016 complete-outcome/control universe through old collected-policy status, raw legacy, historical inventory, normalized historical attempts, selection, benchmark key, candidate ledger, source review, release ledger, and Step 2 eligibility. It must separate true source failures from pipeline failures such as dropped historical URLs, misleading provenance labels, and unresolved rows that should have gone to text validation.
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
@@ -95,11 +107,11 @@ Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery
 
 Packet 037-040 has passed process review. No source/test commits were produced by this packet.
 
-Recommended next move: pause additional historical-lead packets until the forensic attrition audit is built and reviewed. The audit should include the old 411 public ever-collected floor, the valid-human-legacy lane, the historical/programmatic lead lane, and Columbus State as a required regression example. Do not interpret additional batch pass/fail results as final Step 1 production readiness until this audit explains the unresolved/no-candidate attrition.
+Recommended next move: pause additional historical-lead packets until the forensic attrition audit is built and reviewed under the primary target-universe definition. The audit should include all 1,810 target-universe institutions, the 670 old collected-policy institutions, the 1,140 never-collected institutions, the old public 411 as a diagnostic subset, the valid-human-legacy lane, the historical/programmatic lead lane, and Columbus State as a required regression example. Do not interpret additional batch pass/fail results as final Step 1 production readiness until this audit explains the unresolved/no-candidate attrition.
 
 ## Step 2 Handoff Decision
 
-Do more reviewed Step 1 prior-discovery source reconstruction batches before building the unified URL/source dataset for Step 2. The accepted batch releases currently contain the source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table. Build that combined handoff only after more batches receive process-review acceptance, so the aggregation is a deliberate release step rather than a small partial bundle.
+Do not build the unified URL/source dataset for Step 2 until the target-universe attrition audit and any required candidate-materialization/provenance corrections are reviewed. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
 
 ## Current Boundaries
 
@@ -110,7 +122,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not treat `no_candidate_found` as true source failure when eligible historical URL evidence exists upstream and was not materialized into the current candidate ledger.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
-- Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
+- Do not build the unified Step 2 handoff until the target-universe attrition audit and required corrections are reviewed.
 - Review records for batches 001-040 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live
