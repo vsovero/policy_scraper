@@ -19,27 +19,27 @@ The source/test fix has passed review and is merged in main as `31428db`. The fi
 ## Latest Reviewed URL-Stage Packet
 
 ```text
-step1_historical_lead_source_reconstruction_packet_033_036
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_033
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_034
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_035
-production_chunk_step1_historical_lead_source_reconstruction_test_batch_036
+step1_historical_lead_source_reconstruction_packet_037_040
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_037
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_038
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_039
+production_chunk_step1_historical_lead_source_reconstruction_test_batch_040
 ```
 
-Packet 033-036 is the latest Step 1 URL-stage historical-lead source reconstruction packet accepted by process review. It adds 103 institutions, 1,231 target institution-years, 66 accepted source-ledger rows, 1,165 explicit unresolved rows, 0 benchmark denominator rows, and 0 unresolved benchmark misses.
+Packet 037-040 is the latest Step 1 URL-stage historical-lead source reconstruction packet accepted by process review. It adds 106 institutions, 1,220 target institution-years, 139 accepted source-ledger rows, 18 institutions with accepted source-ledger rows, 1,081 explicit unresolved rows, 0 benchmark denominator rows, and 0 unresolved benchmark misses.
 
-Packet 033-036 uses `historical_lead_source_reconstruction`: imported LLM/programmatic leads are search hints only, not human legacy evidence or legacy benchmark rows. Process review confirmed `legacy_covered_years=0`, benchmark denominator `0`, no unresolved rows treated as accepted evidence, AI/API provenance packaged for all four releases, and release-local verification passing for all four releases.
+Packet 037-040 uses `historical_lead_source_reconstruction`: imported LLM/programmatic leads are search hints only, not human legacy evidence or legacy benchmark rows. Process review confirmed `legacy_covered_years=0`, benchmark denominator `0`, no validated-human legacy in the source ledger, no unresolved rows treated as accepted evidence, AI/API provenance packaged for all four releases, and release-local verification passing for all four releases.
 
 ## Current Production-Construction Totals
 
-- Accepted batches: 36 (001-036)
-- Institutions covered/targeted in accepted packets: 942
-- Institutions with at least one accepted source-ledger row: 599
-- Institutions covered but not yet accepted into the source ledger: 343
-- Institution-years targeted: 13,049
-- Accepted source-ledger rows ready for Step 2 text extraction: 5,374
-- Explicit unresolved rows: 7,675
-- Overall ready/source-ledger rate: 41.2%
+- Accepted batches: 40 (001-040)
+- Institutions covered/targeted in accepted packets: 1,048
+- Institutions with at least one accepted source-ledger row: 617
+- Institutions covered but not yet accepted into the source ledger: 431
+- Institution-years targeted: 14,269
+- Accepted source-ledger rows ready for Step 2 text extraction: 5,513
+- Explicit unresolved rows: 8,756
+- Overall ready/source-ledger rate: 38.6%
 - Benchmark rows: 2,898
 - Current-run benchmark recovered: 2,526
 - Benchmark rows invalidated by review: 371
@@ -50,17 +50,17 @@ Accepted-batch sector split:
 
 | Sector | Targeted institutions | Institutions with accepted source row | Targeted without accepted source row | Target institution-years | Accepted source-ledger rows | Ready/source-ledger rate |
 |---|---:|---:|---:|---:|---:|---:|
-| Public | 427 | 241 | 186 | 5,942 | 2,298 | 38.7% |
-| Private nonprofit | 515 | 358 | 157 | 7,107 | 3,076 | 43.3% |
-| Total | 942 | 599 | 343 | 13,049 | 5,374 | 41.2% |
+| Public | 486 | 256 | 230 | 6,645 | 2,419 | 36.4% |
+| Private nonprofit | 562 | 361 | 201 | 7,624 | 3,094 | 40.6% |
+| Total | 1,048 | 617 | 431 | 14,269 | 5,513 | 38.6% |
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 033-036 has passed process review. The reviewed source/test fixes through `e9fea9f` are merged into main.
+Packet 037-040 has passed process review. No source/test commits were produced by this packet.
 
-Recommended next move: continue with packet 037-040 in the `historical_lead_source_reconstruction` lane, starting from main at or after `e9fea9f`.
+Recommended next move: continue with packet 041-044 in the `historical_lead_source_reconstruction` lane, starting from current `origin/main`.
 
 ## Step 2 Handoff Decision
 
@@ -75,7 +75,7 @@ Do more reviewed Step 1 prior-discovery source reconstruction batches before bui
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
 - Do not build the unified Step 2 handoff until more Step 1 batches are accepted.
-- Review records for batches 001-036 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
+- Review records for batches 001-040 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live
 

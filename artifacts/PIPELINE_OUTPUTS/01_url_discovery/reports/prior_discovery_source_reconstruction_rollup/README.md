@@ -6,12 +6,12 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 
 ## Current Totals
 
-- Accepted batches: 36
-- Institutions covered: 942
-- Institution-years targeted: 13,049
-- Accepted source-ledger rows ready for Step 2 text extraction: 5,374
-- Explicit unresolved rows: 7,675
-- Overall ready/source-ledger rate: 41.2%
+- Accepted batches: 40
+- Institutions covered: 1,048
+- Institution-years targeted: 14,269
+- Accepted source-ledger rows ready for Step 2 text extraction: 5,513
+- Explicit unresolved rows: 8,756
+- Overall ready/source-ledger rate: 38.6%
 - Benchmark rows: 2,898
 - Current-run benchmark recovered: 2,526
 - Benchmark rows invalidated by review: 371
@@ -31,7 +31,8 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 | Packet 025-028 | 4 | 82 | 1,206 | 457 | 749 | 37.9% | 87 | 81 | 6 | 0 | 0 | 2,339 |
 | Packet 029-032 | 4 | 97 | 1,228 | 299 | 929 | 24.3% | 0 | 0 | 0 | 0 | 0 | 920 |
 | Packet 033-036 | 4 | 103 | 1,231 | 66 | 1,165 | 5.4% | 0 | 0 | 0 | 0 | 0 | 2,720 |
-| TOTAL | 36 | 942 | 13,049 | 5,374 | 7,675 | 41.2% | 2,898 | 2,526 | 371 | 1 | 0 | 38,435 |
+| Packet 037-040 | 4 | 106 | 1,220 | 139 | 1,081 | 11.4% | 0 | 0 | 0 | 0 | 0 | 1,230 |
+| TOTAL | 40 | 1,048 | 14,269 | 5,513 | 8,756 | 38.6% | 2,898 | 2,526 | 371 | 1 | 0 | 39,665 |
 
 ## Batch Rollup
 
@@ -73,7 +74,11 @@ This is the current production-construction reporting table for Step 1 URL/sourc
 | 034 | 033-036 | 24 | 307 | 0 | 307 | 0.0% | 0.0% | 0.0% | 0 | 0 | 0 | 0 | 0 | 715 | accepted |
 | 035 | 033-036 | 26 | 313 | 29 | 284 | 9.3% | 6.1% | 10.7% | 0 | 0 | 0 | 0 | 0 | 863 | accepted |
 | 036 | 033-036 | 24 | 304 | 37 | 267 | 12.2% | 0.0% | 19.1% | 0 | 0 | 0 | 0 | 0 | 434 | accepted |
-| TOTAL | 001-036 | 942 | 13,049 | 5,374 | 7,675 | 41.2% |  |  | 2,898 | 2,526 | 371 | 1 | 0 | 38,435 | accepted batches only |
+| 037 | 037-040 | 25 | 305 | 81 | 224 | 26.6% | 12.9% | 34.9% | 0 | 0 | 0 | 0 | 0 | 433 | accepted |
+| 038 | 037-040 | 28 | 310 | 15 | 295 | 4.8% | 0.0% | 7.5% | 0 | 0 | 0 | 0 | 0 | 439 | accepted |
+| 039 | 037-040 | 25 | 300 | 40 | 260 | 13.3% | 2.5% | 20.8% | 0 | 0 | 0 | 0 | 0 | 195 | accepted |
+| 040 | 037-040 | 28 | 305 | 3 | 302 | 1.0% | 0.0% | 2.2% | 0 | 0 | 0 | 0 | 0 | 163 | accepted |
+| TOTAL | 001-040 | 1,048 | 14,269 | 5,513 | 8,756 | 38.6% |  |  | 2,898 | 2,526 | 371 | 1 | 0 | 39,665 | accepted batches only |
 
 ## Interpretation
 
@@ -123,3 +128,7 @@ No unified Step 2 URL/source handoff table has been built yet. The reviewed batc
 - Batch 034: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_033_036/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_034/`
 - Batch 035: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_033_036/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_035/`
 - Batch 036: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_033_036/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_036/`
+- Batch 037: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_037_040/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_037/`
+- Batch 038: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_037_040/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_038/`
+- Batch 039: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_037_040/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_039/`
+- Batch 040: `policy_scraper_worktrees/completed/policy_scraper_step1_historical_lead_source_reconstruction_packet_037_040/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_historical_lead_source_reconstruction_test_batch_040/`
