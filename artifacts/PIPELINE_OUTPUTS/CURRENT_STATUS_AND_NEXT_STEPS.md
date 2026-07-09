@@ -139,17 +139,44 @@ The controlled materialization repair release has passed process review and is a
 
 The active materialization-decision file was cleaned before final review: all 833 rows are `materialized_candidate`, split between 471 `prior_programmatic` and 362 `validated_human_legacy`; the stale all-`not_materialized` file is superseded in attempt history. Columbus State University (`unitid=139366`) is no longer a candidate-materialization failure: 15 rows were materialized and reviewed, then all 15 were invalidated because current retrieval did not confirm the institution match.
 
+## Reviewed Post-Repair Closure Accounting
+
+The post-repair closure audit has passed process review. It combines accepted batches 001-040 with the accepted materialization repair release and does not run live discovery, retrieval, source review, a new production batch, or a Step 2 handoff.
+
+| Closure measure | Institution-years | Institutions |
+|---|---:|---:|
+| Target universe | 23,853 | 1,810 sector memberships |
+| Accepted before repair | 16,345 | 1,475 |
+| Accepted through repair release | 743 | 109 |
+| Combined accepted after repair | 17,088 | 1,561 |
+
+Accepted after repair splits into 4,868 public institution-years and 12,220 private nonprofit institution-years. The accepted provenance split is 2,215 validated human legacy rows, 1,148 prior programmatic rows, 4,563 historical lead rows, and 9,162 unknown/current-only rows.
+
+| Remaining unresolved class after repair | Institution-years |
+|---|---:|
+| True no upstream URL evidence | 4,776 |
+| Historical lead only | 893 |
+| Candidate retrieval failure | 877 |
+| Provenance taxonomy conflict | 125 |
+| Source review rejected wrong institution | 53 |
+| Source review rejected wrong scope/year | 25 |
+| No materializable row | 10 |
+| Source review rejected insufficient evidence | 6 |
+| Candidate materialization failure | 0 |
+
+Public old 411 floor accounting: 391 of the 411 old public baseline institutions are inside the current target universe, 357 are accepted after repair, 34 remain unresolved, 0 are not-yet-selected unresolved, and 20 are outside the current target universe. This means the public floor is mostly reconstructed but not complete.
+
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 037-040 has passed process review. The Step 1 attrition audit 001-040, historical materialization repair proof, and controlled materialization repair release have also passed process review.
+Packet 037-040 has passed process review. The Step 1 attrition audit 001-040, historical materialization repair proof, controlled materialization repair release, and post-repair closure audit have also passed process review.
 
-Recommended next move: decide the next queue explicitly. The stronger-evidence materialization repair is accepted; remaining Step 1 work is to decide how to handle the 893 imported LLM/programmatic lead-only rows, provenance conflicts, retrieval/review failures, and true no-upstream-evidence rows. Do not build the Step 2 handoff until PM decides which remaining unresolved classes are corrected now versus explicitly carried forward.
+Recommended next move: decide whether Step 1 is closed enough for Step 2 handoff planning or whether to run a targeted unresolved-row lane first. The concrete unresolved choices are the 893 historical-lead-only rows, 877 retrieval failures, 125 provenance conflicts, 84 source-review failures, 10 no-materializable rows, and 4,776 true no-upstream-evidence rows.
 
 ## Step 2 Handoff Decision
 
-Do not build the unified URL/source dataset for Step 2 until PM decides how to treat the remaining unresolved classes after the reviewed materialization repair release. The accepted batch releases and accepted repair release contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
+Do not build the unified URL/source dataset for Step 2 until PM decides how to treat the remaining unresolved classes after the reviewed post-repair closure audit. The accepted batch releases and accepted repair release contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
 
 ## Current Boundaries
 
@@ -160,7 +187,7 @@ Do not build the unified URL/source dataset for Step 2 until PM decides how to t
 - Do not use unresolved rows as if they were accepted source evidence.
 - Do not treat `no_candidate_found` as true source failure when eligible historical URL-field/evidence values exist upstream and were not materialized into the current candidate ledger.
 - Do not count source-ledger-resolved-by-other-evidence rows as current-run benchmark recoveries.
-- Do not build the unified Step 2 handoff until the reviewed attrition audit's materialization/provenance corrections are resolved.
+- Do not build the unified Step 2 handoff until PM decides whether the reviewed post-repair unresolved classes are corrected now or explicitly carried forward.
 - Review records for batches 001-040 were produced in their batch worktrees; publishing ignored review artifacts into canonical `process_reviews/` remains a review-stream task, not a project-management task.
 
 ## Where Details Live

@@ -169,9 +169,36 @@ The controlled materialization repair release has passed process review and is a
 
 The active materialization-decision file was cleaned before final review: all 833 rows are `materialized_candidate`, split between 471 `prior_programmatic` and 362 `validated_human_legacy`; the stale all-`not_materialized` file is superseded in attempt history. Columbus State University (`unitid=139366`) is no longer a candidate-materialization failure: 15 rows were materialized and reviewed, then all 15 were invalidated because current retrieval did not confirm the institution match.
 
+## Reviewed Post-Repair Closure Accounting
+
+The post-repair closure audit has passed process review. It combines accepted batches 001-040 with the accepted materialization repair release and does not run live discovery, retrieval, source review, a new production batch, or a Step 2 handoff.
+
+| Closure measure | Institution-years | Institutions |
+|---|---:|---:|
+| Target universe | 23,853 | 1,810 sector memberships |
+| Accepted before repair | 16,345 | 1,475 |
+| Accepted through repair release | 743 | 109 |
+| Combined accepted after repair | 17,088 | 1,561 |
+
+Accepted after repair splits into 4,868 public institution-years and 12,220 private nonprofit institution-years. The accepted provenance split is 2,215 validated human legacy rows, 1,148 prior programmatic rows, 4,563 historical lead rows, and 9,162 unknown/current-only rows.
+
+| Remaining unresolved class after repair | Institution-years |
+|---|---:|
+| True no upstream URL evidence | 4,776 |
+| Historical lead only | 893 |
+| Candidate retrieval failure | 877 |
+| Provenance taxonomy conflict | 125 |
+| Source review rejected wrong institution | 53 |
+| Source review rejected wrong scope/year | 25 |
+| No materializable row | 10 |
+| Source review rejected insufficient evidence | 6 |
+| Candidate materialization failure | 0 |
+
+Public old 411 floor accounting: 391 of the 411 old public baseline institutions are inside the current target universe, 357 are accepted after repair, 34 remain unresolved, 0 are not-yet-selected unresolved, and 20 are outside the current target universe. Columbus State University (`unitid=139366`) remains unresolved after repair with final class `source_review_rejected_wrong_institution`.
+
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases and accepted repair release hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after PM decides how to treat the remaining unresolved classes after the reviewed materialization repair release.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases and accepted repair release hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after PM decides how to treat the remaining unresolved classes after the reviewed post-repair closure audit.
 
 ## Release Locations
 
