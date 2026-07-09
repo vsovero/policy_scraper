@@ -109,11 +109,11 @@ The Step 1 attrition audit over the primary target universe and accepted batches
 | True no upstream URL evidence | 4,776 |
 | Total target institution-years | 23,853 |
 
-The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) remains the required regression example: its 15 target rows are candidate materialization failures with historical URL evidence upstream and zero current candidate, benchmark, or source-ledger rows.
+The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) is the required regression example from the original audit: its 15 target rows had historical URL evidence upstream but zero current candidate, benchmark, or source-ledger rows before the repair path.
 
-Planning interpretation: candidate materialization failure is a real Step 1 process flaw and must be fixed before Step 2 handoff. Failed historical attempts with no URL are no longer counted as dropped URL evidence; they are now part of the true no-upstream-evidence path unless another URL-bearing source exists.
+Planning interpretation: candidate materialization failure is a real Step 1 process flaw. Failed historical attempts with no URL are no longer counted as dropped URL evidence; they are now part of the true no-upstream-evidence path unless another URL-bearing source exists.
 
-## Reviewed Materialization Repair Proof
+## Reviewed Materialization Repair Proof and Release
 
 The Step 1 historical materialization repair proof has passed process review and is now preserved in the main repo. It examined the 1,736 candidate-materialization-failure institution-years from the reviewed attrition audit.
 
@@ -127,19 +127,29 @@ The Step 1 historical materialization repair proof has passed process review and
 
 Planning interpretation: 833 target-year rows have stronger historical URL evidence that can be fed into a controlled materialization repair release with explicit provenance. The 893 imported LLM/programmatic lead-only rows remain a separate historical-lead lane; they should not be relabeled as human legacy or prior accepted evidence. The materialized candidate ledger has 1,726 target-year materializations, not 1,726 unique URL strings, because some multi-year catalog candidates repeat across affected target years.
 
-Columbus State University (`unitid=139366`) is the required regression example: the proof materializes 15 candidate rows with `prior_programmatic` provenance, not human legacy provenance.
+The controlled materialization repair release has passed process review and is accepted as Step 1 URL-stage repair evidence. It selected the 833 stronger-evidence target-year rows across 116 institutions, excluded the 893 imported LLM/programmatic lead-only rows and 10 no-materializable rows, and reran current retrieval/source review/release gates.
+
+| Repair release result | Institution-years |
+|---|---:|
+| Source-ledger rows | 743 |
+| Unresolved rows | 90 |
+| Current-run benchmark recovered | 694 |
+| Invalidated by current review | 90 |
+| Unresolved benchmark misses | 0 |
+
+The active materialization-decision file was cleaned before final review: all 833 rows are `materialized_candidate`, split between 471 `prior_programmatic` and 362 `validated_human_legacy`; the stale all-`not_materialized` file is superseded in attempt history. Columbus State University (`unitid=139366`) is no longer a candidate-materialization failure: 15 rows were materialized and reviewed, then all 15 were invalidated because current retrieval did not confirm the institution match.
 
 Full batch-by-batch reporting is in `artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/prior_discovery_source_reconstruction_rollup/README.md`.
 
 ## Next Action
 
-Packet 037-040 has passed process review. The Step 1 attrition audit 001-040 and the historical materialization repair proof have also passed process review.
+Packet 037-040 has passed process review. The Step 1 attrition audit 001-040, historical materialization repair proof, and controlled materialization repair release have also passed process review.
 
-Recommended next move: build and review a controlled materialization repair release for the 833 stronger-evidence target-year rows, then decide separately how to queue the 893 imported LLM/programmatic lead-only rows. Do not resume ordinary historical-lead packet expansion or build the Step 2 handoff until PM decides how materialization failures, provenance conflicts, and retrieval/review failures will be corrected or explicitly carried forward.
+Recommended next move: decide the next queue explicitly. The stronger-evidence materialization repair is accepted; remaining Step 1 work is to decide how to handle the 893 imported LLM/programmatic lead-only rows, provenance conflicts, retrieval/review failures, and true no-upstream-evidence rows. Do not build the Step 2 handoff until PM decides which remaining unresolved classes are corrected now versus explicitly carried forward.
 
 ## Step 2 Handoff Decision
 
-Do not build the unified URL/source dataset for Step 2 until the reviewed attrition audit's candidate-materialization and provenance corrections are resolved through a reviewed repair release or explicitly carried forward. The accepted batch releases currently contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
+Do not build the unified URL/source dataset for Step 2 until PM decides how to treat the remaining unresolved classes after the reviewed materialization repair release. The accepted batch releases and accepted repair release contain useful source-ledger pieces, but the canonical main repo does not yet contain a consolidated Step 2 input table.
 
 ## Current Boundaries
 

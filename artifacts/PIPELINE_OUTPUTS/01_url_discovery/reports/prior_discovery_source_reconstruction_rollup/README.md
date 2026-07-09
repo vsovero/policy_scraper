@@ -137,11 +137,11 @@ The Step 1 attrition audit over the primary target universe and accepted batches
 | True no upstream URL evidence | 4,776 |
 | Total target institution-years | 23,853 |
 
-The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) is the required regression example: raw public legacy and historical inventory contain catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its 15 target rows `no_candidate_found`.
+The secondary `dropped_historical_url_evidence` count is 1,736. Process review notes that this means historical URL-field/evidence values, not necessarily strict fetchable `http(s)` URLs; 26 of those rows contain legacy filename/title-style values. Columbus State University (`unitid=139366`) is the required regression example from the original audit: raw public legacy and historical inventory contained catalog URL evidence, but batch 005 had no `benchmark_key.csv` or `candidate_url_ledger.csv` rows for the institution and therefore marked its 15 target rows `no_candidate_found`.
 
 Required hard-gate implication: a selected institution with eligible historical URL-field/evidence values cannot silently end with an empty candidate ledger and `no_candidate_found`; it must either materialize that evidence as a current candidate with correct provenance or record a specific exclusion reason.
 
-## Reviewed Materialization Repair Proof
+## Reviewed Materialization Repair Proof and Release
 
 The Step 1 historical materialization repair proof has passed process review and is preserved in the main repo. It examined all 1,736 candidate-materialization-failure institution-years from the reviewed attrition audit.
 
@@ -155,11 +155,23 @@ The Step 1 historical materialization repair proof has passed process review and
 
 The proof supports a controlled repair path, not automatic promotion. The 833 true-human/prior-programmatic target-year rows have stronger historical URL evidence that can be materialized with explicit provenance and then rerun through current retrieval/review/release gates. The 893 imported LLM/programmatic lead-only rows remain historical-lead candidates and must not be relabeled as human legacy or prior accepted evidence.
 
-Planning caveat: the materialized candidate ledger has 1,726 target-year materializations, not 1,726 unique URL strings, because some multi-year catalog candidates repeat across affected target years. Columbus State University (`unitid=139366`) is the required regression example: the proof materializes 15 candidate rows with `prior_programmatic` provenance.
+Planning caveat: the materialized candidate ledger has 1,726 target-year materializations, not 1,726 unique URL strings, because some multi-year catalog candidates repeat across affected target years.
+
+The controlled materialization repair release has passed process review and is accepted as Step 1 URL-stage repair evidence. It selected the 833 stronger-evidence target-year rows across 116 institutions, excluded the 893 imported LLM/programmatic lead-only rows and 10 no-materializable rows, and reran current retrieval/source review/release gates.
+
+| Repair release result | Institution-years |
+|---|---:|
+| Source-ledger rows | 743 |
+| Unresolved rows | 90 |
+| Current-run benchmark recovered | 694 |
+| Invalidated by current review | 90 |
+| Unresolved benchmark misses | 0 |
+
+The active materialization-decision file was cleaned before final review: all 833 rows are `materialized_candidate`, split between 471 `prior_programmatic` and 362 `validated_human_legacy`; the stale all-`not_materialized` file is superseded in attempt history. Columbus State University (`unitid=139366`) is no longer a candidate-materialization failure: 15 rows were materialized and reviewed, then all 15 were invalidated because current retrieval did not confirm the institution match.
 
 ## Step 2 Handoff Status
 
-No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after the reviewed attrition audit's candidate-materialization and provenance corrections are resolved through a reviewed repair release or explicitly carried forward.
+No unified Step 2 URL/source handoff table has been built yet. The reviewed batch releases and accepted repair release hold the current source-ledger pieces. Build the consolidated Step 2 handoff only after PM decides how to treat the remaining unresolved classes after the reviewed materialization repair release.
 
 ## Release Locations
 
