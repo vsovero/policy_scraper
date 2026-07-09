@@ -78,18 +78,17 @@ The human-legacy benchmark did not disappear, but it is a diagnostic inside the 
 | Private nonprofit | 254 | 188 | 3,748 | 1,737 | 176 | 1,326 | 1,136 | 189 | 1 | 0 | 85.7% | 100.0% |
 | Total | 555 | 400 | 8,061 | 3,725 | 346 | 1,743 | 1,516 | 226 | 1 | 0 | 87.0% | 100.0% |
 
-Old public `411` diagnostic: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public baseline table. They include 268 institutions from the old 411 and 33 public institutions outside that baseline-2002 representativeness set. The old 411 therefore has to be reconciled directly, but it should not be treated as the Step 1 target universe:
+Post-repair old public `411` diagnostic: the `301` public valid-human-legacy targeted institutions above are not a pure subset of the old 411 public baseline table. They include 268 institutions from the old 411 and 33 public institutions outside that baseline-2002 representativeness set. The old 411 therefore has to be reconciled directly, but it should not be treated as the Step 1 target universe. The current reviewed disposition is:
 
-| Old 411 public-floor disposition | Institutions |
+| Old 411 public-floor disposition after repair | Institutions |
 |---|---:|
-| Valid-human-legacy lane, accepted source row | 185 |
-| Valid-human-legacy lane, targeted but no accepted source row | 83 |
-| Historical/programmatic lead lane, accepted source row | 2 |
-| Historical/programmatic lead lane, targeted but no accepted source row | 3 |
-| Not yet selected in accepted Step 1 packets | 138 |
+| Accepted before repair | 304 |
+| Newly accepted through materialization repair | 53 |
+| Still unresolved inside current target universe | 34 |
+| Outside current target universe | 20 |
 | Total old public baseline subset | 411 |
 
-Interpretation: the reviewed public benchmark rows themselves have `0` unresolved misses and raw row recovery above 90%, but that does not establish recovery of the target universe. Within the old 411 public baseline subset, only 187 institutions currently have an accepted Step 1 source row in accepted packets: 185 through the valid-human-legacy lane and 2 through the historical/programmatic lead lane. Another 86 were targeted but remain unresolved, and 138 old-baseline institutions have not yet been selected in accepted Step 1 packets.
+Interpretation: the reviewed public benchmark rows themselves have `0` unresolved misses and raw row recovery above 90%, but that does not establish recovery of the full Step 1 target universe. Within the old 411 public baseline subset, 391 institutions are inside the current target universe, 357 have accepted Step 1 source evidence after repair, 34 remain unresolved, and 0 are not-yet-selected unresolved. The remaining 20 old-baseline institutions are outside the current target universe definition.
 
 The older generated artifacts still require a provenance relabel/audit before journal-stage use because some pre-taxonomy outputs have blank row-level `legacy_input_provenance`; the table above uses the batch selection metadata to classify the accepted artifacts for management reporting.
 
