@@ -56,14 +56,17 @@ REVIEW_DOC_PATTERNS = [
 ]
 
 INTEGRATION_CODE_PATTERNS = [
+    "src/course_policy/codex_scope_guard.py",
     "src/course_policy/step1_production_runner.py",
     "src/course_policy/step1_production_input_builder.py",
     "src/course_policy/step1_proof_to_scale_url_production.py",
     "src/course_policy/step1_attrition_audit.py",
+    "src/course_policy/step1_post_repair_closure_audit.py",
     "src/course_policy/production_release_url_stage.py",
     "src/course_policy/production_quality_gate.py",
     "src/course_policy/production_namespace.py",
     "src/course_policy/production_streams.py",
+    "tests/test_codex_testing_write_scope.py",
     "tests/test_step1_*.py",
     "tests/test_production_*.py",
 ]
@@ -72,6 +75,9 @@ INTEGRATION_OUTPUT_PATTERNS = [
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.csv",
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.json",
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/STEP1_ATTRITION_AUDIT_REPORT.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/*.csv",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/*.json",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/STEP1_POST_REPAIR_CLOSURE_AUDIT_REPORT.md",
 ]
 
 BUILD_CODE_PATTERNS = [

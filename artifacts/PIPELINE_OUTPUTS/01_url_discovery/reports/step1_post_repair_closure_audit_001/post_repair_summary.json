@@ -1,0 +1,143 @@
+{
+  "accepted_after_repair": {
+    "accepted_before_repair": {
+      "institution_years": 16345,
+      "institutions": 1475
+    },
+    "combined_accepted": {
+      "institution_years": 17088,
+      "institutions": 1561
+    },
+    "combined_accepted_by_provenance_institutions": {
+      "historical_lead": 490,
+      "prior_programmatic": 149,
+      "unknown_or_current_only": 819,
+      "validated_human_legacy": 494
+    },
+    "combined_accepted_by_provenance_rows": {
+      "historical_lead": 4563,
+      "prior_programmatic": 1148,
+      "unknown_or_current_only": 9162,
+      "validated_human_legacy": 2215
+    },
+    "combined_accepted_by_sector_institutions": {
+      "private": 1102,
+      "public": 460
+    },
+    "combined_accepted_by_sector_rows": {
+      "private": 12220,
+      "public": 4868
+    },
+    "repair_benchmark_current_run_recovered_rows": 694,
+    "repair_benchmark_resolved_by_other_evidence_rows": 49,
+    "repair_source_accept_exact_year_catalog_rows": 704,
+    "repair_source_ledger": {
+      "institution_years": 743,
+      "institutions": 109
+    },
+    "repair_source_needs_text_validation_rows": 39
+  },
+  "columbus_state": {
+    "closure_class_counts": {
+      "source_review_rejected_wrong_institution": 15
+    },
+    "current_final_closure_class": "source_review_rejected_wrong_institution",
+    "no_longer_candidate_materialization_failure": true,
+    "repair_source_ledger_rows": 0,
+    "repair_target_rows": 15,
+    "repair_unresolved_rows": 15,
+    "unitid": 139366,
+    "year_rows": 15
+  },
+  "input_attrition_audit_dir": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040",
+  "output_dir": "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001",
+  "public_411_floor": {
+    "accepted_after_repair": 357,
+    "accepted_before_repair": 304,
+    "baseline_old_public_411_institutions": 411,
+    "inside_target_universe": 391,
+    "newly_accepted_through_repair": 53,
+    "not_yet_selected_unresolved_after_repair": 0,
+    "outside_target_universe": 20,
+    "short_of_all_411_baseline": 54,
+    "short_of_inside_target_floor": 34,
+    "still_unresolved_after_repair": 34
+  },
+  "remaining_unresolved_after_repair": {
+    "any_remaining_candidate_materialization_failures": 0,
+    "closure_class_counts": {
+      "accepted_source_row": 0,
+      "candidate_materialization_failure": 0,
+      "candidate_retrieval_failure": 877,
+      "historical_lead_only": 893,
+      "needs_text_validation": 0,
+      "no_materializable_row": 10,
+      "not_selected_yet": 0,
+      "provenance_taxonomy_conflict": 125,
+      "source_review_rejected_insufficient_evidence": 6,
+      "source_review_rejected_wrong_institution": 53,
+      "source_review_rejected_wrong_scope_or_year": 25,
+      "true_no_upstream_url_evidence": 4776,
+      "unresolved_unclassified": 0
+    },
+    "closure_class_institution_counts": {
+      "accepted_source_row": 0,
+      "candidate_materialization_failure": 0,
+      "candidate_retrieval_failure": 162,
+      "historical_lead_only": 129,
+      "needs_text_validation": 0,
+      "no_materializable_row": 5,
+      "not_selected_yet": 0,
+      "provenance_taxonomy_conflict": 25,
+      "source_review_rejected_insufficient_evidence": 2,
+      "source_review_rejected_wrong_institution": 10,
+      "source_review_rejected_wrong_scope_or_year": 6,
+      "true_no_upstream_url_evidence": 603,
+      "unresolved_unclassified": 0
+    },
+    "source_review_failure_institutions": 18,
+    "source_review_failure_rows": 84,
+    "total": {
+      "institution_years": 6765,
+      "institutions": 705
+    }
+  },
+  "repair_artifacts": {
+    "chunk_dir": "policy_scraper_worktrees/completed/policy_scraper_step1_materialization_repair_release_001/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_chunks/production_chunk_step1_materialization_repair_release_001",
+    "input_dir": "policy_scraper_worktrees/completed/policy_scraper_step1_materialization_repair_release_001/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_inputs/step1_materialization_repair_release_001",
+    "proof_dir": "policy_scraper_worktrees/completed/policy_scraper_step1_materialization_repair_release_001/artifacts/PIPELINE_OUTPUTS/01_url_discovery/build_reports/step1_historical_materialization_repair",
+    "release_dir": "policy_scraper_worktrees/completed/policy_scraper_step1_materialization_repair_release_001/artifacts/PIPELINE_OUTPUTS/01_url_discovery/production_releases/production_release_step1_materialization_repair_release_001"
+  },
+  "target_universe_counts": {
+    "old_public_411_diagnostic": {
+      "accepted_source_in_target": 304,
+      "inside_target_universe": 391,
+      "institutions": 411,
+      "not_selected_in_target": 0,
+      "outside_target_universe": 20,
+      "selected_unresolved_in_target": 87
+    },
+    "private": {
+      "institutions": 1233,
+      "membership_complete_institution_years": 15918,
+      "never_collected_policy_institutions": 990,
+      "old_collected_policy_institutions": 243,
+      "sector_specific_complete_years": 15916
+    },
+    "public": {
+      "institutions": 577,
+      "membership_complete_institution_years": 7941,
+      "never_collected_policy_institutions": 150,
+      "old_collected_policy_institutions": 427,
+      "sector_specific_complete_years": 7937
+    },
+    "total": {
+      "never_collected_policy_institutions": 1140,
+      "old_collected_policy_institutions": 670,
+      "sector_institution_memberships": 1810,
+      "unique_complete_institution_years": 23853,
+      "unique_institutions": 1809
+    }
+  },
+  "target_universe_expected_count_match": true
+}

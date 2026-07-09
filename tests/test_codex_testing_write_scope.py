@@ -77,14 +77,17 @@ REVIEW_DOC_PATTERNS = [
 ]
 
 INTEGRATION_CODE_PATTERNS = [
+    "src/course_policy/codex_scope_guard.py",
     "src/course_policy/step1_production_runner.py",
     "src/course_policy/step1_production_input_builder.py",
     "src/course_policy/step1_proof_to_scale_url_production.py",
     "src/course_policy/step1_attrition_audit.py",
+    "src/course_policy/step1_post_repair_closure_audit.py",
     "src/course_policy/production_release_url_stage.py",
     "src/course_policy/production_quality_gate.py",
     "src/course_policy/production_namespace.py",
     "src/course_policy/production_streams.py",
+    "tests/test_codex_testing_write_scope.py",
     "tests/test_step1_*.py",
     "tests/test_production_*.py",
 ]
@@ -93,6 +96,9 @@ INTEGRATION_OUTPUT_PATTERNS = [
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.csv",
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/*.json",
     "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/STEP1_ATTRITION_AUDIT_REPORT.md",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/*.csv",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/*.json",
+    "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/STEP1_POST_REPAIR_CLOSURE_AUDIT_REPORT.md",
 ]
 
 BUILD_CODE_PATTERNS = [
@@ -309,11 +315,31 @@ def test_write_scope_patterns_protect_status_and_allow_run_local_reports() -> No
         INTEGRATION_CODE_PATTERNS,
     )
     assert _matches_any(
+        "src/course_policy/step1_post_repair_closure_audit.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "src/course_policy/codex_scope_guard.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
+        "tests/test_codex_testing_write_scope.py",
+        INTEGRATION_CODE_PATTERNS,
+    )
+    assert _matches_any(
         "tests/test_production_release_url_stage.py",
         INTEGRATION_CODE_PATTERNS,
     )
     assert _matches_any(
         "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_attrition_audit_001_040/institution_attrition_ledger.csv",
+        INTEGRATION_OUTPUT_PATTERNS,
+    )
+    assert _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/institution_closure_ledger.csv",
+        INTEGRATION_OUTPUT_PATTERNS,
+    )
+    assert _matches_any(
+        "artifacts/PIPELINE_OUTPUTS/01_url_discovery/reports/step1_post_repair_closure_audit_001/STEP1_POST_REPAIR_CLOSURE_AUDIT_REPORT.md",
         INTEGRATION_OUTPUT_PATTERNS,
     )
     assert not _matches_any(
